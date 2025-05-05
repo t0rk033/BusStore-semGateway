@@ -1,0 +1,5 @@
+1 - Acompanhar compra no perfil do usuario
+2 - Adicionar tela de erros quando cartão não for aprovado
+3 - ver se será frete gratis para compras a cima de um determiando valor
+4 - Botão de favoritos funcional
+5 - 

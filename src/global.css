@@ -1,0 +1,45 @@
+/* Variáveis de cores e fontes */
+:root {
+    --primary-color: #1F3C68; /* Azul principal */
+    --secondary-color: #F7A511; /* Laranja principal */
+    --green: #34A853;
+    --accent-color: #4A6FA5; /* Azul claro */
+    --highlight-color: #FFC55A; /* Laranja claro */
+    --background-color: #F8F9FA; /* Cinza claro */
+    --text-color: #333333; /* Cinza escuro */
+    --white: #FFFFFF; /* Branco */
+  }
+  
+  /* Estilos globais */
+  body {
+    font-family: 'Inter','Poppins', sans-serif;
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-color);
+  }
+  
+  h1, h2, h3 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+  
+  h1 {
+    font-size: 3.5rem;
+    line-height: 1.2;
+  }
+  
+  h2 {
+    font-size: 2.5rem;
+  }
+  
+  h3 {
+    font-size: 1.8rem;
+  }
+  
+  p {
+    font-size: 1.1rem;
+    color: var(--text-color);
+  }

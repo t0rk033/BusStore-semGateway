@@ -1,0 +1,153 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 6vh;
+  padding-right: 6vh;
+  height: 12vh;
+ 
+}
+
+.logo {
+  width: 14vh;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 3vh;
+  font-weight: bold;
+  font-size: 22px;
+}
+
+.navLinks a {
+  color: var(--white);
+  text-decoration: none;
+}
+
+.navLinks a:hover {
+  color: var(--primary-color);
+}
+
+.navLinks {
+  list-style: none;
+}
+
+.account {
+  background-color: var(--secondary-color);
+  padding: 8px;
+  width: 150px;
+  color: var(--white);
+  border-radius: 8vh;
+  text-align: center;
+  transition: 0.5s;
+}
+
+.account:hover {
+  background-color: var(--primary-color);
+  transition: 0.5s;
+}
+
+.navbarmain {
+  background-color: transparent;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+}
+
+.logoutButton {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.logoutButton:hover {
+  text-decoration: underline;
+}
+
+.navbarmain {
+  background-color: transparent;
+  transition: background-color 0.3s ease;
+}
+
+.blackbar {
+  background-color: black;
+  box-shadow: 1px 4px 6px white !important;
+}
+
+.navbarmain.scrolled .navLinks a {
+  color: var(--white);
+}
+
+.navbarmain.scrolled .account {
+  background-color: var(--secondary-color);
+  color: black;
+}
+
+.navbarmain.scrolled .logoutButton {
+  color: black;
+  text-align: center !important;
+}
+
+.navbarmain.scrolled .logoutButton:hover {
+  text-decoration: underline;
+}
+.menuIcon{
+  display: none;
+}
+
+/* Media Queries para dispositivos móveis */
+@media (max-width: 768px) {
+  .navbar {
+      padding-left: 3vh;
+      padding-right: 3vh;
+  }
+
+  .logo {
+      width: 12vh;
+  }
+
+  .navLinks {
+      display: none; /* Esconde os links em telas menores */
+      flex-direction: column;
+      gap: 2vh;
+      position: absolute;
+      top: 10vh;
+      right: 3vh;
+      background-color: var(--primary-color);
+      padding: 2vh;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .navLinks.open {
+      display: flex; /* Mostra os links quando o menu está aberto */
+  }
+
+  .navLinks a {
+      color: var(--white);
+      font-size: 18px;
+  }
+
+  .account {
+      width: 120px;
+      font-size: 18px;
+  }
+
+  .menuIcon {
+      display: block; /* Mostra o ícone do menu de hambúrguer */
+      cursor: pointer;
+      font-size: 24px;
+      color: var(--white);
+  }
+
+  .menuIcon:hover {
+      color: var(--primary-color);
+  }
+}

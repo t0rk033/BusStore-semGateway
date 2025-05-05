@@ -1,0 +1,203 @@
+:root {
+    --primary-color: #1F3C68;
+    --secondary-color: #F7A511;
+    --accent-color: #4A6FA5;
+    --background-color: #F8F9FA;
+    --text-color: #333333;
+    --white: #FFFFFF;
+    --success: #34A853;
+    --error: #EA4335;
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--background-color);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  
+  .signupContainer {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+  }
+  
+  .signupBox {
+    background: var(--white);
+    padding: 2.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    max-width: 800px;
+    width: 100%;
+    transition: transform 0.3s ease;
+  }
+  
+  .signupBox:hover {
+    transform: translateY(-2px);
+  }
+  
+  .title {
+    font-size: 2.2rem;
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  
+  .fieldset {
+    border: 2px solid var(--accent-color);
+    border-radius: 0.8rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  
+  .legend {
+    position: absolute;
+    top: -0.9rem;
+    left: 1.5rem;
+    background: var(--white);
+    padding: 0 0.5rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  
+  .addressGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.2rem;
+    margin-top: 1rem;
+  }
+  
+  .inputGroup {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  
+  .icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent-color);
+    z-index: 1;
+  }
+  
+  .input {
+    width: 100%;
+    padding: 1rem 1rem 1rem 3rem;
+    border: 2px solid var(--accent-color);
+    border-radius: 0.6rem;
+    font-size: 1rem;
+    background: var(--background-color);
+    transition: all 0.3s ease;
+  }
+  
+  .input:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(247, 165, 17, 0.2);
+    background: var(--white);
+  }
+  
+  .loadingCep {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--accent-color);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .error {
+    color: var(--error);
+    font-size: 0.85rem;
+    margin-top: 0.3rem;
+    display: block;
+    font-weight: 500;
+  }
+  
+  .termsGroup {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border-radius: 0.6rem;
+    background: rgba(247, 165, 17, 0.1);
+    border: 2px solid var(--secondary-color);
+  }
+  
+  .termsLink {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px dotted currentColor;
+  }
+  
+  .termsLink:hover {
+    color: var(--secondary-color);
+  }
+  
+  .button {
+    width: 100%;
+    padding: 1.2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--white);
+    background: linear-gradient(135deg, var(--secondary-color), var(--highlight-color));
+    border: none;
+    border-radius: 0.6rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .button::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, 
+      transparent, 
+      rgba(255,255,255,0.2), 
+      transparent);
+    transform: rotate(45deg);
+    transition: all 0.5s ease;
+  }
+  
+  .button:hover::after {
+    left: 150%;
+  }
+  
+  .button:disabled {
+    background: var(--accent-color);
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  /* Responsividade */
+  @media (max-width: 768px) {
+    .signupBox {
+      padding: 1.5rem;
+    }
+    
+    .addressGrid {
+      grid-template-columns: 1fr;
+    }
+    
+    .input {
+      padding-left: 2.5rem;
+    }
+  }

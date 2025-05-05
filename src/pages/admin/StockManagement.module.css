@@ -1,0 +1,80 @@
+@media print {
+    /* Esconde elementos que não devem ser impressos */
+    .no-print {
+      display: none;
+    }
+  
+    /* Ajusta o layout para impressão */
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  
+    /* Estilo específico para o conteúdo do pedido */
+    .printable-content {
+      padding: 20px;
+      border: 1px solid #ccc;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 800px;
+    }
+  
+    /* Ajusta o tamanho da fonte para impressão */
+    .printable-content h6 {
+      font-size: 18px;
+    }
+  
+    .printable-content p {
+      font-size: 14px;
+    }
+  }
+
+  .imageContainer:hover .deleteButton {
+    opacity: 1;
+  }
+  
+  .deleteButton {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Estilo personalizado para a barra de rolagem */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+  @media print {
+    .printable-content::before {
+      content: "Detalhes do Pedido";
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      display: block;
+      margin-bottom: 20px;
+    }
+  
+    .printable-content::after {
+      content: "Obrigado por escolher nossa loja!";
+      font-size: 14px;
+      text-align: center;
+      display: block;
+      margin-top: 20px;
+    }
+  }

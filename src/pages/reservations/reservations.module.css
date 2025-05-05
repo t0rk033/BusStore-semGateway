@@ -1,0 +1,101 @@
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    background-color: var(--white);
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .title {
+    font-size: 2rem;
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .calendarContainer {
+    margin-bottom: 1.5rem;
+  }
+  
+  .calendar {
+    width: 100%;
+    border: 1px solid var(--accent-color);
+    border-radius: 5px;
+    background-color: var(--background-color);
+  }
+  
+  .timePickerContainer {
+    margin-bottom: 1.5rem;
+  }
+  
+  .timePicker {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--accent-color);
+    border-radius: 5px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+  }
+  
+  .formGroup {
+    margin-bottom: 1.5rem;
+  }
+  
+  .label {
+    display: block;
+    font-size: 1rem;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+  }
+  
+  .input,
+  .select,
+  .textarea {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--accent-color);
+    border-radius: 5px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    transition: border-color 0.3s ease;
+  }
+  
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    border-color: var(--secondary-color);
+    outline: none;
+  }
+  
+  .select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UT…%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+  }
+  
+  .textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+  
+  .button {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--white);
+    background-color: var(--secondary-color);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .button:hover {
+    background-color: var(--highlight-color);
+  }
