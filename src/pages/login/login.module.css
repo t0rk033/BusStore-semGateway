@@ -150,3 +150,74 @@
   .signupLink:hover {
     text-decoration: underline;
   }
+  /* Estilos para o link de esqueceu a senha */
+.forgotPassword {
+  text-align: right;
+  margin: -10px 0 15px 0;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.forgotPassword:hover {
+  color: #333;
+  text-decoration: underline;
+}
+
+/* Estilos para o modal de recuperação de senha */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.modal p {
+  margin-bottom: 1rem;
+}
+
+.modalButtons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.secondaryButton {
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.secondaryButton:hover {
+  background-color: #e0e0e0;
+}
+
+.success {
+  color: green;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}

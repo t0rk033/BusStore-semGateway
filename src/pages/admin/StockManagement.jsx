@@ -113,6 +113,28 @@ function StockManagement() {
   const [notes, setNotes] = useState({});
   const [deliveredSales, setDeliveredSales] = useState([]);
 
+  const [currentPage, setCurrentPage] = useState(1); // Página atual
+  const itemsPerPage = 6; // Número de itens por página
+
+  // Calcula os produtos exibidos com base na página atual
+  const filteredProducts = products.filter((product) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      product.name.toLowerCase().includes(query) ||
+      product.sku.toLowerCase().includes(query) ||
+      product.category.toLowerCase().includes(query)
+    );
+  });
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Função para mudar de página
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
   const handleNoteChange = (id, value) => {
     setNotes((prev) => ({ ...prev, [id]: value }));
   };
@@ -533,14 +555,18 @@ function StockManagement() {
   // Função para mover uma venda de "Solicitada" para "Pendente"
   const confirmRequestedSale = async (saleId) => {
     try {
+      // Atualiza o status da venda para "Pendente"
       await updateDoc(doc(db, "sales", saleId), { status: "Pendente" });
-      setRequestedSales((prev) =>
-        prev.filter((sale) => sale.id !== saleId)
-      );
-      setSales((prev) => [
-        ...prev,
-        { ...requestedSales.find((sale) => sale.id === saleId), status: "Pendente" },
-      ]);
+
+      // Remove a venda da lista de solicitadas
+      const confirmedSale = requestedSales.find((sale) => sale.id === saleId);
+      setRequestedSales((prev) => prev.filter((sale) => sale.id !== saleId));
+
+      // Adiciona a venda à lista de pendentes
+      setSales((prev) => [...prev, { ...confirmedSale, status: "Pendente" }]);
+
+      // Atualiza o total de vendas
+      setTotalSales((prevTotal) => prevTotal + confirmedSale.total);
     } catch (error) {
       console.error("Erro ao confirmar solicitação:", error);
     }
@@ -678,15 +704,17 @@ function StockManagement() {
                     Gestão de Estoque
                   </Typography>
                 </Box>
+              </Box>
+
+              {/* Barra de pesquisa abaixo do título */}
+              <Box sx={{ mb: 4 }}>
                 <TextField
                   variant="outlined"
-                  placeholder="Pesquisar produtos..."
+                  placeholder="Pesquisar produtos por nome, SKU ou categoria..."
                   InputProps={{
-                    startAdornment: (
-                      <Search sx={{ color: "action.active", mr: 1 }} />
-                    ),
+                    startAdornment: <Search sx={{ color: "action.active", mr: 1 }} />,
                   }}
-                  sx={{ width: 300 }}
+                  sx={{ width: "100%" }}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -1295,7 +1323,7 @@ function StockManagement() {
                   </Typography>
 
                   <Grid container spacing={3}>
-                    {products.map((product) => {
+                    {currentProducts.map((product) => {
                       const totalStock = product.variations?.reduce(
                         (acc, curr) => acc + (curr.stock || 0),
                         0
@@ -1427,6 +1455,30 @@ function StockManagement() {
                       );
                     })}
                   </Grid>
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      sx={{ mx: 1 }}
+                    >
+                      Anterior
+                    </Button>
+                    <Typography variant="body1" sx={{ mx: 2 }}>
+                      Página {currentPage} de{" "}
+                      {Math.ceil(products.length / itemsPerPage)}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={
+                        currentPage === Math.ceil(products.length / itemsPerPage)
+                      }
+                      sx={{ mx: 1 }}
+                    >
+                      Próxima
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </>

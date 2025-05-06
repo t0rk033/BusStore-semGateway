@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaUser, FaLock, FaGoogle, FaFacebook } from 'react-icons/fa';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, googleProvider, facebookProvider } from '../../firebase';
 import styles from './login.module.css';
 import NavBar from '../../components/NavBar';
@@ -11,6 +11,9 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
 
   // Função para login com email/senha
   const handleLogin = async (e) => {
@@ -51,6 +54,27 @@ function Login() {
     }
   };
 
+  // Função para enviar email de redefinição de senha
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      setResetMessage('Por favor, insira seu email.');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetMessage(`Email de redefinição enviado para ${resetEmail}. Verifique sua caixa de entrada.`);
+      setTimeout(() => {
+        setShowResetModal(false);
+        setResetMessage('');
+        setResetEmail('');
+      }, 3000);
+    } catch (err) {
+      setResetMessage('Erro ao enviar email de redefinição. Verifique se o email está correto.');
+      console.error(err);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <NavBar />
@@ -83,6 +107,11 @@ function Login() {
                 required
               />
             </div>
+
+            {/* Link para recuperação de senha */}
+            <p className={styles.forgotPassword} onClick={() => setShowResetModal(true)}>
+              Esqueceu sua senha?
+            </p>
 
             {/* Mensagem de Erro */}
             {error && <p className={styles.error}>{error}</p>}
@@ -118,13 +147,42 @@ function Login() {
             </div>
 
             {/* Link para Cadastro */}
-            <p clasbsName={styles.signupText}>
+            <p className={styles.signupText}>
               Não tem uma conta? <Link to="/registro" className={styles.signupLink}>Cadastre-se</Link>
             </p>
           </form>
         </div>
       </div>
       <Footer />
+
+      {/* Modal de recuperação de senha */}
+      {showResetModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h2>Redefinir Senha</h2>
+            <p>Digite seu email para receber o link de redefinição:</p>
+            <input
+              type="email"
+              placeholder="Seu email"
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              className={styles.input}
+            />
+            {resetMessage && <p className={resetMessage.includes('Erro') ? styles.error : styles.success}>{resetMessage}</p>}
+            <div className={styles.modalButtons}>
+              <button onClick={handlePasswordReset} className={styles.button}>
+                Enviar
+              </button>
+              <button onClick={() => {
+                setShowResetModal(false);
+                setResetMessage('');
+              }} className={styles.secondaryButton}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

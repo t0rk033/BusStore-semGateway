@@ -1,5 +1,6 @@
 import React from 'react'
 import styles from './Footer.module.css'
+import { Link } from 'react-router-dom'
 
 function Footer() {
   return (
@@ -16,14 +17,14 @@ function Footer() {
         <h4>Links Úteis</h4>
         <ul>
           <li>
-            <a href="#home">Início</a>
+             <Link to='/'>Inicio</Link>
           </li>
-          <li>
+          {/* <li>
             <a href="#about">Sobre</a>
           </li>
           <li>
             <a href="#services">Serviços</a>
-          </li>
+          </li> */}
           <li>
             <a href="#contact">Contato</a>
           </li>
