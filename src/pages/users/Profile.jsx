@@ -168,8 +168,8 @@ function Profile() {
                 icon={<FaEnvelope />}
                 label="E-mail"
                 name="email"
-                value={userData.email}
-                editing={isEditing}
+                value={user.email} // Puxa o e-mail diretamente do Firebase Authentication
+                editing={false} // O e-mail não deve ser editável
                 onChange={handleChange}
                 type="email"
               />

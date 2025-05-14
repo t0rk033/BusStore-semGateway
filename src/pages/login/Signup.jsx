@@ -176,6 +176,7 @@ function Signup() {
           complement: formData.complement,
           neighborhood: formData.neighborhood,
           city: formData.city,
+          role:'user',
           state: formData.state,
           zipCode: formData.zipCode.replace(/\D/g, '')
         },

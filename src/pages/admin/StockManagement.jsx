@@ -21,6 +21,8 @@ import {
   Select,
   MenuItem,
   useMediaQuery,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import ContactsIcon from "@mui/icons-material/Contacts";
@@ -62,10 +64,12 @@ import ShippedOrders from "./ShippedOrders";
 import SalesStockReports from "./SalesStockReports";
 import styles from "./StockManagement.module.css";
 import ImageUpload from "../../components/ImageUpload";
+import BarcodeScanner from "./BarcodeScanner";
 
 function StockManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [activeTab, setActiveTab] = useState("products"); // Aba ativa
   const [activeView, setActiveView] = useState("products");
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
@@ -115,6 +119,42 @@ function StockManagement() {
 
   const [currentPage, setCurrentPage] = useState(1); // Página atual
   const itemsPerPage = 6; // Número de itens por página
+
+  const [users, setUsers] = useState([]); // Lista de usuários
+
+  // Função para buscar usuários do Firestore
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        const usersData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setUsers(usersData);
+      } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Função para promover um usuário a admin
+  const makeAdmin = async (userId) => {
+    try {
+      await updateDoc(doc(db, "users", userId), { role: "admin" });
+      alert("Usuário promovido a admin com sucesso!");
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, role: "admin" } : user
+        )
+      );
+    } catch (error) {
+      console.error("Erro ao promover usuário:", error);
+      alert("Erro ao promover usuário.");
+    }
+  };
 
   // Calcula os produtos exibidos com base na página atual
   const filteredProducts = products.filter((product) => {
@@ -459,6 +499,10 @@ function StockManagement() {
     });
   };
 
+  const handleBarcodeScan = (barcode) => {
+    setNewProduct((prev) => ({ ...prev, barcode }));
+  };
+
   // =================== Supplier Functions ===================
   const handleSupplierInputChange = (e) => {
     const { name, value } = e.target;
@@ -678,1413 +722,1504 @@ function StockManagement() {
             "& .MuiPaper-root": { borderRadius: 4 },
           }}
         >
-          {activeView === "products" && (
-            <>
-              {/* Seção de Produtos */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 4,
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Inventory
-                    sx={{
-                      fontSize: 40,
-                      color: theme.palette.primary.main,
-                      bgcolor: theme.palette.primary.light,
-                      p: 1.5,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <Typography variant="h4" fontWeight="700">
-                    Gestão de Estoque
-                  </Typography>
-                </Box>
-              </Box>
+          <Tabs
+            value={activeTab}
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            textColor="primary"
+            indicatorColor="primary"
+          >
+            <Tab value="products" label="Produtos" />
+            <Tab value="users" label="Usuários" />
+          </Tabs>
 
-              {/* Barra de pesquisa abaixo do título */}
-              <Box sx={{ mb: 4 }}>
-                <TextField
-                  variant="outlined"
-                  placeholder="Pesquisar produtos por nome, SKU ou categoria..."
-                  InputProps={{
-                    startAdornment: <Search sx={{ color: "action.active", mr: 1 }} />,
-                  }}
-                  sx={{ width: "100%" }}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </Box>
+          <Box sx={{ mt: 4 }}>
+            {activeTab === "products" && (
+              <>
+                {activeView === "products" && (
+                  <>
+                    {/* Seção de Produtos */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Inventory
+                          sx={{
+                            fontSize: 40,
+                            color: theme.palette.primary.main,
+                            bgcolor: theme.palette.primary.light,
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Gestão de Estoque
+                        </Typography>
+                      </Box>
+                    </Box>
 
-              {/* Stats Cards */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-  {[
-    {
-      icon: <TrendingUp sx={{ fontSize: 40, color: theme.palette.success.main }} />,
-      label: "Vendas Totais",
-      value: `R$ ${totalSales.toFixed(2)}`,
-    },
-    {
-      icon: <Storage sx={{ fontSize: 40, color: theme.palette.info.main }} />,
-      label: "Produtos Cadastrados",
-      value: products.length,
-    },
-    {
-      icon: <Warning sx={{ fontSize: 40, color: theme.palette.error.main }} />,
-      label: "Produtos com Baixo Estoque",
-      value: products.filter((p) => p.variations.reduce((acc, curr) => acc + curr.stock, 0) < p.minStock).length,
-    },
-  ].map((stat, index) => (
-    <Grid item xs={12} sm={6} md={4} key={index}>
-      <Card variant="outlined">
-        <CardContent sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-          {stat.icon}
-          <Box>
-            <Typography variant="subtitle2" color="textSecondary">
-              {stat.label}
-            </Typography>
-            <Typography variant="h4" fontWeight="700">
-              {stat.value}
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Grid>
-  ))}
-</Grid>
-              {/*categories Form*/}
-              <Card sx={{ mb: 4 }}>
-  <CardContent>
-    <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-      Lista de Categorias
-      <Chip
-        label={`${categories.length} categorias`}
-        size="small"
-        sx={{ ml: 2, bgcolor: "action.selected" }}
-      />
-    </Typography>
+                    {/* Barra de pesquisa abaixo do título */}
+                    <Box sx={{ mb: 4 }}>
+                      <TextField
+                        variant="outlined"
+                        placeholder="Pesquisar produtos por nome, SKU ou categoria..."
+                        InputProps={{
+                          startAdornment: <Search sx={{ color: "action.active", mr: 1 }} />,
+                        }}
+                        sx={{ width: "100%" }}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </Box>
 
-    {/* Botão para adicionar nova categoria */}
-    <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() => {
-          setEditingCategory(null); // Limpa a edição atual
-          setNewCategory({ name: "", subcategories: [] }); // Reseta o formulário
-        }}
-      >
-        Adicionar Categoria
-      </Button>
-    </Box>
-
-    {/* Contêiner com barra de rolagem para a lista de categorias */}
-    <Box sx={{ maxHeight: 400, overflowY: "auto", mb: 2 }}>
-      <Grid container spacing={2}> {/* Reduzi o espaçamento entre os cards */}
-        {categories.map((category) => (
-          <Grid item xs={12} sm={6} md={4} lg={3} key={category.id}> {/* Aumentei o número de colunas */}
-            <Card variant="outlined" sx={{ p: 1 }}> {/* Reduzi o padding interno */}
-              <CardContent sx={{ p: 1 }}> {/* Reduzi o padding interno */}
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Box>
-                    <Typography variant="subtitle2" fontWeight="600"> {/* Reduzi o tamanho da fonte */}
-                      {category.name}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary"> {/* Reduzi o tamanho da fonte */}
-                      Subcategorias: {category.subcategories.length}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <IconButton size="small" onClick={() => startEditingCategory(category)}> {/* Reduzi o tamanho do ícone */}
-                      <Edit fontSize="small" color="info" />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => deleteCategory(category.id)}> {/* Reduzi o tamanho do ícone */}
-                      <Delete fontSize="small" color="error" />
-                    </IconButton>
-                  </Box>
-                </Box>
-
-                {/* Lista de subcategorias com scroll e ordenação alfabética */}
-                <Box sx={{ mt: 1 }}>
-                  <Box sx={{ maxHeight: 200, overflowY: "auto", mb: 2 }}> {/* Contêiner com scroll */}
-                    {category.subcategories
-                      .sort((a, b) => a.localeCompare(b)) // Ordena as subcategorias alfabeticamente
-                      .map((subcategory, index) => (
-                        <Accordion key={index} elevation={0} sx={{ mb: 1 }}>
-                          <AccordionSummary expandIcon={<ExpandMore />}>
-                            <Typography variant="caption" fontWeight="500"> {/* Reduzi o tamanho da fonte */}
-                              {subcategory}
-                            </Typography>
-                          </AccordionSummary>
-                          <AccordionDetails sx={{ p: 1 }}>
-  {getProductsBySubcategory(category.name, subcategory).map((product) => (
-    <Box
-      key={product.id}
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        mb: 1,
-      }}
-    >
-      <Avatar
-        src={product.imageUrls[0]}
-        variant="rounded"
-        sx={{ width: 30, height: 30 }}
-      />
-      <Box>
-        <Typography variant="caption" fontWeight="500">
-          {product.name}
-        </Typography>
-        <Typography variant="caption" color="textSecondary">
-          Estoque:{" "}
-          {product.variations.reduce(
-            (acc, curr) => acc + (curr.stock || 0),
-            0
-          )}
-        </Typography>
-      </Box>
-    </Box>
-  ))}
-</AccordionDetails>
-                        </Accordion>
+                    {/* Stats Cards */}
+                    <Grid container spacing={3} sx={{ mb: 4 }}>
+                      {[
+                        {
+                          icon: <TrendingUp sx={{ fontSize: 40, color: theme.palette.success.main }} />,
+                          label: "Vendas Totais",
+                          value: `R$ ${totalSales.toFixed(2)}`,
+                        },
+                        {
+                          icon: <Storage sx={{ fontSize: 40, color: theme.palette.info.main }} />,
+                          label: "Produtos Cadastrados",
+                          value: products.length,
+                        },
+                        {
+                          icon: <Warning sx={{ fontSize: 40, color: theme.palette.error.main }} />,
+                          label: "Produtos com Baixo Estoque",
+                          value: products.filter((p) => p.variations.reduce((acc, curr) => acc + curr.stock, 0) < p.minStock).length,
+                        },
+                      ].map((stat, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={index}>
+                          <Card variant="outlined">
+                            <CardContent sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                              {stat.icon}
+                              <Box>
+                                <Typography variant="subtitle2" color="textSecondary">
+                                  {stat.label}
+                                </Typography>
+                                <Typography variant="h4" fontWeight="700">
+                                  {stat.value}
+                                </Typography>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Grid>
                       ))}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
+                    </Grid>
+                    {/*categories Form*/}
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Lista de Categorias
+                          <Chip
+                            label={`${categories.length} categorias`}
+                            size="small"
+                            sx={{ ml: 2, bgcolor: "action.selected" }}
+                          />
+                        </Typography>
 
-    {/* Formulário de categoria (sempre visível) */}
-    <Card sx={{ mt: 4 }}>
-      <CardContent>
-        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-          {editingCategory ? "Editar Categoria" : "Nova Categoria"}
-        </Typography>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <TextField
-              label="Nome da Categoria"
-              name="name"
-              value={newCategory.name}
-              onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
-              fullWidth
-              size="small"
-              variant="filled"
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" color="primary" sx={{ mb: 2 }}>
-              Subcategorias
-            </Typography>
-            {newCategory.subcategories.map((subcat, index) => (
-              <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
-                <TextField
-                  label={`Subcategoria ${index + 1}`}
-                  value={subcat}
-                  onChange={(e) => handleSubcategoryChange(index, e.target.value)}
-                  fullWidth
-                  size="small"
-                  variant="filled"
-                />
-                <IconButton
-                  onClick={() => {
-                    const updatedSubcategories = newCategory.subcategories.filter((_, i) => i !== index);
-                    setNewCategory((prev) => ({ ...prev, subcategories: updatedSubcategories }));
-                  }}
-                >
-                  <Delete fontSize="small" color="error" />
-                </IconButton>
-              </Box>
-            ))}
-            <Button variant="outlined" startIcon={<Add />} onClick={addSubcategory} size="small">
-              Adicionar Subcategoria
-            </Button>
-          </Grid>
-          <Grid item xs={12}>
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", borderTop: 1, borderColor: "divider", pt: 3 }}>
-              <Button variant="outlined" color="error" startIcon={<Cancel />} onClick={resetCategoryForm}>
-                Cancelar
-              </Button>
-              <Button variant="contained" startIcon={<CheckCircle />} onClick={saveCategory} sx={{ minWidth: 200 }}>
-                Salvar Categoria
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
-      </CardContent>
-    </Card>
-  </CardContent>
-</Card>
-              {/* Product Form */}
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Accordion defaultExpanded elevation={0}>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="h6" fontWeight="600">
-                        {editingProduct ? "Editar Produto" : "Novo Produto"}
-                      </Typography>
-                    </AccordionSummary>
-
-                    <AccordionDetails>
-                      <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              mb: 3,
+                        {/* Botão para adicionar nova categoria */}
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+                          <Button
+                            variant="contained"
+                            startIcon={<Add />}
+                            onClick={() => {
+                              setEditingCategory(null); // Limpa a edição atual
+                              setNewCategory({ name: "", subcategories: [] }); // Reseta o formulário
                             }}
                           >
-                            <Label fontSize="small" color="primary" />
-                            <Typography variant="subtitle1" color="primary">
-                              Informações Básicas
+                            Adicionar Categoria
+                          </Button>
+                        </Box>
+
+                        {/* Contêiner com barra de rolagem para a lista de categorias */}
+                        <Box sx={{ maxHeight: 400, overflowY: "auto", mb: 2 }}>
+                          <Grid container spacing={2}> {/* Reduzi o espaçamento entre os cards */}
+                            {categories.map((category) => (
+                              <Grid item xs={12} sm={6} md={4} lg={3} key={category.id}> {/* Aumentei o número de colunas */}
+                                <Card variant="outlined" sx={{ p: 1 }}> {/* Reduzi o padding interno */}
+                                  <CardContent sx={{ p: 1 }}> {/* Reduzi o padding interno */}
+                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                      <Box>
+                                        <Typography variant="subtitle2" fontWeight="600"> {/* Reduzi o tamanho da fonte */}
+                                          {category.name}
+                                        </Typography>
+                                        <Typography variant="caption" color="textSecondary"> {/* Reduzi o tamanho da fonte */}
+                                          Subcategorias: {category.subcategories.length}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: "flex", gap: 1 }}>
+                                        <IconButton size="small" onClick={() => startEditingCategory(category)}> {/* Reduzi o tamanho do ícone */}
+                                          <Edit fontSize="small" color="info" />
+                                        </IconButton>
+                                        <IconButton size="small" onClick={() => deleteCategory(category.id)}> {/* Reduzi o tamanho do ícone */}
+                                          <Delete fontSize="small" color="error" />
+                                        </IconButton>
+                                      </Box>
+                                    </Box>
+
+                                    {/* Lista de subcategorias com scroll e ordenação alfabética */}
+                                    <Box sx={{ mt: 1 }}>
+                                      <Box sx={{ maxHeight: 200, overflowY: "auto", mb: 2 }}> {/* Contêiner com scroll */}
+                                        {category.subcategories
+                                          .sort((a, b) => a.localeCompare(b)) // Ordena as subcategorias alfabeticamente
+                                          .map((subcategory, index) => (
+                                            <Accordion key={index} elevation={0} sx={{ mb: 1 }}>
+                                              <AccordionSummary expandIcon={<ExpandMore />}>
+                                                <Typography variant="caption" fontWeight="500"> {/* Reduzi o tamanho da fonte */}
+                                                  {subcategory}
+                                                </Typography>
+                                              </AccordionSummary>
+                                              <AccordionDetails sx={{ p: 1 }}>
+                                                {getProductsBySubcategory(category.name, subcategory).map((product) => (
+                                                  <Box
+                                                    key={product.id}
+                                                    sx={{
+                                                      display: "flex",
+                                                      alignItems: "center",
+                                                      gap: 1,
+                                                      mb: 1,
+                                                    }}
+                                                  >
+                                                    <Avatar
+                                                      src={product.imageUrls[0]}
+                                                      variant="rounded"
+                                                      sx={{ width: 30, height: 30 }}
+                                                    />
+                                                    <Box>
+                                                      <Typography variant="caption" fontWeight="500">
+                                                        {product.name}
+                                                      </Typography>
+                                                      <Typography variant="caption" color="textSecondary">
+                                                        Estoque:{" "}
+                                                        {product.variations.reduce(
+                                                          (acc, curr) => acc + (curr.stock || 0),
+                                                          0
+                                                        )}
+                                                      </Typography>
+                                                    </Box>
+                                                  </Box>
+                                                ))}
+                                              </AccordionDetails>
+                                            </Accordion>
+                                          ))}
+                                      </Box>
+                                    </Box>
+                                  </CardContent>
+                                </Card>
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </Box>
+
+                        {/* Formulário de categoria (sempre visível) */}
+                        <Card sx={{ mt: 4 }}>
+                          <CardContent>
+                            <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                              {editingCategory ? "Editar Categoria" : "Nova Categoria"}
                             </Typography>
-                          </Box>
-                          <Grid container spacing={2}>
-                            {["sku", "barcode", "name"].map((field) => (
-                              <Grid item xs={12} md={6} key={field}>
+                            <Grid container spacing={3}>
+                              <Grid item xs={12}>
                                 <TextField
-                                  label={
-                                    field === "sku"
-                                      ? "SKU"
-                                      : field.charAt(0).toUpperCase() +
-                                      field.slice(1)
-                                  }
-                                  name={field}
-                                  value={newProduct[field]}
-                                  onChange={handleInputChange}
+                                  label="Nome da Categoria"
+                                  name="name"
+                                  value={newCategory.name}
+                                  onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
                                   fullWidth
                                   size="small"
                                   variant="filled"
                                 />
                               </Grid>
-                            ))}
-
-                            {/* Campo de Categoria Dinâmico */}
-                            <Grid item xs={12} md={6}>
-                              <TextField
-                                select
-                                label="Categoria"
-                                name="category"
-                                value={newProduct.category}
-                                onChange={handleInputChange}
-                                fullWidth
-                                size="small"
-                                variant="filled"
-                                SelectProps={{
-                                  native: true,
-                                }}
-                              >
-                                <option value=""></option>
-                                {categories.map((category) => (
-                                  <option
-                                    key={category.id}
-                                    value={category.name}
-                                  >
-                                    {category.name}
-                                  </option>
-                                ))}
-                              </TextField>
-                            </Grid>
-
-                            {/* Campo de Subcategoria Dinâmico */}
-                            <Grid item xs={12} md={6}>
-                              <TextField
-                                select
-                                label="Subcategoria"
-                                name="subcategory"
-                                value={newProduct.subcategory}
-                                onChange={handleInputChange}
-                                fullWidth
-                                size="small"
-                                variant="filled"
-                                disabled={!newProduct.category} // Desabilita se não houver categoria selecionada
-                                SelectProps={{
-                                  native: true,
-                                }}
-                              >
-                                <option value=""></option>
-                                {categories
-                                  .find(
-                                    (cat) => cat.name === newProduct.category
-                                  ) // Encontra a categoria selecionada
-                                  ?.subcategories.map(
-                                    (
-                                      subcat,
-                                      index // Mapeia as subcategorias
-                                    ) => (
-                                      <option key={index} value={subcat}>
-                                        {subcat}
-                                      </option>
-                                    )
-                                  )}
-                              </TextField>
-                            </Grid>
-                          </Grid>
-
-                          {/* Campo de Fornecedor (mantido) */}
-                          <Grid item xs={12} md={6}>
-                            <TextField
-                              select
-                              label="Fornecedor"
-                              name="supplierId"
-                              value={newProduct.supplierId}
-                              onChange={handleInputChange}
-                              fullWidth
-                              size="small"
-                              variant="filled"
-                              SelectProps={{
-                                native: true,
-                              }}
-                            >
-                              <option value=""></option>
-                              {suppliers.map((supplier) => (
-                                <option key={supplier.id} value={supplier.id}>
-                                  {supplier.name}
-                                </option>
-                              ))}
-                            </TextField>
-                          </Grid>
-                        </Grid>
-                        {/* campo de imagem */}
-                        <Grid item xs={12}>
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: "center",
-      gap: 1,
-      mb: 3,
-    }}
-  >
-    <PhotoCamera fontSize="small" color="primary" />
-    <Typography variant="subtitle1" color="primary">
-      Fotos do Produto
-    </Typography>
-  </Box>
-  <ImageUpload
-    onImageUpload={(imageUrl) =>
-      setNewProduct((prev) => ({
-        ...prev,
-        imageUrls: [...prev.imageUrls, imageUrl],
-      }))
-    }
-  />
-  <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-    {newProduct.imageUrls.map((imageUrl, index) => (
-      <Box
-        key={index}
-        sx={{ position: "relative", display: "inline-block" }}
-      >
-        <Avatar
-          src={imageUrl}
-          variant="rounded"
-          sx={{ width: 100, height: 100 }}
-        />
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            backgroundColor: "rgba(255, 255, 255, 0.8)",
-            "&:hover": {
-              backgroundColor: "rgba(255, 0, 0, 0.8)",
-            },
-          }}
-          onClick={() => {
-            // Remove a imagem do estado
-            const updatedImageUrls = newProduct.imageUrls.filter(
-              (_, i) => i !== index
-            );
-            setNewProduct((prev) => ({
-              ...prev,
-              imageUrls: updatedImageUrls,
-            }));
-          }}
-        >
-          <Delete fontSize="small" color="error" />
-        </IconButton>
-      </Box>
-    ))}
-  </Box>
-</Grid>
-                        <Grid item xs={12}>
-                          <Divider sx={{ my: 3 }} />
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              mb: 3,
-                            }}
-                          >
-                            <Paid fontSize="small" color="primary" />
-                            <Typography variant="subtitle1" color="primary">
-                              Preços e Dimensões
-                            </Typography>
-                          </Box>
-                          <Grid container spacing={2}>
-                            {/* Campos de Preço e Peso */}
-                            {["costPrice", "salePrice", "weight"].map(
-                              (field) => (
-                                <Grid item xs={4} key={field}>
-                                  <TextField
-                                    label={
-                                      field === "costPrice"
-                                        ? "Preço de Custo"
-                                        : field === "salePrice"
-                                          ? "Preço de Venda"
-                                          : "Peso (kg)"
-                                    }
-                                    name={field}
-                                    value={newProduct[field]}
-                                    onChange={handleInputChange}
-                                    fullWidth
-                                    type="number"
-                                    InputProps={{
-                                      startAdornment:
-                                        field.includes("Price") && "R$",
-                                    }}
-                                    size="small"
-                                    inputProps={{ min: 0 }} // Garante que o valor não seja negativo
-                                  />
-                                </Grid>
-                              )
-                            )}
-
-                            {/* Campos de Dimensões */}
-                            {["length", "width", "height"].map((dim) => (
-                              <Grid item xs={4} key={dim}>
-                                <TextField
-                                  label={
-                                    dim === "length"
-                                      ? "Comprimento (cm)"
-                                      : dim === "width"
-                                        ? "Largura (cm)"
-                                        : "Altura (cm)"
-                                  }
-                                  name={dim}
-                                  value={newProduct.dimensions[dim]}
-                                  onChange={(e) =>
-                                    setNewProduct((prev) => ({
-                                      ...prev,
-                                      dimensions: {
-                                        ...prev.dimensions,
-                                        [dim]: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  fullWidth
-                                  type="number"
-                                  size="small"
-                                  inputProps={{ min: 0 }} // Garante que o valor não seja negativo
-                                />
-                              </Grid>
-                            ))}
-                          </Grid>
-
-                          {/* Seção de Variações */}
-                          <Grid item xs={12}>
-                            <Box
-                              sx={{
-                                border: 1,
-                                borderColor: "divider",
-                                borderRadius: 1,
-                                p: 2,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  mb: 2,
-                                }}
-                              >
-                                <Typography variant="subtitle1">
-                                  Variações
+                              <Grid item xs={12}>
+                                <Typography variant="subtitle1" color="primary" sx={{ mb: 2 }}>
+                                  Subcategorias
                                 </Typography>
-                                <Button
-                                  variant="outlined"
-                                  startIcon={<Add />}
-                                  onClick={addVariation}
-                                  size="small"
-                                >
-                                  Adicionar Variação
+                                {newCategory.subcategories.map((subcat, index) => (
+                                  <Box key={index} sx={{ display: "flex", gap: 2, mb: 2 }}>
+                                    <TextField
+                                      label={`Subcategoria ${index + 1}`}
+                                      value={subcat}
+                                      onChange={(e) => handleSubcategoryChange(index, e.target.value)}
+                                      fullWidth
+                                      size="small"
+                                      variant="filled"
+                                    />
+                                    <IconButton
+                                      onClick={() => {
+                                        const updatedSubcategories = newCategory.subcategories.filter((_, i) => i !== index);
+                                        setNewCategory((prev) => ({ ...prev, subcategories: updatedSubcategories }));
+                                      }}
+                                    >
+                                      <Delete fontSize="small" color="error" />
+                                    </IconButton>
+                                  </Box>
+                                ))}
+                                <Button variant="outlined" startIcon={<Add />} onClick={addSubcategory} size="small">
+                                  Adicionar Subcategoria
                                 </Button>
-                              </Box>
-                              {newProduct.variations.map((variation, index) => (
-                                <Paper
-                                  key={index}
-                                  elevation={1}
-                                  className={styles.variationCard}
-                                >
-                                  <Grid container spacing={2}>
-                                    {/* Campos de Variação */}
-                                    {["size", "color", "model", "stock"].map(
-                                      (field) => (
-                                        <Grid item xs={3} key={field}>
-                                          <TextField
-                                            label={
-                                              field === "size"
-                                                ? "Tamanho"
-                                                : field === "color"
-                                                  ? "Cor"
-                                                  : field === "model"
-                                                    ? "Modelo"
-                                                    : "Estoque"
-                                            }
-                                            value={variation[field]}
-                                            onChange={(e) =>
-                                              handleVariationChange(
-                                                index,
-                                                field,
-                                                e.target.value
-                                              )
-                                            }
-                                            fullWidth
-                                            size="small"
-                                            type={
-                                              field === "stock"
-                                                ? "number"
-                                                : "text"
-                                            }
-                                            inputProps={{ min: 0 }} // Garante que o estoque não seja negativo
-                                          />
-                                        </Grid>
-                                      )
-                                    )}
-                                  </Grid>
-                                </Paper>
-                              ))}
-                            </Box>
-                          </Grid>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              gap: 2,
-                              justifyContent: "flex-end",
-                              borderTop: 1,
-                              borderColor: "divider",
-                              pt: 3,
-                            }}
-                          >
-                            {editingProduct && (
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<Cancel />}
-                                onClick={resetForm}
-                              >
-                                Cancelar Edição
-                              </Button>
-                            )}
-                            <Button
-                              variant="contained"
-                              startIcon={
-                                editingProduct ? <CheckCircle /> : <Add />
-                              }
-                              onClick={saveProduct}
-                              sx={{ minWidth: 200 }}
-                            >
-                              {editingProduct
-                                ? "Confirmar Alterações"
-                                : "Adicionar Produto"}
-                            </Button>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-                </CardContent>
-              </Card>
-
-              {/* Product List */}
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                    Lista de Produtos
-                    <Chip
-                      label={`${products.length} itens`}
-                      size="small"
-                      sx={{ ml: 2, bgcolor: "action.selected" }}
-                    />
-                  </Typography>
-
-                  <Grid container spacing={3}>
-                    {currentProducts.map((product) => {
-                      const totalStock = product.variations?.reduce(
-                        (acc, curr) => acc + (curr.stock || 0),
-                        0
-                      );
-                      const isLowStock = totalStock < product.minStock;
-
-                      return (
-                        <Grid item xs={12} sm={6} md={4} key={product.id}>
-                          <Card
-                            variant="outlined"
-                            sx={{
-                              position: "relative",
-                              "&:hover": { boxShadow: 4 },
-                            }}
-                          >
-                            {isLowStock && (
-                              <Chip
-                                label="Baixo Estoque"
-                                color="error"
-                                size="small"
-                                sx={{
-                                  position: "absolute",
-                                  right: 16,
-                                  top: 16,
-                                  fontWeight: 600,
-                                }}
-                              />
-                            )}
-
-                            <CardContent>
-                              <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-                                <Avatar
-                                  src={product.imageUrls[0]}
-                                  variant="rounded"
-                                  sx={{
-                                    width: 80,
-                                    height: 80,
-                                    bgcolor: "background.paper",
-                                  }}
-                                >
-                                  <PhotoCamera
-                                    sx={{ color: "text.disabled" }}
-                                  />
-                                </Avatar>
-
-                                <Box>
-                                  <Typography
-                                    variant="subtitle1"
-                                    fontWeight="600"
-                                  >
-                                    {product.name}
-                                  </Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color="textSecondary"
-                                  >
-                                    SKU: {product.sku}
-                                  </Typography>
-                                  <Chip
-                                    label={product.category}
-                                    size="small"
-                                    sx={{
-                                      mt: 1,
-                                      bgcolor: "primary.light",
-                                      color: "primary.dark",
-                                    }}
-                                  />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", borderTop: 1, borderColor: "divider", pt: 3 }}>
+                                  <Button variant="outlined" color="error" startIcon={<Cancel />} onClick={resetCategoryForm}>
+                                    Cancelar
+                                  </Button>
+                                  <Button variant="contained" startIcon={<CheckCircle />} onClick={saveCategory} sx={{ minWidth: 200 }}>
+                                    Salvar Categoria
+                                  </Button>
                                 </Box>
-                              </Box>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      </CardContent>
+                    </Card>
+                    {/* Product Form */}
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Accordion defaultExpanded elevation={0}>
+                          <AccordionSummary expandIcon={<ExpandMore />}>
+                            <Typography variant="h6" fontWeight="600">
+                              {editingProduct ? "Editar Produto" : "Novo Produto"}
+                            </Typography>
+                          </AccordionSummary>
 
-                              <Box sx={{ mb: 2 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={
-                                    (totalStock / (product.minStock || 1)) * 100
-                                  }
-                                  color={isLowStock ? "error" : "primary"}
-                                  sx={{ height: 8, borderRadius: 4 }}
-                                />
+                          <AccordionDetails>
+                            <Grid container spacing={3}>
+                              <Grid item xs={12}>
                                 <Box
                                   sx={{
                                     display: "flex",
-                                    justifyContent: "space-between",
-                                    mt: 1,
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 3,
                                   }}
                                 >
-                                  <Typography variant="caption">
-                                    Estoque: <strong>{totalStock}</strong>
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="textSecondary"
-                                  >
-                                    Mín: {product.minStock}
+                                  <Label fontSize="small" color="primary" />
+                                  <Typography variant="subtitle1" color="primary">
+                                    Informações Básicas
                                   </Typography>
                                 </Box>
-                              </Box>
+                                <Grid container spacing={2}>
+                                  {["sku", "name"].map((field) => (
+                                    <Grid item xs={12} md={6} key={field}>
+                                      <TextField
+                                        label={
+                                          field === "sku"
+                                            ? "SKU"
+                                            : field.charAt(0).toUpperCase() +
+                                            field.slice(1)
+                                        }
+                                        name={field}
+                                        value={newProduct[field]}
+                                        onChange={handleInputChange}
+                                        fullWidth
+                                        size="small"
+                                        variant="filled"
+                                      />
+                                    </Grid>
+                                  ))}
 
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  gap: 1,
-                                  "& .MuiButton-root": {
-                                    flex: 1,
-                                    py: 1,
-                                  },
-                                }}
-                              >
-                                <Button
-                                  variant="outlined"
-                                  startIcon={<Edit />}
-                                  onClick={() => startEditing(product)}
-                                  color="info"
-                                >
-                                  Editar
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  color="error"
-                                  startIcon={<Delete />}
-                                  onClick={() => deleteProduct(product.id)}
-                                >
-                                  Excluir
-                                </Button>
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                  <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      sx={{ mx: 1 }}
-                    >
-                      Anterior
-                    </Button>
-                    <Typography variant="body1" sx={{ mx: 2 }}>
-                      Página {currentPage} de{" "}
-                      {Math.ceil(products.length / itemsPerPage)}
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={
-                        currentPage === Math.ceil(products.length / itemsPerPage)
-                      }
-                      sx={{ mx: 1 }}
-                    >
-                      Próxima
-                    </Button>
-                  </Box>
-                </CardContent>
-              </Card>
-            </>
-          )}
+                                  <Grid item xs={12} md={6}>
+                                    <TextField
+                                      label="Código de Barras"
+                                      name="barcode"
+                                      value={newProduct.barcode}
+                                      onChange={handleInputChange}
+                                      fullWidth
+                                      size="small"
+                                      variant="filled"
+                                    />
+                                    {/* Adicione o componente BarcodeScanner aqui */}
+                                    <BarcodeScanner onScan={handleBarcodeScan} />
+                                  </Grid>
 
-          {activeView === "requested" && (
-            <>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 4,
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <LocalShipping
-                    sx={{
-                      fontSize: 40,
-                      color: "primary.main",
-                      bgcolor: "primary.light",
-                      p: 1.5,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <Typography variant="h4" fontWeight="700">
-                    Compras Solicitadas
-                  </Typography>
-                </Box>
-              </Box>
+                                  {/* Campo de Categoria Dinâmico */}
+                                  <Grid item xs={12} md={6}>
+                                    <TextField
+                                      select
+                                      label="Categoria"
+                                      name="category"
+                                      value={newProduct.category}
+                                      onChange={handleInputChange}
+                                      fullWidth
+                                      size="small"
+                                      variant="filled"
+                                      SelectProps={{
+                                        native: true,
+                                      }}
+                                    >
+                                      <option value=""></option>
+                                      {categories.map((category) => (
+                                        <option
+                                          key={category.id}
+                                          value={category.name}
+                                        >
+                                          {category.name}
+                                        </option>
+                                      ))}
+                                    </TextField>
+                                  </Grid>
 
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                    Pedidos Solicitados ({requestedSales.length})
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {requestedSales.map((sale) => (
-                      <Grid item xs={12} key={sale.id}>
-                        <Paper
-                          variant="outlined"
-                          sx={{ p: 2, borderRadius: 3 }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Box>
-                              <Typography
-                                variant="subtitle2"
-                                color="textSecondary"
-                              >
-                                #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                {sale.date?.toLocaleDateString("pt-BR")}
-                              </Typography>
-                              <Typography variant="body1" fontWeight="500">
-                                {sale.user?.details.fullName ||
-                                  "Cliente não identificado"}
-                              </Typography>
-                              <Typography variant="body2" color="textSecondary">
-                                {sale.items.length} itens • R${" "}
-                                {sale.total.toFixed(2)}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: "flex", gap: 2 }}>
-                              <Button
-                                variant="contained"
-                                startIcon={<CheckCircle />}
-                                onClick={() => confirmRequestedSale(sale.id)}
-                                sx={{ borderRadius: 3 }}
-                              >
-                                Confirmar Pagamento
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<Delete />}
-                                onClick={() => deleteRequestedSale(sale.id)}
-                                sx={{ borderRadius: 3 }}
-                              >
-                                Excluir
-                              </Button>
-                            </Box>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeView === "suppliers" && (
-            <>
-              {/* Seção de Fornecedores */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 4,
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <BusinessIcon
-                    sx={{
-                      fontSize: 40,
-                      color: theme.palette.primary.main,
-                      bgcolor: theme.palette.primary.light,
-                      p: 1.5,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <Typography variant="h4" fontWeight="700">
-                    Gestão de Fornecedores
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                    Lista de Fornecedores
-                    <Chip
-                      label={`${suppliers.length} cadastrados`}
-                      size="small"
-                      sx={{ ml: 2, bgcolor: "action.selected" }}
-                    />
-                  </Typography>
-
-                  <Grid container spacing={3}>
-                    {suppliers.map((supplier) => {
-                      const suppliedProducts = products.filter(
-                        (p) => p.supplierId === supplier.id
-                      );
-
-                      return (
-                        <Grid item xs={12} md={6} key={supplier.id}>
-                          <Card variant="outlined">
-                            <CardContent>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <Box>
-                                  <Typography
-                                    variant="subtitle1"
-                                    fontWeight="600"
-                                  >
-                                    {supplier.name}
-                                  </Typography>
-                                  <Typography
-                                    variant="body2"
-                                    color="textSecondary"
-                                  >
-                                    {supplier.contact}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: "flex", gap: 1 }}>
-                                  <IconButton
-                                    onClick={() =>
-                                      startEditingSupplier(supplier)
-                                    }
-                                  >
-                                    <Edit fontSize="small" color="info" />
-                                  </IconButton>
-                                  <IconButton
-                                    onClick={() => deleteSupplier(supplier.id)}
-                                  >
-                                    <Delete fontSize="small" color="error" />
-                                  </IconButton>
-                                </Box>
-                              </Box>
-
-                              <Box sx={{ mt: 2 }}>
-                                <Chip
-                                  icon={<LinkIcon />}
-                                  label={`Fornece ${suppliedProducts.length} produtos`}
-                                  variant="outlined"
-                                  sx={{ mb: 1 }}
-                                />
-                                <Typography variant="body2">
-                                  <ContactsIcon
-                                    fontSize="small"
-                                    sx={{ mr: 1 }}
-                                  />
-                                  {supplier.email} | {supplier.phone}
-                                </Typography>
-                                <Typography variant="body2">
-                                  <BusinessIcon
-                                    fontSize="small"
-                                    sx={{ mr: 1 }}
-                                  />
-                                  {supplier.address}
-                                </Typography>
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </CardContent>
-              </Card>
-
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Accordion elevation={0}>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="h6" fontWeight="600">
-                        {editingSupplier
-                          ? "Editar Fornecedor"
-                          : "Novo Fornecedor"}
-                      </Typography>
-                    </AccordionSummary>
-
-                    <AccordionDetails>
-                      <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              mb: 3,
-                            }}
-                          >
-                            <BusinessIcon fontSize="small" color="primary" />
-                            <Typography variant="subtitle1" color="primary">
-                              Informações do Fornecedor
-                            </Typography>
-                          </Box>
-                          <Grid container spacing={2}>
-                            {[
-                              "name",
-                              "contact",
-                              "email",
-                              "phone",
-                              "address",
-                            ].map((field) => (
-                              <Grid item xs={12} md={6} key={field}>
-                                <TextField
-                                  label={
-                                    field.charAt(0).toUpperCase() +
-                                    field.slice(1)
-                                  }
-                                  name={field}
-                                  value={newSupplier[field]}
-                                  onChange={handleSupplierInputChange}
-                                  fullWidth
-                                  size="small"
-                                  variant="filled"
-                                />
-                              </Grid>
-                            ))}
-                          </Grid>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              gap: 2,
-                              justifyContent: "flex-end",
-                              borderTop: 1,
-                              borderColor: "divider",
-                              pt: 3,
-                            }}
-                          >
-                            {editingSupplier && (
-                              <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<Cancel />}
-                                onClick={resetSupplierForm}
-                              >
-                                Cancelar Edição
-                              </Button>
-                            )}
-                            <Button
-                              variant="contained"
-                              startIcon={
-                                editingSupplier ? <CheckCircle /> : <Add />
-                              }
-                              onClick={saveSupplier}
-                              sx={{ minWidth: 200 }}
-                            >
-                              {editingSupplier
-                                ? "Salvar Alterações"
-                                : "Adicionar Fornecedor"}
-                            </Button>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeView === "orders" && (
-            <>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 4,
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <LocalShipping
-                    sx={{
-                      fontSize: 40,
-                      color: "primary.main",
-                      bgcolor: "primary.light",
-                      p: 1.5,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <Typography variant="h4" fontWeight="700">
-                    Gestão de Pedidos
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                <TextField
-                  label="Buscar pedido"
-                  variant="outlined"
-                  fullWidth
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <Select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="pending">Pendentes</MenuItem>
-                  <MenuItem value="shipped">Enviados</MenuItem>
-                </Select>
-              </Box>
-
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                    Pedidos ({filteredSales.length})
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {filteredSales.map((sale) => (
-                      <Grid item xs={12} key={sale.id}>
-                        <Paper
-                          variant="outlined"
-                          sx={{ p: 2, borderRadius: 3 }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Box>
-                              <Typography
-                                variant="subtitle2"
-                                color="textSecondary"
-                              >
-                                #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                {sale.date?.toLocaleDateString("pt-BR")} (
-                                {Math.round(
-                                  (new Date() - sale.date) /
-                                  (1000 * 60 * 60 * 24)
-                                )}{" "}
-                                dias atrás)
-                              </Typography>
-                              <Typography variant="body1" fontWeight="500">
-                                {sale.user?.details.fullName ||
-                                  "Cliente não identificado"}
-                              </Typography>
-                              <Typography variant="body2" color="textSecondary">
-                                {sale.items.length} itens • R${" "}
-                                {sale.total.toFixed(2)}
-                              </Typography>
-                            </Box>
-                            <Chip
-                              label={sale.shipped ? "Enviado" : "Pendente"}
-                              color={sale.shipped ? "success" : "warning"}
-                              variant="outlined"
-                            />
-                            <Button
-                              variant="contained"
-                              startIcon={<LocalShipping />}
-                              onClick={() =>
-                                sale.shipped
-                                  ? unmarkAsShipped(sale.id)
-                                  : markAsShipped(sale.id)
-                              }
-                              sx={{ borderRadius: 3 }}
-                            >
-                              {sale.shipped
-                                ? "Desmarcar Enviado"
-                                : "Marcar como Enviado"}
-                            </Button>
-                          </Box>
-
-                          <Accordion>
-                            <AccordionSummary expandIcon={<ExpandMore />}>
-                              <Typography variant="subtitle2">
-                                Detalhes do Pedido
-                              </Typography>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                              <Grid container spacing={2}>
-                                <Grid item xs={12}>
-                                  <Typography variant="h6" sx={{ mb: 2 }}>
-                                    Informações do Cliente
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>Nome:</strong>{" "}
-                                    {sale.user?.details.fullName || "N/A"}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>CPF:</strong>{" "}
-                                    {sale.user?.details.cpf || "N/A"}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>Telefone:</strong>{" "}
-                                    {sale.user?.details.phone || "N/A"}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>Endereço:</strong>{" "}
-                                    {sale.user?.details.address.street || "N/A"}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>Número:</strong>{" "}
-                                    {sale.user?.details.address.number}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>bairro:</strong>{" "}
-                                    {sale.user?.details.address.
-neighborhood}
-                                  </Typography>
-                                  <Typography variant="body1">
-                                    <strong>Cep:</strong>{" "}
-                                    {sale.user?.details.address.
-zipCode}
-                                  </Typography>
+                                  {/* Campo de Subcategoria Dinâmico */}
+                                  <Grid item xs={12} md={6}>
+                                    <TextField
+                                      select
+                                      label="Subcategoria"
+                                      name="subcategory"
+                                      value={newProduct.subcategory}
+                                      onChange={handleInputChange}
+                                      fullWidth
+                                      size="small"
+                                      variant="filled"
+                                      disabled={!newProduct.category} // Desabilita se não houver categoria selecionada
+                                      SelectProps={{
+                                        native: true,
+                                      }}
+                                    >
+                                      <option value=""></option>
+                                      {categories
+                                        .find(
+                                          (cat) => cat.name === newProduct.category
+                                        ) // Encontra a categoria selecionada
+                                        ?.subcategories.map(
+                                          (
+                                            subcat,
+                                            index // Mapeia as subcategorias
+                                          ) => (
+                                            <option key={index} value={subcat}>
+                                              {subcat}
+                                            </option>
+                                          )
+                                        )}
+                                    </TextField>
+                                  </Grid>
                                 </Grid>
-                                <Grid item xs={12}>
-                                  <Typography variant="h6" sx={{ mb: 2 }}>
-                                    Itens do Pedido
+
+                                {/* Campo de Fornecedor (mantido) */}
+                                <Grid item xs={12} md={6}>
+                                  <TextField
+                                    select
+                                    label="Fornecedor"
+                                    name="supplierId"
+                                    value={newProduct.supplierId}
+                                    onChange={handleInputChange}
+                                    fullWidth
+                                    size="small"
+                                    variant="filled"
+                                    SelectProps={{
+                                      native: true,
+                                    }}
+                                  >
+                                    <option value=""></option>
+                                    {suppliers.map((supplier) => (
+                                      <option key={supplier.id} value={supplier.id}>
+                                        {supplier.name}
+                                      </option>
+                                    ))}
+                                  </TextField>
+                                </Grid>
+                              </Grid>
+                              {/* campo de imagem */}
+                              <Grid item xs={12}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 3,
+                                  }}
+                                >
+                                  <PhotoCamera fontSize="small" color="primary" />
+                                  <Typography variant="subtitle1" color="primary">
+                                    Fotos do Produto
                                   </Typography>
-                                  {sale.items.map((item, index) => (
+                                </Box>
+                                <ImageUpload
+                                  onImageUpload={(imageUrl) =>
+                                    setNewProduct((prev) => ({
+                                      ...prev,
+                                      imageUrls: [...prev.imageUrls, imageUrl],
+                                    }))
+                                  }
+                                />
+                                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+                                  {newProduct.imageUrls.map((imageUrl, index) => (
                                     <Box
                                       key={index}
+                                      sx={{ position: "relative", display: "inline-block" }}
+                                    >
+                                      <Avatar
+                                        src={imageUrl}
+                                        variant="rounded"
+                                        sx={{ width: 100, height: 100 }}
+                                      />
+                                      <IconButton
+                                        size="small"
+                                        sx={{
+                                          position: "absolute",
+                                          top: 0,
+                                          right: 0,
+                                          backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                          "&:hover": {
+                                            backgroundColor: "rgba(255, 0, 0, 0.8)",
+                                          },
+                                        }}
+                                        onClick={() => {
+                                          // Remove a imagem do estado
+                                          const updatedImageUrls = newProduct.imageUrls.filter(
+                                            (_, i) => i !== index
+                                          );
+                                          setNewProduct((prev) => ({
+                                            ...prev,
+                                            imageUrls: updatedImageUrls,
+                                          }));
+                                        }}
+                                      >
+                                        <Delete fontSize="small" color="error" />
+                                      </IconButton>
+                                    </Box>
+                                  ))}
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12}>
+                                <Divider sx={{ my: 3 }} />
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 3,
+                                  }}
+                                >
+                                  <Paid fontSize="small" color="primary" />
+                                  <Typography variant="subtitle1" color="primary">
+                                    Preços e Dimensões
+                                  </Typography>
+                                </Box>
+                                <Grid container spacing={2}>
+                                  {/* Campos de Preço e Peso */}
+                                  {["costPrice", "salePrice", "weight"].map(
+                                    (field) => (
+                                      <Grid item xs={4} key={field}>
+                                        <TextField
+                                          label={
+                                            field === "costPrice"
+                                              ? "Preço de Custo"
+                                              : field === "salePrice"
+                                                ? "Preço de Venda"
+                                                : "Peso (kg)"
+                                          }
+                                          name={field}
+                                          value={newProduct[field]}
+                                          onChange={handleInputChange}
+                                          fullWidth
+                                          type="number"
+                                          InputProps={{
+                                            startAdornment:
+                                              field.includes("Price") && "R$",
+                                          }}
+                                          size="small"
+                                          inputProps={{ min: 0 }} // Garante que o valor não seja negativo
+                                        />
+                                      </Grid>
+                                    )
+                                  )}
+
+                                  {/* Campos de Dimensões */}
+                                  {["length", "width", "height"].map((dim) => (
+                                    <Grid item xs={4} key={dim}>
+                                      <TextField
+                                        label={
+                                          dim === "length"
+                                            ? "Comprimento (cm)"
+                                            : dim === "width"
+                                              ? "Largura (cm)"
+                                              : "Altura (cm)"
+                                        }
+                                        name={dim}
+                                        value={newProduct.dimensions[dim]}
+                                        onChange={(e) =>
+                                          setNewProduct((prev) => ({
+                                            ...prev,
+                                            dimensions: {
+                                              ...prev.dimensions,
+                                              [dim]: e.target.value,
+                                            },
+                                          }))
+                                        }
+                                        fullWidth
+                                        type="number"
+                                        size="small"
+                                        inputProps={{ min: 0 }} // Garante que o valor não seja negativo
+                                      />
+                                    </Grid>
+                                  ))}
+                                </Grid>
+
+                                {/* Seção de Variações */}
+                                <Grid item xs={12}>
+                                  <Box
+                                    sx={{
+                                      border: 1,
+                                      borderColor: "divider",
+                                      borderRadius: 1,
+                                      p: 2,
+                                    }}
+                                  >
+                                    <Box
                                       sx={{
                                         display: "flex",
-                                        alignItems: "center",
-                                        gap: 2,
+                                        justifyContent: "space-between",
                                         mb: 2,
                                       }}
                                     >
+                                      <Typography variant="subtitle1">
+                                        Variações
+                                      </Typography>
+                                      <Button
+                                        variant="outlined"
+                                        startIcon={<Add />}
+                                        onClick={addVariation}
+                                        size="small"
+                                      >
+                                        Adicionar Variação
+                                      </Button>
+                                    </Box>
+                                    {newProduct.variations.map((variation, index) => (
+                                      <Paper
+                                        key={index}
+                                        elevation={1}
+                                        className={styles.variationCard}
+                                      >
+                                        <Grid container spacing={2}>
+                                          {/* Campos de Variação */}
+                                          {["size", "color", "model", "stock"].map(
+                                            (field) => (
+                                              <Grid item xs={3} key={field}>
+                                                <TextField
+                                                  label={
+                                                    field === "size"
+                                                      ? "Tamanho"
+                                                      : field === "color"
+                                                        ? "Cor"
+                                                        : field === "model"
+                                                          ? "Modelo"
+                                                          : "Estoque"
+                                                  }
+                                                  value={variation[field]}
+                                                  onChange={(e) =>
+                                                    handleVariationChange(
+                                                      index,
+                                                      field,
+                                                      e.target.value
+                                                    )
+                                                  }
+                                                  fullWidth
+                                                  size="small"
+                                                  type={
+                                                    field === "stock"
+                                                      ? "number"
+                                                      : "text"
+                                                  }
+                                                  inputProps={{ min: 0 }} // Garante que o estoque não seja negativo
+                                                />
+                                              </Grid>
+                                            )
+                                          )}
+                                        </Grid>
+                                      </Paper>
+                                    ))}
+                                  </Box>
+                                </Grid>
+                              </Grid>
+
+                              <Grid item xs={12}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 2,
+                                    justifyContent: "flex-end",
+                                    borderTop: 1,
+                                    borderColor: "divider",
+                                    pt: 3,
+                                  }}
+                                >
+                                  {editingProduct && (
+                                    <Button
+                                      variant="outlined"
+                                      color="error"
+                                      startIcon={<Cancel />}
+                                      onClick={resetForm}
+                                    >
+                                      Cancelar Edição
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="contained"
+                                    startIcon={
+                                      editingProduct ? <CheckCircle /> : <Add />
+                                    }
+                                    onClick={saveProduct}
+                                    sx={{ minWidth: 200 }}
+                                  >
+                                    {editingProduct
+                                      ? "Confirmar Alterações"
+                                      : "Adicionar Produto"}
+                                  </Button>
+                                </Box>
+                              </Grid>
+                            </Grid>
+                          </AccordionDetails>
+                        </Accordion>
+                      </CardContent>
+                    </Card>
+
+                    {/* Product List */}
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Lista de Produtos
+                          <Chip
+                            label={`${products.length} itens`}
+                            size="small"
+                            sx={{ ml: 2, bgcolor: "action.selected" }}
+                          />
+                        </Typography>
+
+                        <Grid container spacing={3}>
+                          {currentProducts.map((product) => {
+                            const totalStock = product.variations?.reduce(
+                              (acc, curr) => acc + (curr.stock || 0),
+                              0
+                            );
+                            const isLowStock = totalStock < product.minStock;
+
+                            return (
+                              <Grid item xs={12} sm={6} md={4} key={product.id}>
+                                <Card
+                                  variant="outlined"
+                                  sx={{
+                                    position: "relative",
+                                    "&:hover": { boxShadow: 4 },
+                                  }}
+                                >
+                                  {isLowStock && (
+                                    <Chip
+                                      label="Baixo Estoque"
+                                      color="error"
+                                      size="small"
+                                      sx={{
+                                        position: "absolute",
+                                        right: 16,
+                                        top: 16,
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  )}
+
+                                  <CardContent>
+                                    <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                                       <Avatar
-                                        src={item.imageUrl}
+                                        src={product.imageUrls[0]}
                                         variant="rounded"
-                                      />
+                                        sx={{
+                                          width: 80,
+                                          height: 80,
+                                          bgcolor: "background.paper",
+                                        }}
+                                      >
+                                        <PhotoCamera
+                                          sx={{ color: "text.disabled" }}
+                                        />
+                                      </Avatar>
+
                                       <Box>
-                                        <Typography variant="body1">
-                                          {item.name}
+                                        <Typography
+                                          variant="subtitle1"
+                                          fontWeight="600"
+                                        >
+                                          {product.name}
                                         </Typography>
                                         <Typography
                                           variant="body2"
                                           color="textSecondary"
                                         >
-                                          Quantidade: {item.quantity} • Preço:
-                                          R$ {item.price.toFixed(2)}
+                                          SKU: {product.sku}
+                                        </Typography>
+                                        <Chip
+                                          label={product.category}
+                                          size="small"
+                                          sx={{
+                                            mt: 1,
+                                            bgcolor: "primary.light",
+                                            color: "primary.dark",
+                                          }}
+                                        />
+                                      </Box>
+                                    </Box>
+
+                                    <Box sx={{ mb: 2 }}>
+                                      <LinearProgress
+                                        variant="determinate"
+                                        value={
+                                          (totalStock / (product.minStock || 1)) * 100
+                                        }
+                                        color={isLowStock ? "error" : "primary"}
+                                        sx={{ height: 8, borderRadius: 4 }}
+                                      />
+                                      <Box
+                                        sx={{
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          mt: 1,
+                                        }}
+                                      >
+                                        <Typography variant="caption">
+                                          Estoque: <strong>{totalStock}</strong>
+                                        </Typography>
+                                        <Typography
+                                          variant="caption"
+                                          color="textSecondary"
+                                        >
+                                          Mín: {product.minStock}
                                         </Typography>
                                       </Box>
                                     </Box>
+
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        gap: 1,
+                                        "& .MuiButton-root": {
+                                          flex: 1,
+                                          py: 1,
+                                        },
+                                      }}
+                                    >
+                                      <Button
+                                        variant="outlined"
+                                        startIcon={<Edit />}
+                                        onClick={() => startEditing(product)}
+                                        color="info"
+                                      >
+                                        Editar
+                                      </Button>
+                                      <Button
+                                        variant="outlined"
+                                        color="error"
+                                        startIcon={<Delete />}
+                                        onClick={() => deleteProduct(product.id)}
+                                      >
+                                        Excluir
+                                      </Button>
+                                    </Box>
+                                  </CardContent>
+                                </Card>
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            sx={{ mx: 1 }}
+                          >
+                            Anterior
+                          </Button>
+                          <Typography variant="body1" sx={{ mx: 2 }}>
+                            Página {currentPage} de{" "}
+                            {Math.ceil(products.length / itemsPerPage)}
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={
+                              currentPage === Math.ceil(products.length / itemsPerPage)
+                            }
+                            sx={{ mx: 1 }}
+                          >
+                            Próxima
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {activeView === "requested" && (
+                  <>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <LocalShipping
+                          sx={{
+                            fontSize: 40,
+                            color: "primary.main",
+                            bgcolor: "primary.light",
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Compras Solicitadas
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Pedidos Solicitados ({requestedSales.length})
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {requestedSales.map((sale) => (
+                            <Grid item xs={12} key={sale.id}>
+                              <Paper
+                                variant="outlined"
+                                sx={{ p: 2, borderRadius: 3 }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography
+                                      variant="subtitle2"
+                                      color="textSecondary"
+                                    >
+                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
+                                      {sale.date?.toLocaleDateString("pt-BR")}
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="500">
+                                      {sale.user?.details.fullName ||
+                                        "Cliente não identificado"}
+                                    </Typography>
+                                    <Typography variant="body2" color="textSecondary">
+                                      {sale.items.length} itens • R${" "}
+                                      {sale.total.toFixed(2)}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: "flex", gap: 2 }}>
+                                    <Button
+                                      variant="contained"
+                                      startIcon={<CheckCircle />}
+                                      onClick={() => confirmRequestedSale(sale.id)}
+                                      sx={{ borderRadius: 3 }}
+                                    >
+                                      Confirmar Pagamento
+                                    </Button>
+                                    <Button
+                                      variant="outlined"
+                                      color="error"
+                                      startIcon={<Delete />}
+                                      onClick={() => deleteRequestedSale(sale.id)}
+                                      sx={{ borderRadius: 3 }}
+                                    >
+                                      Excluir
+                                    </Button>
+                                  </Box>
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {activeView === "suppliers" && (
+                  <>
+                    {/* Seção de Fornecedores */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <BusinessIcon
+                          sx={{
+                            fontSize: 40,
+                            color: theme.palette.primary.main,
+                            bgcolor: theme.palette.primary.light,
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Gestão de Fornecedores
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Lista de Fornecedores
+                          <Chip
+                            label={`${suppliers.length} cadastrados`}
+                            size="small"
+                            sx={{ ml: 2, bgcolor: "action.selected" }}
+                          />
+                        </Typography>
+
+                        <Grid container spacing={3}>
+                          {suppliers.map((supplier) => {
+                            const suppliedProducts = products.filter(
+                              (p) => p.supplierId === supplier.id
+                            );
+
+                            return (
+                              <Grid item xs={12} md={6} key={supplier.id}>
+                                <Card variant="outlined">
+                                  <CardContent>
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                      }}
+                                    >
+                                      <Box>
+                                        <Typography
+                                          variant="subtitle1"
+                                          fontWeight="600"
+                                        >
+                                          {supplier.name}
+                                        </Typography>
+                                        <Typography
+                                          variant="body2"
+                                          color="textSecondary"
+                                        >
+                                          {supplier.contact}
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: "flex", gap: 1 }}>
+                                        <IconButton
+                                          onClick={() =>
+                                            startEditingSupplier(supplier)
+                                          }
+                                        >
+                                          <Edit fontSize="small" color="info" />
+                                        </IconButton>
+                                        <IconButton
+                                          onClick={() => deleteSupplier(supplier.id)}
+                                        >
+                                          <Delete fontSize="small" color="error" />
+                                        </IconButton>
+                                      </Box>
+                                    </Box>
+
+                                    <Box sx={{ mt: 2 }}>
+                                      <Chip
+                                        icon={<LinkIcon />}
+                                        label={`Fornece ${suppliedProducts.length} produtos`}
+                                        variant="outlined"
+                                        sx={{ mb: 1 }}
+                                      />
+                                      <Typography variant="body2">
+                                        <ContactsIcon
+                                          fontSize="small"
+                                          sx={{ mr: 1 }}
+                                        />
+                                        {supplier.email} | {supplier.phone}
+                                      </Typography>
+                                      <Typography variant="body2">
+                                        <BusinessIcon
+                                          fontSize="small"
+                                          sx={{ mr: 1 }}
+                                        />
+                                        {supplier.address}
+                                      </Typography>
+                                    </Box>
+                                  </CardContent>
+                                </Card>
+                              </Grid>
+                            );
+                          })}
+                        </Grid>
+                      </CardContent>
+                    </Card>
+
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Accordion elevation={0}>
+                          <AccordionSummary expandIcon={<ExpandMore />}>
+                            <Typography variant="h6" fontWeight="600">
+                              {editingSupplier
+                                ? "Editar Fornecedor"
+                                : "Novo Fornecedor"}
+                            </Typography>
+                          </AccordionSummary>
+
+                          <AccordionDetails>
+                            <Grid container spacing={3}>
+                              <Grid item xs={12}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    mb: 3,
+                                  }}
+                                >
+                                  <BusinessIcon fontSize="small" color="primary" />
+                                  <Typography variant="subtitle1" color="primary">
+                                    Informações do Fornecedor
+                                  </Typography>
+                                </Box>
+                                <Grid container spacing={2}>
+                                  {[
+                                    "name",
+                                    "contact",
+                                    "email",
+                                    "phone",
+                                    "address",
+                                  ].map((field) => (
+                                    <Grid item xs={12} md={6} key={field}>
+                                      <TextField
+                                        label={
+                                          field.charAt(0).toUpperCase() +
+                                          field.slice(1)
+                                        }
+                                        name={field}
+                                        value={newSupplier[field]}
+                                        onChange={handleSupplierInputChange}
+                                        fullWidth
+                                        size="small"
+                                        variant="filled"
+                                      />
+                                    </Grid>
                                   ))}
                                 </Grid>
                               </Grid>
-                            </AccordionDetails>
-                          </Accordion>
-                          <TextField
-                            label="Notas Internas"
-                            multiline
-                            rows={2}
-                            fullWidth
-                            value={notes[sale.id] || ""}
-                            onChange={(e) =>
-                              handleNoteChange(sale.id, e.target.value)
-                            }
-                            sx={{ mt: 2 }}
+
+                              <Grid item xs={12}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 2,
+                                    justifyContent: "flex-end",
+                                    borderTop: 1,
+                                    borderColor: "divider",
+                                    pt: 3,
+                                  }}
+                                >
+                                  {editingSupplier && (
+                                    <Button
+                                      variant="outlined"
+                                      color="error"
+                                      startIcon={<Cancel />}
+                                      onClick={resetSupplierForm}
+                                    >
+                                      Cancelar Edição
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="contained"
+                                    startIcon={
+                                      editingSupplier ? <CheckCircle /> : <Add />
+                                    }
+                                    onClick={saveSupplier}
+                                    sx={{ minWidth: 200 }}
+                                  >
+                                    {editingSupplier
+                                      ? "Salvar Alterações"
+                                      : "Adicionar Fornecedor"}
+                                  </Button>
+                                </Box>
+                              </Grid>
+                            </Grid>
+                          </AccordionDetails>
+                        </Accordion>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {activeView === "orders" && (
+                  <>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <LocalShipping
+                          sx={{
+                            fontSize: 40,
+                            color: "primary.main",
+                            bgcolor: "primary.light",
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Gestão de Pedidos
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+                      <TextField
+                        label="Buscar pedido"
+                        variant="outlined"
+                        fullWidth
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                      <Select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                      >
+                        <MenuItem value="all">Todos</MenuItem>
+                        <MenuItem value="pending">Pendentes</MenuItem>
+                        <MenuItem value="shipped">Enviados</MenuItem>
+                      </Select>
+                    </Box>
+
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Pedidos ({filteredSales.length})
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {filteredSales.map((sale) => (
+                            <Grid item xs={12} key={sale.id}>
+                              <Paper
+                                variant="outlined"
+                                sx={{ p: 2, borderRadius: 3 }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography
+                                      variant="subtitle2"
+                                      color="textSecondary"
+                                    >
+                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
+                                      {sale.date?.toLocaleDateString("pt-BR")} (
+                                      {Math.round(
+                                        (new Date() - sale.date) /
+                                        (1000 * 60 * 60 * 24)
+                                      )}{" "}
+                                      dias atrás)
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="500">
+                                      {sale.user?.details.fullName ||
+                                        "Cliente não identificado"}
+                                    </Typography>
+                                    <Typography variant="body2" color="textSecondary">
+                                      {sale.items.length} itens • R${" "}
+                                      {sale.total.toFixed(2)}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label={sale.shipped ? "Enviado" : "Pendente"}
+                                    color={sale.shipped ? "success" : "warning"}
+                                    variant="outlined"
+                                  />
+                                  <Button
+                                    variant="contained"
+                                    startIcon={<LocalShipping />}
+                                    onClick={() =>
+                                      sale.shipped
+                                        ? unmarkAsShipped(sale.id)
+                                        : markAsShipped(sale.id)
+                                    }
+                                    sx={{ borderRadius: 3 }}
+                                  >
+                                    {sale.shipped
+                                      ? "Desmarcar Enviado"
+                                      : "Marcar como Enviado"}
+                                  </Button>
+                                </Box>
+
+                                <Accordion>
+                                  <AccordionSummary expandIcon={<ExpandMore />}>
+                                    <Typography variant="subtitle2">
+                                      Detalhes do Pedido
+                                    </Typography>
+                                  </AccordionSummary>
+                                  <AccordionDetails>
+                                    <Grid container spacing={2}>
+                                      <Grid item xs={12}>
+                                        <Typography variant="h6" sx={{ mb: 2 }}>
+                                          Informações do Cliente
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>Nome:</strong>{" "}
+                                          {sale.user?.details.fullName || "N/A"}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>CPF:</strong>{" "}
+                                          {sale.user?.details.cpf || "N/A"}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>Telefone:</strong>{" "}
+                                          {sale.user?.details.phone || "N/A"}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>Endereço:</strong>{" "}
+                                          {sale.user?.details.address.street || "N/A"}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>Número:</strong>{" "}
+                                          {sale.user?.details.address.number}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>bairro:</strong>{" "}
+                                          {sale.user?.details.address.
+                                            neighborhood}
+                                        </Typography>
+                                        <Typography variant="body1">
+                                          <strong>Cep:</strong>{" "}
+                                          {sale.user?.details.address.
+                                            zipCode}
+                                        </Typography>
+                                      </Grid>
+                                      <Grid item xs={12}>
+                                        <Typography variant="h6" sx={{ mb: 2 }}>
+                                          Itens do Pedido
+                                        </Typography>
+                                        {sale.items.map((item, index) => (
+                                          <Box
+                                            key={index}
+                                            sx={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: 2,
+                                              mb: 2,
+                                            }}
+                                          >
+                                            <Avatar
+                                              src={item.imageUrl}
+                                              variant="rounded"
+                                            />
+                                            <Box>
+                                              <Typography variant="body1">
+                                                {item.name}
+                                              </Typography>
+                                              <Typography
+                                                variant="body2"
+                                                color="textSecondary"
+                                              >
+                                                Quantidade: {item.quantity} • Preço:
+                                                R$ {item.price.toFixed(2)}
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        ))}
+                                      </Grid>
+                                    </Grid>
+                                  </AccordionDetails>
+                                </Accordion>
+                                <TextField
+                                  label="Notas Internas"
+                                  multiline
+                                  rows={2}
+                                  fullWidth
+                                  value={notes[sale.id] || ""}
+                                  onChange={(e) =>
+                                    handleNoteChange(sale.id, e.target.value)
+                                  }
+                                  sx={{ mt: 2 }}
+                                />
+                                <Button
+                                  startIcon={<Print />}
+                                  sx={{ mt: 1 }}
+                                  onClick={() => handlePrintOrder(sale)}
+                                >
+                                  Imprimir
+                                </Button>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+
+                {activeView === "delivered" && (
+                  <>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <CheckCircle
+                          sx={{
+                            fontSize: 40,
+                            color: theme.palette.success.main,
+                            bgcolor: theme.palette.success.light,
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Pedidos Entregues
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Card sx={{ mb: 4 }}>
+                      <CardContent>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
+                          Lista de Pedidos Entregues
+                          <Chip
+                            label={`${deliveredSales.length} entregues`}
+                            size="small"
+                            sx={{ ml: 2, bgcolor: "action.selected" }}
                           />
-                          <Button
-                            startIcon={<Print />}
-                            sx={{ mt: 1 }}
-                            onClick={() => handlePrintOrder(sale)}
-                          >
-                            Imprimir
-                          </Button>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </>
-          )}
+                        </Typography>
 
-          {activeView === "delivered" && (
-            <>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 4,
-                  gap: 2,
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <CheckCircle
-                    sx={{
-                      fontSize: 40,
-                      color: theme.palette.success.main,
-                      bgcolor: theme.palette.success.light,
-                      p: 1.5,
-                      borderRadius: 4,
-                    }}
-                  />
-                  <Typography variant="h4" fontWeight="700">
-                    Pedidos Entregues
-                  </Typography>
-                </Box>
-              </Box>
+                        <Grid container spacing={2}>
+                          {deliveredSales.map((sale) => (
+                            <Grid item xs={12} key={sale.id}>
+                              <Paper
+                                variant="outlined"
+                                sx={{ p: 2, borderRadius: 3 }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography
+                                      variant="subtitle2"
+                                      color="textSecondary"
+                                    >
+                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
+                                      {sale.date?.toLocaleDateString("pt-BR")}
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="500">
+                                      {sale.user?.details.fullName ||
+                                        "Cliente não identificado"}
+                                    </Typography>
+                                    <Typography variant="body2" color="textSecondary">
+                                      {sale.items.length} itens • R${" "}
+                                      {sale.total.toFixed(2)}
+                                    </Typography>
+                                  </Box>
+                                  <Chip
+                                    label="Entregue"
+                                    color="success"
+                                    variant="outlined"
+                                  />
+                                </Box>
+                              </Paper>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </>
+            )}
 
-              <Card sx={{ mb: 4 }}>
-                <CardContent>
-                  <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                    Lista de Pedidos Entregues
-                    <Chip
-                      label={`${deliveredSales.length} entregues`}
-                      size="small"
-                      sx={{ ml: 2, bgcolor: "action.selected" }}
-                    />
-                  </Typography>
-
-                  <Grid container spacing={2}>
-                    {deliveredSales.map((sale) => (
-                      <Grid item xs={12} key={sale.id}>
-                        <Paper
-                          variant="outlined"
-                          sx={{ p: 2, borderRadius: 3 }}
+            {activeTab === "users" && (
+              <div>
+                <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>
+                  Gerenciamento de Usuários
+                </Typography>
+                <Grid container spacing={3}>
+                  {users.map((user) => (
+                    <Grid item xs={12} sm={6} md={4} key={user.id}>
+                      <Card variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
                         >
-                          <Box
+                          <Avatar
                             sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
+                              bgcolor:
+                                user.role === "admin" ? "primary.main" : "grey.500",
+                              width: 56,
+                              height: 56,
                             }}
                           >
-                            <Box>
-                              <Typography
-                                variant="subtitle2"
-                                color="textSecondary"
-                              >
-                                #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                {sale.date?.toLocaleDateString("pt-BR")}
-                              </Typography>
-                              <Typography variant="body1" fontWeight="500">
-                                {sale.user?.details.fullName ||
-                                  "Cliente não identificado"}
-                              </Typography>
-                              <Typography variant="body2" color="textSecondary">
-                                {sale.items.length} itens • R${" "}
-                                {sale.total.toFixed(2)}
-                              </Typography>
-                            </Box>
-                            <Chip
-                              label="Entregue"
-                              color="success"
-                              variant="outlined"
-                            />
+                            {user.fullName
+                              ? user.fullName.charAt(0).toUpperCase()
+                              : "U"}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="h6" fontWeight="600">
+                              {user.fullName || "Não informado"}
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              {user.email}
+                            </Typography>
                           </Box>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </>
-          )}
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            mb: 2,
+                            color:
+                              user.role === "admin" ? "primary.main" : "text.secondary",
+                            fontWeight: user.role === "admin" ? "bold" : "normal",
+                          }}
+                        >
+                          Papel: {user.role === "admin" ? "Administrador" : "Usuário"}
+                        </Typography>
+                        {user.role !== "admin" && (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            fullWidth
+                            onClick={() => makeAdmin(user.id)}
+                          >
+                            Tornar Admin
+                          </Button>
+                        )}
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </div>
+            )}
+          </Box>
         </Box>
         {activeView === "reports" && (
           <SalesStockReports sales={sales} products={products} />
