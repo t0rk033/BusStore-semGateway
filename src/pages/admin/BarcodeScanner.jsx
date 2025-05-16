@@ -1,27 +1,47 @@
-import React, { useState } from "react";
-import QrScanner from "react-qr-scanner";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  BrowserMultiFormatReader,
+  NotFoundException,
+} from "@zxing/library";
 
 const BarcodeScanner = ({ onScan }) => {
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(new BrowserMultiFormatReader());
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleScan = (data) => {
-    if (data) {
-      onScan(data.text); // Passa o código escaneado para o componente pai
-      setScanning(false); // Para o scanner após capturar o código
-      setError(null); // Limpa mensagens de erro
-    }
-  };
+  useEffect(() => {
+    const codeReader = codeReaderRef.current;
 
-  const handleError = (err) => {
-    console.error("Erro ao escanear:", err);
-    setError("Erro ao escanear o código. Tente novamente.");
-  };
+    if (scanning && videoRef.current) {
+      codeReader
+        .decodeFromVideoDevice(null, videoRef.current, (result, err) => {
+          if (result) {
+            console.log("Código escaneado:", result.getText());
+            onScan(result.getText());
+            setScanning(false);
+            setError(null);
+          }
+          if (err && !(err instanceof NotFoundException)) {
+            console.error("Erro ao escanear:", err);
+            setError("Erro ao escanear o código. Tente novamente.");
+          }
+        })
+        .catch((err) => {
+          console.error("Erro ao iniciar o scanner:", err);
+          setError("Erro ao acessar a câmera. Verifique as permissões.");
+        });
+    }
+
+    return () => {
+      codeReader.reset();
+    };
+  }, [scanning]);
 
   return (
     <div style={{ textAlign: "center", padding: "20px" }}>
       <button
-        onClick={() => setScanning(!scanning)}
+        onClick={() => setScanning((prev) => !prev)}
         style={{
           padding: "10px 20px",
           backgroundColor: scanning ? "#d9534f" : "#5cb85c",
@@ -38,16 +58,11 @@ const BarcodeScanner = ({ onScan }) => {
 
       {scanning && (
         <div style={{ marginTop: "20px" }}>
-          <QrScanner
-            delay={300}
-            onError={handleError}
-            onScan={handleScan}
-            style={{ width: "100%", maxWidth: "400px", margin: "0 auto" }}
-            constraints={{
-              video: {
-                facingMode: { exact: "environment" }, // Prioriza a câmera traseira
-              },
-            }}
+          <video
+            ref={videoRef}
+            style={{ width: "100%", maxWidth: "400px", borderRadius: "5px" }}
+            autoPlay
+            muted
           />
         </div>
       )}

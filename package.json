@@ -21,6 +21,7 @@
     "@mui/icons-material": "^6.4.3",
     "@mui/material": "^6.4.3",
     "@mui/x-date-pickers": "^7.26.0",
+    "@zxing/library": "^0.21.3",
     "batatabowl": "file:",
     "chart.js": "^4.4.7",
     "cors": "^2.8.5",
