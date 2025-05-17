@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "vite build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./deploy.ps1"
   },
   "dependencies": {
     "@cloudinary/react": "^1.13.1",
