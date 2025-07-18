@@ -45,17 +45,28 @@ const ProductForm = ({ newProduct, editingProduct, handleInputChange, addVariati
                   <Typography variant="subtitle1" color="primary">Preços e Dimensões</Typography>
                 </Box>
                 <Grid container spacing={2}>
-                  {["costPrice", "salePrice", "weight"].map((field) => (
+                  {["costPrice", "salePrice", "discount", "weight"].map((field) => (
                     <Grid item xs={4} key={field}>
                       <TextField
-                        label={field === 'costPrice' ? 'Preço de Custo' : field === 'salePrice' ? 'Preço de Venda' : 'Peso'}
+                        label={
+                          field === "costPrice"
+                            ? "Preço de Custo"
+                            : field === "salePrice"
+                              ? "Preço de Venda"
+                              : field === "discount"
+                                ? "Desconto (%)"
+                                : "Peso"
+                        }
                         name={field}
                         value={newProduct[field]}
                         onChange={handleInputChange}
                         fullWidth
-                        type="number"
-                        InputProps={{ startAdornment: field.includes('Price') && 'R$' }}
+                        type={field === "discount" || field === "costPrice" || field === "salePrice" ? "number" : "text"}
+                        InputProps={{
+                          startAdornment: field.includes("Price") && "R$",
+                        }}
                         size="small"
+                        inputProps={{ min: 0, max: field === "discount" ? 100 : undefined }}
                       />
                     </Grid>
                   ))}

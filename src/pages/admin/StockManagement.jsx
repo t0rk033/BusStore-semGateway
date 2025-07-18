@@ -87,6 +87,7 @@ function StockManagement() {
     variations: [{ size: "", color: "", model: "", stock: 0 }],
     costPrice: "",
     salePrice: "",
+    discount: "", // <-- ADICIONE ESTA LINHA
     weight: "",
     dimensions: { length: "", width: "", height: "" },
     minStock: 1,
@@ -438,17 +439,18 @@ function StockManagement() {
         barcode: newProduct.barcode,
         name: newProduct.name,
         description: newProduct.description,
-        imageUrls: newProduct.imageUrls, // Lista de URLs
+        imageUrls: newProduct.imageUrls,
         category: newProduct.category,
         subcategory: newProduct.subcategory,
         variations: newProduct.variations.map((v) => ({
           size: v.size,
           color: v.color,
           model: v.model,
-          stock: parseInt(v.stock, 10) || 0, // Garante que o estoque seja um número
+          stock: parseInt(v.stock, 10) || 0,
         })),
         costPrice: parseFloat(newProduct.costPrice) || 0,
         salePrice: parseFloat(newProduct.salePrice) || 0,
+        discount: parseFloat(newProduct.discount) || 0, // <-- ADICIONE ESTA LINHA
         weight: parseFloat(newProduct.weight) || 0,
         dimensions: {
           length: parseFloat(newProduct.dimensions.length) || 0,
@@ -641,6 +643,7 @@ function StockManagement() {
       variations: [{ size: "", color: "", model: "", stock: 0 }],
       costPrice: "",
       salePrice: "",
+      discount: "", // <-- ADICIONE ESTA LINHA
       weight: "",
       dimensions: { length: "", width: "", height: "" },
       minStock: 0,
@@ -1204,33 +1207,35 @@ function StockManagement() {
                                   </Typography>
                                 </Box>
                                 <Grid container spacing={2}>
-                                  {/* Campos de Preço e Peso */}
-                                  {["costPrice", "salePrice", "weight"].map(
-                                    (field) => (
-                                      <Grid item xs={4} key={field}>
-                                        <TextField
-                                          label={
-                                            field === "costPrice"
-                                              ? "Preço de Custo"
-                                              : field === "salePrice"
-                                                ? "Preço de Venda"
-                                                : "Peso (kg)"
-                                          }
-                                          name={field}
-                                          value={newProduct[field]}
-                                          onChange={handleInputChange}
-                                          fullWidth
-                                          type="number"
-                                          InputProps={{
-                                            startAdornment:
-                                              field.includes("Price") && "R$",
-                                          }}
-                                          size="small"
-                                          inputProps={{ min: 0 }} // Garante que o valor não seja negativo
-                                        />
-                                      </Grid>
-                                    )
-                                  )}
+                                  {/* Campos de Preço, Desconto e Peso */}
+                                  {["costPrice", "salePrice", "discount", "weight"].map((field) => (
+                                    <Grid item xs={3} key={field}>
+                                      <TextField
+                                        label={
+                                          field === "costPrice"
+                                            ? "Preço de Custo"
+                                            : field === "salePrice"
+                                            ? "Preço de Venda"
+                                            : field === "discount"
+                                            ? "Desconto (%)"
+                                            : "Peso (kg)"
+                                        }
+                                        name={field}
+                                        value={newProduct[field]}
+                                        onChange={handleInputChange}
+                                        fullWidth
+                                        type={field === "discount" || field === "costPrice" || field === "salePrice" ? "number" : "text"}
+                                        InputProps={{
+                                          startAdornment: field.includes("Price") && "R$",
+                                        }}
+                                        size="small"
+                                        inputProps={{
+                                          min: 0,
+                                          max: field === "discount" ? 100 : undefined,
+                                        }}
+                                      />
+                                    </Grid>
+                                  ))}
 
                                   {/* Campos de Dimensões */}
                                   {["length", "width", "height"].map((dim) => (
@@ -1257,7 +1262,7 @@ function StockManagement() {
                                         fullWidth
                                         type="number"
                                         size="small"
-                                        inputProps={{ min: 0 }} // Garante que o valor não seja negativo
+                                        inputProps={{ min: 0 }}
                                       />
                                     </Grid>
                                   ))}
@@ -1493,6 +1498,31 @@ function StockManagement() {
                                       </Box>
                                     </Box>
 
+                                    <Box sx={{ mt: 2 }}>
+                                      {Number(product.discount || 0) > 0 ? (
+                                        <>
+                                          <Typography
+                                            variant="body2"
+                                            color="textSecondary"
+                                            sx={{ textDecoration: "line-through", mr: 1 }}
+                                          >
+                                            R$ {Number(product.salePrice || 0).toFixed(2)}
+                                          </Typography>
+                                          <Typography
+                                            variant="h6"
+                                            color="primary"
+                                            sx={{ fontWeight: "bold", display: "inline" }}
+                                          >
+                                            R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
+                                          </Typography>
+                                        </>
+                                      ) : (
+                                        <Typography variant="h6" color="primary" sx={{ fontWeight: "bold" }}>
+                                          R$ {Number(product.salePrice || 0).toFixed(2)}
+                                        </Typography>
+                                      )}
+                                    </Box>
+
                                     <Box
                                       sx={{
                                         display: "flex",
@@ -1614,539 +1644,69 @@ function StockManagement() {
                                         "Cliente não identificado"}
                                     </Typography>
                                     <Typography variant="body2" color="textSecondary">
-                                      {sale.items.length} itens • R${" "}
-                                      {sale.total.toFixed(2)}
+                                      {sale.items.length} itens • R$ {Number(sale.total).toFixed(2)}
                                     </Typography>
                                   </Box>
-                                  <Box sx={{ display: "flex", gap: 2 }}>
+                                  <Box>
                                     <Button
                                       variant="contained"
-                                      startIcon={<CheckCircle />}
-                                      onClick={() => confirmRequestedSale(sale.id)}
-                                      sx={{ borderRadius: 3 }}
+                                      size="small"
+                                      onClick={() => handlePrintOrder(sale)}
+                                      startIcon={<Print />}
                                     >
-                                      Confirmar Pagamento
-                                    </Button>
-                                    <Button
-                                      variant="outlined"
-                                      color="error"
-                                      startIcon={<Delete />}
-                                      onClick={() => deleteRequestedSale(sale.id)}
-                                      sx={{ borderRadius: 3 }}
-                                    >
-                                      Excluir
+                                      Imprimir
                                     </Button>
                                   </Box>
                                 </Box>
-                              </Paper>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
 
-                {activeView === "suppliers" && (
-                  <>
-                    {/* Seção de Fornecedores */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 4,
-                        gap: 2,
-                      }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <BusinessIcon
-                          sx={{
-                            fontSize: 40,
-                            color: theme.palette.primary.main,
-                            bgcolor: theme.palette.primary.light,
-                            p: 1.5,
-                            borderRadius: 4,
-                          }}
-                        />
-                        <Typography variant="h4" fontWeight="700">
-                          Gestão de Fornecedores
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Card sx={{ mb: 4 }}>
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                          Lista de Fornecedores
-                          <Chip
-                            label={`${suppliers.length} cadastrados`}
-                            size="small"
-                            sx={{ ml: 2, bgcolor: "action.selected" }}
-                          />
-                        </Typography>
-
-                        <Grid container spacing={3}>
-                          {suppliers.map((supplier) => {
-                            const suppliedProducts = products.filter(
-                              (p) => p.supplierId === supplier.id
-                            );
-
-                            return (
-                              <Grid item xs={12} md={6} key={supplier.id}>
-                                <Card variant="outlined">
-                                  <CardContent>
+                                {/* Itens do pedido */}
+                                <Divider sx={{ my: 2 }} />
+                                <Box>
+                                  {sale.items.map((item) => (
                                     <Box
+                                      key={item.id}
                                       sx={{
                                         display: "flex",
                                         justifyContent: "space-between",
-                                        alignItems: "center",
+                                        mb: 1,
                                       }}
                                     >
-                                      <Box>
-                                        <Typography
-                                          variant="subtitle1"
-                                          fontWeight="600"
-                                        >
-                                          {supplier.name}
-                                        </Typography>
-                                        <Typography
-                                          variant="body2"
-                                          color="textSecondary"
-                                        >
-                                          {supplier.contact}
-                                        </Typography>
-                                      </Box>
-                                      <Box sx={{ display: "flex", gap: 1 }}>
-                                        <IconButton
-                                          onClick={() =>
-                                            startEditingSupplier(supplier)
-                                          }
-                                        >
-                                          <Edit fontSize="small" color="info" />
-                                        </IconButton>
-                                        <IconButton
-                                          onClick={() => deleteSupplier(supplier.id)}
-                                        >
-                                          <Delete fontSize="small" color="error" />
-                                        </IconButton>
-                                      </Box>
-                                    </Box>
-
-                                    <Box sx={{ mt: 2 }}>
-                                      <Chip
-                                        icon={<LinkIcon />}
-                                        label={`Fornece ${suppliedProducts.length} produtos`}
-                                        variant="outlined"
-                                        sx={{ mb: 1 }}
-                                      />
                                       <Typography variant="body2">
-                                        <ContactsIcon
-                                          fontSize="small"
-                                          sx={{ mr: 1 }}
-                                        />
-                                        {supplier.email} | {supplier.phone}
+                                        {item.name} ({item.quantity})
                                       </Typography>
-                                      <Typography variant="body2">
-                                        <BusinessIcon
-                                          fontSize="small"
-                                          sx={{ mr: 1 }}
-                                        />
-                                        {supplier.address}
+                                      <Typography variant="body2" fontWeight="500">
+                                        R$ {Number(item.price).toFixed(2)}
                                       </Typography>
                                     </Box>
-                                  </CardContent>
-                                </Card>
-                              </Grid>
-                            );
-                          })}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-
-                    <Card sx={{ mb: 4 }}>
-                      <CardContent>
-                        <Accordion elevation={0}>
-                          <AccordionSummary expandIcon={<ExpandMore />}>
-                            <Typography variant="h6" fontWeight="600">
-                              {editingSupplier
-                                ? "Editar Fornecedor"
-                                : "Novo Fornecedor"}
-                            </Typography>
-                          </AccordionSummary>
-
-                          <AccordionDetails>
-                            <Grid container spacing={3}>
-                              <Grid item xs={12}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                    mb: 3,
-                                  }}
-                                >
-                                  <BusinessIcon fontSize="small" color="primary" />
-                                  <Typography variant="subtitle1" color="primary">
-                                    Informações do Fornecedor
-                                  </Typography>
-                                </Box>
-                                <Grid container spacing={2}>
-                                  {[
-                                    "name",
-                                    "contact",
-                                    "email",
-                                    "phone",
-                                    "address",
-                                  ].map((field) => (
-                                    <Grid item xs={12} md={6} key={field}>
-                                      <TextField
-                                        label={
-                                          field.charAt(0).toUpperCase() +
-                                          field.slice(1)
-                                        }
-                                        name={field}
-                                        value={newSupplier[field]}
-                                        onChange={handleSupplierInputChange}
-                                        fullWidth
-                                        size="small"
-                                        variant="filled"
-                                      />
-                                    </Grid>
                                   ))}
-                                </Grid>
-                              </Grid>
+                                </Box>
 
-                              <Grid item xs={12}>
+                                {/* Ações do pedido */}
+                                <Divider sx={{ my: 2 }} />
                                 <Box
                                   sx={{
                                     display: "flex",
-                                    gap: 2,
                                     justifyContent: "flex-end",
-                                    borderTop: 1,
-                                    borderColor: "divider",
-                                    pt: 3,
+                                    gap: 1,
                                   }}
                                 >
-                                  {editingSupplier && (
-                                    <Button
-                                      variant="outlined"
-                                      color="error"
-                                      startIcon={<Cancel />}
-                                      onClick={resetSupplierForm}
-                                    >
-                                      Cancelar Edição
-                                    </Button>
-                                  )}
+                                  <Button
+                                    variant="outlined"
+                                    color="error"
+                                    size="small"
+                                    onClick={() => deleteRequestedSale(sale.id)}
+                                    startIcon={<Delete />}
+                                  >
+                                    Excluir
+                                  </Button>
                                   <Button
                                     variant="contained"
-                                    startIcon={
-                                      editingSupplier ? <CheckCircle /> : <Add />
-                                    }
-                                    onClick={saveSupplier}
-                                    sx={{ minWidth: 200 }}
+                                    size="small"
+                                    onClick={() => confirmRequestedSale(sale.id)}
+                                    startIcon={<CheckCircle />}
                                   >
-                                    {editingSupplier
-                                      ? "Salvar Alterações"
-                                      : "Adicionar Fornecedor"}
+                                    Confirmar
                                   </Button>
-                                </Box>
-                              </Grid>
-                            </Grid>
-                          </AccordionDetails>
-                        </Accordion>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-
-                {activeView === "orders" && (
-                  <>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 4,
-                        gap: 2,
-                      }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <LocalShipping
-                          sx={{
-                            fontSize: 40,
-                            color: "primary.main",
-                            bgcolor: "primary.light",
-                            p: 1.5,
-                            borderRadius: 4,
-                          }}
-                        />
-                        <Typography variant="h4" fontWeight="700">
-                          Gestão de Pedidos
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                      <TextField
-                        label="Buscar pedido"
-                        variant="outlined"
-                        fullWidth
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                      <Select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <MenuItem value="all">Todos</MenuItem>
-                        <MenuItem value="pending">Pendentes</MenuItem>
-                        <MenuItem value="shipped">Enviados</MenuItem>
-                      </Select>
-                    </Box>
-
-                    <Card sx={{ mb: 4 }}>
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                          Pedidos ({filteredSales.length})
-                        </Typography>
-                        <Grid container spacing={2}>
-                          {filteredSales.map((sale) => (
-                            <Grid item xs={12} key={sale.id}>
-                              <Paper
-                                variant="outlined"
-                                sx={{ p: 2, borderRadius: 3 }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Box>
-                                    <Typography
-                                      variant="subtitle2"
-                                      color="textSecondary"
-                                    >
-                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                      {sale.date?.toLocaleDateString("pt-BR")} (
-                                      {Math.round(
-                                        (new Date() - sale.date) /
-                                        (1000 * 60 * 60 * 24)
-                                      )}{" "}
-                                      dias atrás)
-                                    </Typography>
-                                    <Typography variant="body1" fontWeight="500">
-                                      {sale.user?.details.fullName ||
-                                        "Cliente não identificado"}
-                                    </Typography>
-                                    <Typography variant="body2" color="textSecondary">
-                                      {sale.items.length} itens • R${" "}
-                                      {sale.total.toFixed(2)}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    label={sale.shipped ? "Enviado" : "Pendente"}
-                                    color={sale.shipped ? "success" : "warning"}
-                                    variant="outlined"
-                                  />
-                                  <Button
-                                    variant="contained"
-                                    startIcon={<LocalShipping />}
-                                    onClick={() =>
-                                      sale.shipped
-                                        ? unmarkAsShipped(sale.id)
-                                        : markAsShipped(sale.id)
-                                    }
-                                    sx={{ borderRadius: 3 }}
-                                  >
-                                    {sale.shipped
-                                      ? "Desmarcar Enviado"
-                                      : "Marcar como Enviado"}
-                                  </Button>
-                                </Box>
-
-                                <Accordion>
-                                  <AccordionSummary expandIcon={<ExpandMore />}>
-                                    <Typography variant="subtitle2">
-                                      Detalhes do Pedido
-                                    </Typography>
-                                  </AccordionSummary>
-                                  <AccordionDetails>
-                                    <Grid container spacing={2}>
-                                      <Grid item xs={12}>
-                                        <Typography variant="h6" sx={{ mb: 2 }}>
-                                          Informações do Cliente
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>Nome:</strong>{" "}
-                                          {sale.user?.details.fullName || "N/A"}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>CPF:</strong>{" "}
-                                          {sale.user?.details.cpf || "N/A"}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>Telefone:</strong>{" "}
-                                          {sale.user?.details.phone || "N/A"}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>Endereço:</strong>{" "}
-                                          {sale.user?.details.address.street || "N/A"}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>Número:</strong>{" "}
-                                          {sale.user?.details.address.number}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>bairro:</strong>{" "}
-                                          {sale.user?.details.address.
-                                            neighborhood}
-                                        </Typography>
-                                        <Typography variant="body1">
-                                          <strong>Cep:</strong>{" "}
-                                          {sale.user?.details.address.
-                                            zipCode}
-                                        </Typography>
-                                      </Grid>
-                                      <Grid item xs={12}>
-                                        <Typography variant="h6" sx={{ mb: 2 }}>
-                                          Itens do Pedido
-                                        </Typography>
-                                        {sale.items.map((item, index) => (
-                                          <Box
-                                            key={index}
-                                            sx={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: 2,
-                                              mb: 2,
-                                            }}
-                                          >
-                                            <Avatar
-                                              src={item.imageUrl}
-                                              variant="rounded"
-                                            />
-                                            <Box>
-                                              <Typography variant="body1">
-                                                {item.name}
-                                              </Typography>
-                                              <Typography
-                                                variant="body2"
-                                                color="textSecondary"
-                                              >
-                                                Quantidade: {item.quantity} • Preço:
-                                                R$ {item.price.toFixed(2)}
-                                              </Typography>
-                                            </Box>
-                                          </Box>
-                                        ))}
-                                      </Grid>
-                                    </Grid>
-                                  </AccordionDetails>
-                                </Accordion>
-                                <TextField
-                                  label="Notas Internas"
-                                  multiline
-                                  rows={2}
-                                  fullWidth
-                                  value={notes[sale.id] || ""}
-                                  onChange={(e) =>
-                                    handleNoteChange(sale.id, e.target.value)
-                                  }
-                                  sx={{ mt: 2 }}
-                                />
-                                <Button
-                                  startIcon={<Print />}
-                                  sx={{ mt: 1 }}
-                                  onClick={() => handlePrintOrder(sale)}
-                                >
-                                  Imprimir
-                                </Button>
-                              </Paper>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-
-                {activeView === "delivered" && (
-                  <>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 4,
-                        gap: 2,
-                      }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <CheckCircle
-                          sx={{
-                            fontSize: 40,
-                            color: theme.palette.success.main,
-                            bgcolor: theme.palette.success.light,
-                            p: 1.5,
-                            borderRadius: 4,
-                          }}
-                        />
-                        <Typography variant="h4" fontWeight="700">
-                          Pedidos Entregues
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Card sx={{ mb: 4 }}>
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                          Lista de Pedidos Entregues
-                          <Chip
-                            label={`${deliveredSales.length} entregues`}
-                            size="small"
-                            sx={{ ml: 2, bgcolor: "action.selected" }}
-                          />
-                        </Typography>
-
-                        <Grid container spacing={2}>
-                          {deliveredSales.map((sale) => (
-                            <Grid item xs={12} key={sale.id}>
-                              <Paper
-                                variant="outlined"
-                                sx={{ p: 2, borderRadius: 3 }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Box>
-                                    <Typography
-                                      variant="subtitle2"
-                                      color="textSecondary"
-                                    >
-                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                      {sale.date?.toLocaleDateString("pt-BR")}
-                                    </Typography>
-                                    <Typography variant="body1" fontWeight="500">
-                                      {sale.user?.details.fullName ||
-                                        "Cliente não identificado"}
-                                    </Typography>
-                                    <Typography variant="body2" color="textSecondary">
-                                      {sale.items.length} itens • R${" "}
-                                      {sale.total.toFixed(2)}
-                                    </Typography>
-                                  </Box>
-                                  <Chip
-                                    label="Entregue"
-                                    color="success"
-                                    variant="outlined"
-                                  />
                                 </Box>
                               </Paper>
                             </Grid>
@@ -2160,70 +1720,55 @@ function StockManagement() {
             )}
 
             {activeTab === "users" && (
-              <div>
+              <Box>
                 <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>
-                  Gerenciamento de Usuários
+                  Gestão de Usuários
                 </Typography>
-                <Grid container spacing={3}>
-                  {users.map((user) => (
-                    <Grid item xs={12} sm={6} md={4} key={user.id}>
-                      <Card variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-                        >
-                          <Avatar
+
+                {/* Lista de usuários com opção de promoção para admin */}
+                <Card>
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      {users.map((user) => (
+                        <Grid item xs={12} md={6} key={user.id}>
+                          <Paper
+                            variant="outlined"
                             sx={{
-                              bgcolor:
-                                user.role === "admin" ? "primary.main" : "grey.500",
-                              width: 56,
-                              height: 56,
+                              p: 2,
+                              borderRadius: 3,
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
                             }}
                           >
-                            {user.fullName
-                              ? user.fullName.charAt(0).toUpperCase()
-                              : "U"}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="h6" fontWeight="600">
-                              {user.fullName || "Não informado"}
-                            </Typography>
-                            <Typography variant="body2" color="textSecondary">
-                              {user.email}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            mb: 2,
-                            color:
-                              user.role === "admin" ? "primary.main" : "text.secondary",
-                            fontWeight: user.role === "admin" ? "bold" : "normal",
-                          }}
-                        >
-                          Papel: {user.role === "admin" ? "Administrador" : "Usuário"}
-                        </Typography>
-                        {user.role !== "admin" && (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            fullWidth
-                            onClick={() => makeAdmin(user.id)}
-                          >
-                            Tornar Admin
-                          </Button>
-                        )}
-                      </Card>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="600">
+                                {user.details.fullName}
+                              </Typography>
+                              <Typography variant="body2" color="textSecondary">
+                                {user.email}
+                              </Typography>
+                            </Box>
+
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => makeAdmin(user.id)}
+                              disabled={user.role === "admin"}
+                              sx={{ minWidth: 120 }}
+                            >
+                              {user.role === "admin" ? "Admin" : "Promover a Admin"}
+                            </Button>
+                          </Paper>
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
-                </Grid>
-              </div>
+                  </CardContent>
+                </Card>
+              </Box>
             )}
           </Box>
         </Box>
-        {activeView === "reports" && (
-          <SalesStockReports sales={sales} products={products} />
-        )}
       </Box>
       <Footer />
     </div>

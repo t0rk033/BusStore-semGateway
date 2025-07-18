@@ -352,18 +352,18 @@ function Store() {
                 </div>
                 
                 <div className={styles.priceContainer}>
-                  {product.discount > 0 ? (
+                  {Number(product.discount || 0) > 0 ? (
                     <>
                       <span className={styles.originalPrice}>
-                        R$ {product.originalPrice.toFixed(2)}
+                        R$ {Number(product.salePrice || 0).toFixed(2)}
                       </span>
                       <span className={styles.discountedPrice}>
-                        R$ {product.salePrice.toFixed(2)}
+                        R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
                       </span>
                     </>
                   ) : (
                     <span className={styles.regularPrice}>
-                      R$ {product.salePrice.toFixed(2)}
+                      R$ {Number(product.salePrice || 0).toFixed(2)}
                     </span>
                   )}
                 </div>

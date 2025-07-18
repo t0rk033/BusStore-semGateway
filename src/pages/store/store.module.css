@@ -139,13 +139,13 @@ body {
 
 .originalPrice {
   text-decoration: line-through;
-  color: var(--text-light);
+  color: #888;
+  margin-right: 8px;
 }
 
 .discountedPrice {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--green);
+  color: #1976d2;
+  font-weight: bold;
 }
 
 .addToCartButton {
@@ -312,14 +312,13 @@ body {
 
 .originalPrice {
   text-decoration: line-through;
-  color: var(--text-light);
-  font-size: 0.9rem;
+  color: #888;
+  margin-right: 8px;
 }
 
 .discountedPrice {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--secondary);
+  color: #1976d2;
+  font-weight: bold;
 }
 
 .regularPrice {
