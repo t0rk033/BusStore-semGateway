@@ -22,6 +22,7 @@ const ProductForm = ({ newProduct, editingProduct, handleInputChange, addVariati
                   <Typography variant="subtitle1" color="primary">Informações Básicas</Typography>
                 </Box>
                 <Grid container spacing={2}>
+                  {/* Campos existentes */}
                   {["sku", "barcode", "name", "category"].map((field) => (
                     <Grid item xs={12} md={6} key={field}>
                       <TextField
@@ -35,6 +36,20 @@ const ProductForm = ({ newProduct, editingProduct, handleInputChange, addVariati
                       />
                     </Grid>
                   ))}
+                  {/* Campo de descrição do produto */}
+                  <Grid item xs={12}>
+                    <TextField
+                      label="Descrição do Produto"
+                      name="description"
+                      value={newProduct.description}
+                      onChange={handleInputChange}
+                      fullWidth
+                      multiline
+                      minRows={3}
+                      size="small"
+                      variant="filled"
+                    />
+                  </Grid>
                 </Grid>
               </Grid>
 

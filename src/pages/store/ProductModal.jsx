@@ -114,10 +114,6 @@ function ProductModal({ open, onClose, product, addToCart }) {
 
           {/* Detalhes do Produto */}
           <Grid item xs={12} md={6} className={styles.productDetails}>
-            <Typography variant="body1" color="text.secondary" gutterBottom>
-              {product.description}
-            </Typography>
-
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               R$ {product.salePrice.toFixed(2)}
             </Typography>
@@ -142,6 +138,11 @@ function ProductModal({ open, onClose, product, addToCart }) {
                 ))}
               </Stack>
             </Box>
+
+            {/* Descrição abaixo da cor */}
+            <Typography variant="body1" color="text.secondary" gutterBottom>
+              {product.description}
+            </Typography>
 
             {selectedColor && (
               <Box sx={{ mb: 3 }}>

@@ -23,6 +23,12 @@ import {
   useMediaQuery,
   Tabs,
   Tab,
+  FormControl,
+  InputLabel,
+  Checkbox,
+  FormGroup,
+  FormControlLabel,
+  Collapse,
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import ContactsIcon from "@mui/icons-material/Contacts";
@@ -47,6 +53,9 @@ import {
   CheckCircle,
   Cancel,
   Print,
+  List,
+  FilterList,
+  Close,
 } from "@mui/icons-material";
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
@@ -69,11 +78,11 @@ import BarcodeScanner from "./BarcodeScanner";
 function StockManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [activeTab, setActiveTab] = useState("products"); // Aba ativa
+  const [activeTab, setActiveTab] = useState("products");
   const [activeView, setActiveView] = useState("products");
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
-  const [requestedSales, setRequestedSales] = useState([]); // Novo estado para "compra solicitada"
+  const [requestedSales, setRequestedSales] = useState([]);
   const [totalSales, setTotalSales] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [newProduct, setNewProduct] = useState({
@@ -87,7 +96,7 @@ function StockManagement() {
     variations: [{ size: "", color: "", model: "", stock: 0 }],
     costPrice: "",
     salePrice: "",
-    discount: "", // <-- ADICIONE ESTA LINHA
+    discount: "",
     weight: "",
     dimensions: { length: "", width: "", height: "" },
     minStock: 1,
@@ -106,24 +115,95 @@ function StockManagement() {
     productsSupplied: [],
   });
   const [editingSupplier, setEditingSupplier] = useState(null);
-  const [categories, setCategories] = useState([]); // Lista de categorias
+  const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState({
-    name: "", // Nome da categoria
-    subcategories: [], // Lista de subcategorias
+    name: "",
+    subcategories: [],
   });
-  const [editingCategory, setEditingCategory] = useState(null); // Categoria em edição
-
+  const [editingCategory, setEditingCategory] = useState(null);
   const [filter, setFilter] = useState("pending");
   const [search, setSearch] = useState("");
   const [notes, setNotes] = useState({});
   const [deliveredSales, setDeliveredSales] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  const [users, setUsers] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    category: '',
+    subcategory: '',
+    minStock: '',
+    maxStock: '',
+    minPrice: '',
+    maxPrice: '',
+    lowStockOnly: false,
+    hasDiscount: false,
+  });
 
-  const [currentPage, setCurrentPage] = useState(1); // Página atual
-  const itemsPerPage = 6; // Número de itens por página
+  // Função para aplicar os filtros
+  const applyFilters = (product) => {
+    if (filters.category && product.category !== filters.category) {
+      return false;
+    }
+    
+    if (filters.subcategory && product.subcategory !== filters.subcategory) {
+      return false;
+    }
+    
+    const totalStock = product.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0);
+    if (filters.minStock && totalStock < parseInt(filters.minStock)) {
+      return false;
+    }
+    
+    if (filters.maxStock && totalStock > parseInt(filters.maxStock)) {
+      return false;
+    }
+    
+    if (filters.minPrice && parseFloat(product.salePrice) < parseFloat(filters.minPrice)) {
+      return false;
+    }
+    
+    if (filters.maxPrice && parseFloat(product.salePrice) > parseFloat(filters.maxPrice)) {
+      return false;
+    }
+    
+    if (filters.lowStockOnly && totalStock >= product.minStock) {
+      return false;
+    }
+    
+    if (filters.hasDiscount && (!product.discount || product.discount <= 0)) {
+      return false;
+    }
+    
+    return true;
+  };
 
-  const [users, setUsers] = useState([]); // Lista de usuários
+  // Resetar filtros
+  const resetFilters = () => {
+    setFilters({
+      category: '',
+      subcategory: '',
+      minStock: '',
+      maxStock: '',
+      minPrice: '',
+      maxPrice: '',
+      lowStockOnly: false,
+      hasDiscount: false,
+    });
+  };
 
-  // Função para buscar usuários do Firestore
+  // Obter categorias únicas para o filtro
+  const uniqueCategories = [...new Set(products.map(p => p.category))].filter(Boolean);
+  
+  // Obter subcategorias únicas baseadas na categoria selecionada
+  const uniqueSubcategories = filters.category 
+    ? [...new Set(
+        products
+          .filter(p => p.category === filters.category)
+          .map(p => p.subcategory)
+      )].filter(Boolean)
+    : [];
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -141,7 +221,6 @@ function StockManagement() {
     fetchUsers();
   }, []);
 
-  // Função para promover um usuário a admin
   const makeAdmin = async (userId) => {
     try {
       await updateDoc(doc(db, "users", userId), { role: "admin" });
@@ -157,21 +236,19 @@ function StockManagement() {
     }
   };
 
-  // Calcula os produtos exibidos com base na página atual
-  const filteredProducts = products.filter((product) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      product.name.toLowerCase().includes(query) ||
-      product.sku.toLowerCase().includes(query) ||
-      product.category.toLowerCase().includes(query)
-    );
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = 
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesSearch && applyFilters(product);
   });
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Função para mudar de página
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
   };
@@ -181,11 +258,9 @@ function StockManagement() {
   };
 
   const filteredSales = sales.filter((sale) => {
-    // Filtro por status
     if (filter === "pending" && sale.shipped) return false;
     if (filter === "shipped" && !sale.shipped) return false;
 
-    // Filtro por pesquisa
     if (
       search &&
       !sale.user?.details.fullName
@@ -198,7 +273,6 @@ function StockManagement() {
     return true;
   });
 
-  // =================== Firebase Operations ===================
   useEffect(() => {
     const unsubscribeProducts = onSnapshot(
       collection(db, "products"),
@@ -215,10 +289,10 @@ function StockManagement() {
       collection(db, "categories"),
       (snapshot) => {
         const categoriesData = snapshot.docs.map((doc) => ({
-          id: doc.id, // ID do documento
-          ...doc.data(), // Dados da categoria
+          id: doc.id,
+          ...doc.data(),
         }));
-        setCategories(categoriesData); // Atualiza o estado com as categorias
+        setCategories(categoriesData);
       }
     );
 
@@ -263,7 +337,7 @@ function StockManagement() {
         );
 
         setSales(salesData.filter((sale) => sale.status === "Pendente"));
-        setRequestedSales(salesData.filter((sale) => sale.status === "Solicitada")); // Filtra "compra solicitada"
+        setRequestedSales(salesData.filter((sale) => sale.status === "Solicitada"));
         setDeliveredSales(salesData.filter((sale) => sale.status === "Entregue"));
         setTotalSales(salesData.reduce((acc, sale) => acc + sale.total, 0));
       }
@@ -287,7 +361,6 @@ function StockManagement() {
       unsubscribeCategories();
     };
   }, []);
-  // =================== categories Functions ===================
 
   const getProductsBySubcategory = (categoryName, subcategoryName) => {
     return products.filter(
@@ -296,7 +369,7 @@ function StockManagement() {
         product.subcategory === subcategoryName
     );
   };
-  // Salvar ou editar categoria
+
   const deleteCategory = async (id) => {
     try {
       await deleteDoc(doc(db, "categories", id));
@@ -305,6 +378,7 @@ function StockManagement() {
       console.error("Error deleting category:", error);
     }
   };
+
   const saveCategory = async () => {
     try {
       const categoryData = {
@@ -313,7 +387,6 @@ function StockManagement() {
       };
 
       if (editingCategory) {
-        // Editar categoria existente
         await updateDoc(
           doc(db, "categories", editingCategory.id),
           categoryData
@@ -326,18 +399,16 @@ function StockManagement() {
           )
         );
       } else {
-        // Adicionar nova categoria
         const docRef = await addDoc(collection(db, "categories"), categoryData);
         setCategories((prev) => [...prev, { ...categoryData, id: docRef.id }]);
       }
 
-      resetCategoryForm(); // Limpa o formulário
+      resetCategoryForm();
     } catch (error) {
       console.error("Erro ao salvar categoria:", error);
     }
   };
 
-  // Resetar formulário
   const resetCategoryForm = () => {
     setNewCategory({
       name: "",
@@ -346,68 +417,61 @@ function StockManagement() {
     setEditingCategory(null);
   };
 
-  // Iniciar edição de uma categoria
   const startEditingCategory = (category) => {
     setEditingCategory(category);
     setNewCategory({
       name: category.name,
-      subcategories: category.subcategories || [], // Garanta que subcategorias seja um array
+      subcategories: category.subcategories || [],
     });
-    console.log("editando");
   };
 
-  // Adicionar subcategoria
   const addSubcategory = () => {
     setNewCategory((prev) => ({
       ...prev,
-      subcategories: [...prev.subcategories, ""], // Adiciona uma nova subcategoria vazia
+      subcategories: [...prev.subcategories, ""],
     }));
   };
 
-  // Alterar subcategoria
   const handleSubcategoryChange = (index, value) => {
     const updatedSubcategories = [...newCategory.subcategories];
-    updatedSubcategories[index] = value; // Atualiza a subcategoria no índice especificado
+    updatedSubcategories[index] = value;
     setNewCategory((prev) => ({
       ...prev,
       subcategories: updatedSubcategories,
     }));
   };
 
-  // =================== imprimir funções ===================
   const handlePrintOrder = (sale) => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
-    <html>
-      <head>
-        <title>Pedido #${sale.id.slice(0, 8).toUpperCase()}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .printable-content { max-width: 800px; margin: 0 auto; }
-          h6 { font-size: 18px; }
-          p { font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div id="print-content"></div>
-      </body>
-    </html>
-  `);
+      <html>
+        <head>
+          <title>Pedido #${sale.id.slice(0, 8).toUpperCase()}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .printable-content { max-width: 800px; margin: 0 auto; }
+            h6 { font-size: 18px; }
+            p { font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div id="print-content"></div>
+        </body>
+      </html>
+    `);
 
-    // Renderiza o conteúdo do pedido na nova janela
     const printContent = printWindow.document.getElementById("print-content");
     printWindow.ReactDOM.render(
       <OrderPrintContent sale={sale} />,
       printContent
     );
 
-    // Aguarda o conteúdo ser renderizado e imprime
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
     }, 500);
   };
-  // =================== Product Functions ===================
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewProduct((prev) => ({
@@ -450,7 +514,7 @@ function StockManagement() {
         })),
         costPrice: parseFloat(newProduct.costPrice) || 0,
         salePrice: parseFloat(newProduct.salePrice) || 0,
-        discount: parseFloat(newProduct.discount) || 0, // <-- ADICIONE ESTA LINHA
+        discount: parseFloat(newProduct.discount) || 0,
         weight: parseFloat(newProduct.weight) || 0,
         dimensions: {
           length: parseFloat(newProduct.dimensions.length) || 0,
@@ -464,7 +528,6 @@ function StockManagement() {
       };
 
       if (editingProduct) {
-        // Atualiza o produto existente
         await updateDoc(doc(db, "products", editingProduct.id), productData);
         setProducts((prev) =>
           prev.map((p) =>
@@ -474,16 +537,16 @@ function StockManagement() {
           )
         );
       } else {
-        // Adiciona um novo produto
         const docRef = await addDoc(collection(db, "products"), productData);
         setProducts((prev) => [...prev, { ...productData, id: docRef.id }]);
       }
 
-      resetForm(); // Limpa o formulário
+      resetForm();
     } catch (error) {
       console.error("Error saving product:", error);
     }
   };
+
   const deleteProduct = async (id) => {
     try {
       await deleteDoc(doc(db, "products", id));
@@ -505,7 +568,6 @@ function StockManagement() {
     setNewProduct((prev) => ({ ...prev, barcode }));
   };
 
-  // =================== Supplier Functions ===================
   const handleSupplierInputChange = (e) => {
     const { name, value } = e.target;
     setNewSupplier((prev) => ({ ...prev, [name]: value }));
@@ -558,7 +620,6 @@ function StockManagement() {
     setNewSupplier(supplier);
   };
 
-  // =================== Order Functions ===================
   const markAsShipped = async (saleId) => {
     try {
       await updateDoc(doc(db, "sales", saleId), { shipped: true, status: "Enviado" });
@@ -598,39 +659,30 @@ function StockManagement() {
     }
   };
 
-  // Função para mover uma venda de "Solicitada" para "Pendente"
   const confirmRequestedSale = async (saleId) => {
     try {
-      // Atualiza o status da venda para "Pendente"
       await updateDoc(doc(db, "sales", saleId), { status: "Pendente" });
 
-      // Remove a venda da lista de solicitadas
       const confirmedSale = requestedSales.find((sale) => sale.id === saleId);
       setRequestedSales((prev) => prev.filter((sale) => sale.id !== saleId));
 
-      // Adiciona a venda à lista de pendentes
       setSales((prev) => [...prev, { ...confirmedSale, status: "Pendente" }]);
 
-      // Atualiza o total de vendas
       setTotalSales((prevTotal) => prevTotal + confirmedSale.total);
     } catch (error) {
       console.error("Erro ao confirmar solicitação:", error);
     }
   };
 
-  // Função para excluir uma venda solicitada
   const deleteRequestedSale = async (saleId) => {
     try {
       await deleteDoc(doc(db, "sales", saleId));
       setRequestedSales((prev) => prev.filter((sale) => sale.id !== saleId));
-      showToast("Compra solicitada excluída com sucesso!", "success");
     } catch (error) {
       console.error("Erro ao excluir compra solicitada:", error);
-      showToast("Erro ao excluir compra solicitada. Tente novamente.", "error");
     }
   };
 
-  // =================== Helper Functions ===================
   const resetForm = () => {
     setNewProduct({
       sku: "",
@@ -643,7 +695,7 @@ function StockManagement() {
       variations: [{ size: "", color: "", model: "", stock: 0 }],
       costPrice: "",
       salePrice: "",
-      discount: "", // <-- ADICIONE ESTA LINHA
+      discount: "",
       weight: "",
       dimensions: { length: "", width: "", height: "" },
       minStock: 0,
@@ -654,7 +706,6 @@ function StockManagement() {
     setEditingProduct(null);
   };
 
-  // =================== Render ===================
   return (
     <div className={styles.container}>
       <NavBar />
@@ -685,7 +736,8 @@ function StockManagement() {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {[
               { id: "products", icon: <Inventory />, label: "Produtos" },
-              { id: "requested", icon: <LocalShipping />, label: "Solicitadas" }, // Novo item no menu
+              { id: "productList", icon: <List />, label: "Lista de Produtos" },
+              { id: "requested", icon: <LocalShipping />, label: "Solicitadas" },
               { id: "suppliers", icon: <BusinessIcon />, label: "Fornecedores" },
               { id: "orders", icon: <LocalShipping />, label: "Pedidos" },
               { id: "delivered", icon: <CheckCircle />, label: "Entregues" },
@@ -716,7 +768,7 @@ function StockManagement() {
           </Box>
         </Paper>
 
-        {/* Conteúdo Principal */}
+        {/* Main Content */}
         <Box
           sx={{
             flexGrow: 1,
@@ -740,7 +792,7 @@ function StockManagement() {
               <>
                 {activeView === "products" && (
                   <>
-                    {/* Seção de Produtos */}
+                    {/* Products Section */}
                     <Box
                       sx={{
                         display: "flex",
@@ -766,7 +818,7 @@ function StockManagement() {
                       </Box>
                     </Box>
 
-                    {/* Barra de pesquisa abaixo do título */}
+                    {/* Search Bar */}
                     <Box sx={{ mb: 4 }}>
                       <TextField
                         variant="outlined"
@@ -816,7 +868,8 @@ function StockManagement() {
                         </Grid>
                       ))}
                     </Grid>
-                    {/*categories Form*/}
+
+                    {/* Categories Form */}
                     <Card sx={{ mb: 4 }}>
                       <CardContent>
                         <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
@@ -828,55 +881,52 @@ function StockManagement() {
                           />
                         </Typography>
 
-                        {/* Botão para adicionar nova categoria */}
                         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
                           <Button
                             variant="contained"
                             startIcon={<Add />}
                             onClick={() => {
-                              setEditingCategory(null); // Limpa a edição atual
-                              setNewCategory({ name: "", subcategories: [] }); // Reseta o formulário
+                              setEditingCategory(null);
+                              setNewCategory({ name: "", subcategories: [] });
                             }}
                           >
                             Adicionar Categoria
                           </Button>
                         </Box>
 
-                        {/* Contêiner com barra de rolagem para a lista de categorias */}
                         <Box sx={{ maxHeight: 400, overflowY: "auto", mb: 2 }}>
-                          <Grid container spacing={2}> {/* Reduzi o espaçamento entre os cards */}
+                          <Grid container spacing={2}>
                             {categories.map((category) => (
-                              <Grid item xs={12} sm={6} md={4} lg={3} key={category.id}> {/* Aumentei o número de colunas */}
-                                <Card variant="outlined" sx={{ p: 1 }}> {/* Reduzi o padding interno */}
-                                  <CardContent sx={{ p: 1 }}> {/* Reduzi o padding interno */}
+                              <Grid item xs={12} sm={6} md={4} lg={3} key={category.id}>
+                                <Card variant="outlined" sx={{ p: 1 }}>
+                                  <CardContent sx={{ p: 1 }}>
                                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                       <Box>
-                                        <Typography variant="subtitle2" fontWeight="600"> {/* Reduzi o tamanho da fonte */}
+                                        <Typography variant="subtitle2" fontWeight="600">
                                           {category.name}
                                         </Typography>
-                                        <Typography variant="caption" color="textSecondary"> {/* Reduzi o tamanho da fonte */}
+                                        <Typography variant="caption" color="textSecondary">
                                           Subcategorias: {category.subcategories.length}
                                         </Typography>
                                       </Box>
                                       <Box sx={{ display: "flex", gap: 1 }}>
-                                        <IconButton size="small" onClick={() => startEditingCategory(category)}> {/* Reduzi o tamanho do ícone */}
+                                        <IconButton size="small" onClick={() => startEditingCategory(category)}>
                                           <Edit fontSize="small" color="info" />
                                         </IconButton>
-                                        <IconButton size="small" onClick={() => deleteCategory(category.id)}> {/* Reduzi o tamanho do ícone */}
+                                        <IconButton size="small" onClick={() => deleteCategory(category.id)}>
                                           <Delete fontSize="small" color="error" />
                                         </IconButton>
                                       </Box>
                                     </Box>
 
-                                    {/* Lista de subcategorias com scroll e ordenação alfabética */}
                                     <Box sx={{ mt: 1 }}>
-                                      <Box sx={{ maxHeight: 200, overflowY: "auto", mb: 2 }}> {/* Contêiner com scroll */}
+                                      <Box sx={{ maxHeight: 200, overflowY: "auto", mb: 2 }}>
                                         {category.subcategories
-                                          .sort((a, b) => a.localeCompare(b)) // Ordena as subcategorias alfabeticamente
+                                          .sort((a, b) => a.localeCompare(b))
                                           .map((subcategory, index) => (
                                             <Accordion key={index} elevation={0} sx={{ mb: 1 }}>
                                               <AccordionSummary expandIcon={<ExpandMore />}>
-                                                <Typography variant="caption" fontWeight="500"> {/* Reduzi o tamanho da fonte */}
+                                                <Typography variant="caption" fontWeight="500">
                                                   {subcategory}
                                                 </Typography>
                                               </AccordionSummary>
@@ -922,7 +972,6 @@ function StockManagement() {
                           </Grid>
                         </Box>
 
-                        {/* Formulário de categoria (sempre visível) */}
                         <Card sx={{ mt: 4 }}>
                           <CardContent>
                             <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
@@ -983,6 +1032,7 @@ function StockManagement() {
                         </Card>
                       </CardContent>
                     </Card>
+
                     {/* Product Form */}
                     <Card sx={{ mb: 4 }}>
                       <CardContent>
@@ -1013,12 +1063,7 @@ function StockManagement() {
                                   {["sku", "name"].map((field) => (
                                     <Grid item xs={12} md={6} key={field}>
                                       <TextField
-                                        label={
-                                          field === "sku"
-                                            ? "SKU"
-                                            : field.charAt(0).toUpperCase() +
-                                            field.slice(1)
-                                        }
+                                        label={field === "sku" ? "SKU" : "Nome"}
                                         name={field}
                                         value={newProduct[field]}
                                         onChange={handleInputChange}
@@ -1028,6 +1073,20 @@ function StockManagement() {
                                       />
                                     </Grid>
                                   ))}
+
+                                  <Grid item xs={12}>
+                                    <TextField
+                                      label="Descrição do Produto"
+                                      name="description"
+                                      value={newProduct.description}
+                                      onChange={handleInputChange}
+                                      fullWidth
+                                      multiline
+                                      minRows={3}
+                                      size="small"
+                                      variant="filled"
+                                    />
+                                  </Grid>
 
                                   <Grid item xs={12} md={6}>
                                     <TextField
@@ -1039,11 +1098,9 @@ function StockManagement() {
                                       size="small"
                                       variant="filled"
                                     />
-                                    {/* Adicione o componente BarcodeScanner aqui */}
                                     <BarcodeScanner onScan={handleBarcodeScan} />
                                   </Grid>
 
-                                  {/* Campo de Categoria Dinâmico */}
                                   <Grid item xs={12} md={6}>
                                     <TextField
                                       select
@@ -1070,7 +1127,6 @@ function StockManagement() {
                                     </TextField>
                                   </Grid>
 
-                                  {/* Campo de Subcategoria Dinâmico */}
                                   <Grid item xs={12} md={6}>
                                     <TextField
                                       select
@@ -1081,7 +1137,7 @@ function StockManagement() {
                                       fullWidth
                                       size="small"
                                       variant="filled"
-                                      disabled={!newProduct.category} // Desabilita se não houver categoria selecionada
+                                      disabled={!newProduct.category}
                                       SelectProps={{
                                         native: true,
                                       }}
@@ -1090,12 +1146,9 @@ function StockManagement() {
                                       {categories
                                         .find(
                                           (cat) => cat.name === newProduct.category
-                                        ) // Encontra a categoria selecionada
+                                        )
                                         ?.subcategories.map(
-                                          (
-                                            subcat,
-                                            index // Mapeia as subcategorias
-                                          ) => (
+                                          (subcat, index) => (
                                             <option key={index} value={subcat}>
                                               {subcat}
                                             </option>
@@ -1105,7 +1158,6 @@ function StockManagement() {
                                   </Grid>
                                 </Grid>
 
-                                {/* Campo de Fornecedor (mantido) */}
                                 <Grid item xs={12} md={6}>
                                   <TextField
                                     select
@@ -1129,7 +1181,6 @@ function StockManagement() {
                                   </TextField>
                                 </Grid>
                               </Grid>
-                              {/* campo de imagem */}
                               <Grid item xs={12}>
                                 <Box
                                   sx={{
@@ -1175,7 +1226,6 @@ function StockManagement() {
                                           },
                                         }}
                                         onClick={() => {
-                                          // Remove a imagem do estado
                                           const updatedImageUrls = newProduct.imageUrls.filter(
                                             (_, i) => i !== index
                                           );
@@ -1207,7 +1257,6 @@ function StockManagement() {
                                   </Typography>
                                 </Box>
                                 <Grid container spacing={2}>
-                                  {/* Campos de Preço, Desconto e Peso */}
                                   {["costPrice", "salePrice", "discount", "weight"].map((field) => (
                                     <Grid item xs={3} key={field}>
                                       <TextField
@@ -1237,7 +1286,6 @@ function StockManagement() {
                                     </Grid>
                                   ))}
 
-                                  {/* Campos de Dimensões */}
                                   {["length", "width", "height"].map((dim) => (
                                     <Grid item xs={4} key={dim}>
                                       <TextField
@@ -1268,7 +1316,6 @@ function StockManagement() {
                                   ))}
                                 </Grid>
 
-                                {/* Seção de Variações */}
                                 <Grid item xs={12}>
                                   <Box
                                     sx={{
@@ -1304,7 +1351,6 @@ function StockManagement() {
                                         className={styles.variationCard}
                                       >
                                         <Grid container spacing={2}>
-                                          {/* Campos de Variação */}
                                           {["size", "color", "model", "stock"].map(
                                             (field) => (
                                               <Grid item xs={3} key={field}>
@@ -1333,7 +1379,7 @@ function StockManagement() {
                                                       ? "number"
                                                       : "text"
                                                   }
-                                                  inputProps={{ min: 0 }} // Garante que o estoque não seja negativo
+                                                  inputProps={{ min: 0 }}
                                                 />
                                               </Grid>
                                             )
@@ -1385,19 +1431,198 @@ function StockManagement() {
                         </Accordion>
                       </CardContent>
                     </Card>
+                  </>
+                )}
 
-                    {/* Product List */}
+                {activeView === "productList" && (
+                  <>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 4,
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <List
+                          sx={{
+                            fontSize: 40,
+                            color: theme.palette.primary.main,
+                            bgcolor: theme.palette.primary.light,
+                            p: 1.5,
+                            borderRadius: 4,
+                          }}
+                        />
+                        <Typography variant="h4" fontWeight="700">
+                          Lista Completa de Produtos
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ display: "flex", gap: 2 }}>
+                        <Button
+                          variant="outlined"
+                          startIcon={<FilterList />}
+                          onClick={() => setFilterOpen(!filterOpen)}
+                          sx={{ minWidth: 120 }}
+                        >
+                          Filtros
+                        </Button>
+                        {Object.values(filters).some(val => val !== '' && val !== false) && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<Close />}
+                            onClick={resetFilters}
+                          >
+                            Limpar
+                          </Button>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* Filtros avançados */}
+                    <Collapse in={filterOpen}>
+                      <Card sx={{ mb: 4 }}>
+                        <CardContent>
+                          <Grid container spacing={3}>
+                            {/* Filtro por categoria */}
+                            <Grid item xs={12} md={3}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Categoria</InputLabel>
+                                <Select
+                                  value={filters.category}
+                                  onChange={(e) => setFilters({...filters, category: e.target.value, subcategory: ''})}
+                                  label="Categoria"
+                                >
+                                  <MenuItem value="">Todas</MenuItem>
+                                  {uniqueCategories.map(category => (
+                                    <MenuItem key={category} value={category}>{category}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </Grid>
+
+                            {/* Filtro por subcategoria */}
+                            <Grid item xs={12} md={3}>
+                              <FormControl fullWidth size="small" disabled={!filters.category}>
+                                <InputLabel>Subcategoria</InputLabel>
+                                <Select
+                                  value={filters.subcategory}
+                                  onChange={(e) => setFilters({...filters, subcategory: e.target.value})}
+                                  label="Subcategoria"
+                                >
+                                  <MenuItem value="">Todas</MenuItem>
+                                  {uniqueSubcategories.map(subcategory => (
+                                    <MenuItem key={subcategory} value={subcategory}>{subcategory}</MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </Grid>
+
+                            {/* Filtro por estoque */}
+                            <Grid item xs={12} md={3}>
+                              <TextField
+                                label="Estoque mínimo"
+                                type="number"
+                                value={filters.minStock}
+                                onChange={(e) => setFilters({...filters, minStock: e.target.value})}
+                                fullWidth
+                                size="small"
+                                inputProps={{ min: 0 }}
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={3}>
+                              <TextField
+                                label="Estoque máximo"
+                                type="number"
+                                value={filters.maxStock}
+                                onChange={(e) => setFilters({...filters, maxStock: e.target.value})}
+                                fullWidth
+                                size="small"
+                                inputProps={{ min: 0 }}
+                              />
+                            </Grid>
+
+                            {/* Filtro por preço */}
+                            <Grid item xs={12} md={3}>
+                              <TextField
+                                label="Preço mínimo (R$)"
+                                type="number"
+                                value={filters.minPrice}
+                                onChange={(e) => setFilters({...filters, minPrice: e.target.value})}
+                                fullWidth
+                                size="small"
+                                inputProps={{ min: 0, step: "0.01" }}
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={3}>
+                              <TextField
+                                label="Preço máximo (R$)"
+                                type="number"
+                                value={filters.maxPrice}
+                                onChange={(e) => setFilters({...filters, maxPrice: e.target.value})}
+                                fullWidth
+                                size="small"
+                                inputProps={{ min: 0, step: "0.01" }}
+                              />
+                            </Grid>
+
+                            {/* Filtros de checkbox */}
+                            <Grid item xs={12} md={6}>
+                              <FormGroup row>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={filters.lowStockOnly}
+                                      onChange={(e) => setFilters({...filters, lowStockOnly: e.target.checked})}
+                                    />
+                                  }
+                                  label="Apenas baixo estoque"
+                                />
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={filters.hasDiscount}
+                                      onChange={(e) => setFilters({...filters, hasDiscount: e.target.checked})}
+                                    />
+                                  }
+                                  label="Apenas com desconto"
+                                />
+                              </FormGroup>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    </Collapse>
+
+                    {/* Barra de pesquisa */}
+                    <Box sx={{ mb: 4 }}>
+                      <TextField
+                        variant="outlined"
+                        placeholder="Pesquisar produtos por nome, SKU ou categoria..."
+                        InputProps={{
+                          startAdornment: <Search sx={{ color: "action.active", mr: 1 }} />,
+                        }}
+                        sx={{ width: "100%" }}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </Box>
+
+                    {/* Contador de resultados */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="textSecondary">
+                        {filteredProducts.length} produtos encontrados
+                        {Object.values(filters).some(val => val !== '' && val !== false) && 
+                          " (com filtros aplicados)"}
+                      </Typography>
+                    </Box>
+
+                    {/* Lista de produtos */}
                     <Card>
                       <CardContent>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                          Lista de Produtos
-                          <Chip
-                            label={`${products.length} itens`}
-                            size="small"
-                            sx={{ ml: 2, bgcolor: "action.selected" }}
-                          />
-                        </Typography>
-
                         <Grid container spacing={3}>
                           {currentProducts.map((product) => {
                             const totalStock = product.variations?.reduce(
@@ -1567,13 +1792,13 @@ function StockManagement() {
                           </Button>
                           <Typography variant="body1" sx={{ mx: 2 }}>
                             Página {currentPage} de{" "}
-                            {Math.ceil(products.length / itemsPerPage)}
+                            {Math.ceil(filteredProducts.length / itemsPerPage)}
                           </Typography>
                           <Button
                             variant="outlined"
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={
-                              currentPage === Math.ceil(products.length / itemsPerPage)
+                              currentPage === Math.ceil(filteredProducts.length / itemsPerPage)
                             }
                             sx={{ mx: 1 }}
                           >
@@ -1659,7 +1884,6 @@ function StockManagement() {
                                   </Box>
                                 </Box>
 
-                                {/* Itens do pedido */}
                                 <Divider sx={{ my: 2 }} />
                                 <Box>
                                   {sale.items.map((item) => (
@@ -1681,7 +1905,6 @@ function StockManagement() {
                                   ))}
                                 </Box>
 
-                                {/* Ações do pedido */}
                                 <Divider sx={{ my: 2 }} />
                                 <Box
                                   sx={{
@@ -1716,6 +1939,56 @@ function StockManagement() {
                     </Card>
                   </>
                 )}
+
+                {activeView === "suppliers" && (
+                  <ShippedOrders
+                    sales={sales}
+                    markAsShipped={markAsShipped}
+                    unmarkAsShipped={unmarkAsShipped}
+                    filter={filter}
+                    setFilter={setFilter}
+                    search={search}
+                    setSearch={setSearch}
+                    notes={notes}
+                    handleNoteChange={handleNoteChange}
+                  />
+                )}
+
+                {activeView === "orders" && (
+                  <ShippedOrders
+                    sales={sales}
+                    markAsShipped={markAsShipped}
+                    unmarkAsShipped={unmarkAsShipped}
+                    filter={filter}
+                    setFilter={setFilter}
+                    search={search}
+                    setSearch={setSearch}
+                    notes={notes}
+                    handleNoteChange={handleNoteChange}
+                  />
+                )}
+
+                {activeView === "delivered" && (
+                  <ShippedOrders
+                    sales={deliveredSales}
+                    markAsShipped={markAsShipped}
+                    unmarkAsShipped={unmarkAsShipped}
+                    filter={filter}
+                    setFilter={setFilter}
+                    search={search}
+                    setSearch={setSearch}
+                    notes={notes}
+                    handleNoteChange={handleNoteChange}
+                  />
+                )}
+
+                {activeView === "reports" && (
+                  <SalesStockReports
+                    products={products}
+                    sales={sales}
+                    deliveredSales={deliveredSales}
+                  />
+                )}
               </>
             )}
 
@@ -1725,7 +1998,6 @@ function StockManagement() {
                   Gestão de Usuários
                 </Typography>
 
-                {/* Lista de usuários com opção de promoção para admin */}
                 <Card>
                   <CardContent>
                     <Grid container spacing={2}>
