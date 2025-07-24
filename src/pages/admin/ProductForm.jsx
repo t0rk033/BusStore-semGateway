@@ -1,8 +1,23 @@
 import React from 'react';
 import { Grid, TextField, Button, Box, Typography, Divider, Chip, Paper } from "@mui/material";
 import { Add, CheckCircle, Cancel } from "@mui/icons-material";
+import { serverTimestamp } from "firebase/firestore";
 
 const ProductForm = ({ newProduct, editingProduct, handleInputChange, addVariation, handleVariationChange, saveProduct, resetForm }) => {
+  const handleSaveProduct = async () => {
+    try {
+      const newProductData = {
+        ...newProduct,
+        createdAt: serverTimestamp(), // Adiciona o timestamp no momento da criação
+      };
+      await addDoc(collection(db, "products"), newProductData);
+      showToast("Produto adicionado com sucesso!", "success");
+      resetForm();
+    } catch (error) {
+      showToast("Erro ao salvar produto", "error");
+    }
+  };
+
   return (
     <Card sx={{ mb: 4 }}>
       <CardContent>
@@ -127,7 +142,7 @@ const ProductForm = ({ newProduct, editingProduct, handleInputChange, addVariati
                   <Button
                     variant="contained"
                     startIcon={editingProduct ? <CheckCircle /> : <Add />}
-                    onClick={saveProduct}
+                    onClick={handleSaveProduct}
                     sx={{ minWidth: 200 }}
                   >
                     {editingProduct ? 'Confirmar Alterações' : 'Adicionar Produto'}

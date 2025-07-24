@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './store.module.css';
 import { useCart } from 'react-use-cart';
 import { db } from '../../firebase';
-import { collection, getDocs, doc, getDoc, addDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, query, orderBy } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import NavBar from "../../components/NavBar";
 import Footer from '../../components/Footer';
@@ -75,11 +75,15 @@ function Store() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const querySnapshot = await getDocs(collection(db, "products"));
-        const productsData = querySnapshot.docs.map(doc => ({
+        const productsQuery = query(
+          collection(db, "products"),
+          orderBy("createdAt", "desc") // Ordena por data de criação em ordem decrescente
+        );
+        const querySnapshot = await getDocs(productsQuery);
+        const productsData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-          variations: doc.data().variations || []
+          variations: doc.data().variations || [],
         }));
         setProducts(productsData);
         setFilteredProducts(productsData);

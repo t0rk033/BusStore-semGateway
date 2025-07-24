@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Button,
   Card,
@@ -29,6 +29,8 @@ import {
   FormGroup,
   FormControlLabel,
   Collapse,
+  Snackbar,
+  Alert
 } from "@mui/material";
 import BusinessIcon from "@mui/icons-material/Business";
 import ContactsIcon from "@mui/icons-material/Contacts";
@@ -103,6 +105,7 @@ function StockManagement() {
     location: "",
     reservedStock: 0,
     supplierId: "",
+    enabled: true,
   });
   const [editingProduct, setEditingProduct] = useState(null);
   const [suppliers, setSuppliers] = useState([]);
@@ -126,7 +129,7 @@ function StockManagement() {
   const [notes, setNotes] = useState({});
   const [deliveredSales, setDeliveredSales] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const [itemsPerPage, setItemsPerPage] = useState(12);
   const [users, setUsers] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
@@ -138,7 +141,11 @@ function StockManagement() {
     maxPrice: '',
     lowStockOnly: false,
     hasDiscount: false,
+    showDisabled: false,
   });
+  const [editSuccess, setEditSuccess] = useState(false);
+  const [expandedProductForm, setExpandedProductForm] = useState(true);
+  const formRef = useRef(null);
 
   // Função para aplicar os filtros
   const applyFilters = (product) => {
@@ -175,6 +182,10 @@ function StockManagement() {
       return false;
     }
     
+    if (!filters.showDisabled && !product.enabled) {
+      return false;
+    }
+    
     return true;
   };
 
@@ -189,6 +200,7 @@ function StockManagement() {
       maxPrice: '',
       lowStockOnly: false,
       hasDiscount: false,
+      showDisabled: false,
     });
   };
 
@@ -203,6 +215,22 @@ function StockManagement() {
           .map(p => p.subcategory)
       )].filter(Boolean)
     : [];
+
+  // Alternar status do produto (ativo/inativo)
+  const toggleProductStatus = async (productId, currentStatus) => {
+    try {
+      await updateDoc(doc(db, "products", productId), {
+        enabled: !currentStatus,
+      });
+      setProducts(prev =>
+        prev.map(p =>
+          p.id === productId ? { ...p, enabled: !currentStatus } : p
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling product status:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -236,14 +264,24 @@ function StockManagement() {
     }
   };
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesSearch && applyFilters(product);
-  });
+  const filteredProducts = products
+    .filter(product => {
+      const matchesSearch = 
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSearch && applyFilters(product);
+    })
+    .sort((a, b) => {
+      const aDate = a.createdAt && typeof a.createdAt.toDate === "function"
+    ? a.createdAt.toDate().getTime()
+    : new Date(a.createdAt || 0).getTime();
+  const bDate = b.createdAt && typeof b.createdAt.toDate === "function"
+    ? b.createdAt.toDate().getTime()
+    : new Date(b.createdAt || 0).getTime();
+  return bDate - aDate;
+    });
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -281,6 +319,8 @@ function StockManagement() {
           id: doc.id,
           ...doc.data(),
           variations: doc.data().variations || [],
+          createdAt: doc.data().createdAt || new Date(),
+          enabled: doc.data().enabled !== undefined ? doc.data().enabled : true,
         }));
         setProducts(productsData);
       }
@@ -498,6 +538,11 @@ function StockManagement() {
 
   const saveProduct = async () => {
     try {
+      const totalStock = newProduct.variations.reduce(
+        (acc, curr) => acc + (curr.stock || 0),
+        0
+      );
+
       const productData = {
         sku: newProduct.sku,
         barcode: newProduct.barcode,
@@ -525,6 +570,8 @@ function StockManagement() {
         location: newProduct.location,
         reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
         supplierId: newProduct.supplierId,
+        enabled: totalStock > 0 && newProduct.enabled,
+        createdAt: editingProduct ? newProduct.createdAt : new Date(),
       };
 
       if (editingProduct) {
@@ -536,12 +583,14 @@ function StockManagement() {
               : p
           )
         );
+        setEditSuccess(true);
+        setExpandedProductForm(true);
       } else {
         const docRef = await addDoc(collection(db, "products"), productData);
         setProducts((prev) => [...prev, { ...productData, id: docRef.id }]);
+        resetForm();
+        setExpandedProductForm(false);
       }
-
-      resetForm();
     } catch (error) {
       console.error("Error saving product:", error);
     }
@@ -557,11 +606,20 @@ function StockManagement() {
   };
 
   const startEditing = (product) => {
+    setActiveView("products");
     setEditingProduct(product);
     setNewProduct({
       ...product,
       variations: product.variations || [],
     });
+    setExpandedProductForm(true);
+
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 100);
   };
 
   const handleBarcodeScan = (barcode) => {
@@ -702,12 +760,31 @@ function StockManagement() {
       location: "",
       reservedStock: 0,
       supplierId: "",
+      enabled: true,
     });
     setEditingProduct(null);
   };
 
+  useEffect(() => {
+    if (editSuccess) {
+      const timer = setTimeout(() => setEditSuccess(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [editSuccess]);
+
   return (
     <div className={styles.container}>
+      <Snackbar
+        open={editSuccess}
+        autoHideDuration={3000}
+        onClose={() => setEditSuccess(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setEditSuccess(false)} severity="success" sx={{ width: '100%' }}>
+          Edição concluída com sucesso!
+        </Alert>
+      </Snackbar>
+      
       <NavBar />
       <Box
         sx={{
@@ -1006,7 +1083,7 @@ function StockManagement() {
                                     <IconButton
                                       onClick={() => {
                                         const updatedSubcategories = newCategory.subcategories.filter((_, i) => i !== index);
-                                        setNewCategory((prev) => ({ ...prev, subcategories: updatedSubcategories }));
+                                        setNewProduct((prev) => ({ ...prev, subcategories: updatedSubcategories }));
                                       }}
                                     >
                                       <Delete fontSize="small" color="error" />
@@ -1036,7 +1113,11 @@ function StockManagement() {
                     {/* Product Form */}
                     <Card sx={{ mb: 4 }}>
                       <CardContent>
-                        <Accordion defaultExpanded elevation={0}>
+                        <Accordion 
+  expanded={activeView === "products" && expandedProductForm}
+  onChange={() => setExpandedProductForm(!expandedProductForm)}
+  elevation={0}
+>
                           <AccordionSummary expandIcon={<ExpandMore />}>
                             <Typography variant="h6" fontWeight="600">
                               {editingProduct ? "Editar Produto" : "Novo Produto"}
@@ -1392,6 +1473,20 @@ function StockManagement() {
                               </Grid>
 
                               <Grid item xs={12}>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={newProduct.enabled}
+                                      onChange={(e) => setNewProduct({...newProduct, enabled: e.target.checked})}
+                                      disabled={newProduct.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0) <= 0}
+                                    />
+                                  }
+                                  label="Produto ativo no site"
+                                  sx={{ mb: 2 }}
+                                />
+                              </Grid>
+
+                              <Grid item xs={12}>
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -1407,7 +1502,10 @@ function StockManagement() {
                                       variant="outlined"
                                       color="error"
                                       startIcon={<Cancel />}
-                                      onClick={resetForm}
+                                      onClick={() => {
+                                        resetForm();
+                                        setExpandedProductForm(false);
+                                      }}
                                     >
                                       Cancelar Edição
                                     </Button>
@@ -1569,6 +1667,25 @@ function StockManagement() {
                               />
                             </Grid>
 
+                            {/* Seletor de itens por página */}
+                            <Grid item xs={12} md={3}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Itens por página</InputLabel>
+                                <Select
+                                  value={itemsPerPage}
+                                  onChange={(e) => {
+                                    setItemsPerPage(e.target.value);
+                                    setCurrentPage(1);
+                                  }}
+                                  label="Itens por página"
+                                >
+                                  <MenuItem value={12}>12</MenuItem>
+                                  <MenuItem value={24}>24</MenuItem>
+                                  <MenuItem value={48}>48</MenuItem>
+                                </Select>
+                              </FormControl>
+                            </Grid>
+
                             {/* Filtros de checkbox */}
                             <Grid item xs={12} md={6}>
                               <FormGroup row>
@@ -1589,6 +1706,15 @@ function StockManagement() {
                                     />
                                   }
                                   label="Apenas com desconto"
+                                />
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={filters.showDisabled}
+                                      onChange={(e) => setFilters({...filters, showDisabled: e.target.checked})}
+                                    />
+                                  }
+                                  label="Mostrar produtos desativados"
                                 />
                               </FormGroup>
                             </Grid>
@@ -1630,6 +1756,7 @@ function StockManagement() {
                               0
                             );
                             const isLowStock = totalStock < product.minStock;
+                            const isOutOfStock = totalStock <= 0;
 
                             return (
                               <Grid item xs={12} sm={6} md={4} key={product.id}>
@@ -1638,9 +1765,24 @@ function StockManagement() {
                                   sx={{
                                     position: "relative",
                                     "&:hover": { boxShadow: 4 },
+                                    opacity: product.enabled ? 1 : 0.7,
+                                    borderColor: !product.enabled ? "error.main" : "divider",
                                   }}
                                 >
-                                  {isLowStock && (
+                                  {!product.enabled && (
+                                    <Chip
+                                      label="Desativado"
+                                      color="error"
+                                      size="small"
+                                      sx={{
+                                        position: "absolute",
+                                        right: 16,
+                                        top: 16,
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  )}
+                                  {isLowStock && product.enabled && (
                                     <Chip
                                       label="Baixo Estoque"
                                       color="error"
@@ -1768,11 +1910,11 @@ function StockManagement() {
                                       </Button>
                                       <Button
                                         variant="outlined"
-                                        color="error"
-                                        startIcon={<Delete />}
-                                        onClick={() => deleteProduct(product.id)}
+                                        color={product.enabled ? "error" : "success"}
+                                        startIcon={product.enabled ? <Cancel /> : <CheckCircle />}
+                                        onClick={() => toggleProductStatus(product.id, product.enabled)}
                                       >
-                                        Excluir
+                                        {product.enabled ? "Desativar" : "Ativar"}
                                       </Button>
                                     </Box>
                                   </CardContent>
@@ -1781,29 +1923,50 @@ function StockManagement() {
                             );
                           })}
                         </Grid>
-                        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-                          <Button
-                            variant="outlined"
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            sx={{ mx: 1 }}
-                          >
-                            Anterior
-                          </Button>
-                          <Typography variant="body1" sx={{ mx: 2 }}>
-                            Página {currentPage} de{" "}
-                            {Math.ceil(filteredProducts.length / itemsPerPage)}
-                          </Typography>
-                          <Button
-                            variant="outlined"
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={
-                              currentPage === Math.ceil(filteredProducts.length / itemsPerPage)
-                            }
-                            sx={{ mx: 1 }}
-                          >
-                            Próxima
-                          </Button>
+                        
+                        {/* Paginação e controle de itens por página */}
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <Typography variant="body2" color="textSecondary">
+                              Itens por página:
+                            </Typography>
+                            <Select
+                              value={itemsPerPage}
+                              onChange={(e) => {
+                                setItemsPerPage(e.target.value);
+                                setCurrentPage(1);
+                              }}
+                              size="small"
+                              sx={{ width: 100 }}
+                            >
+                              <MenuItem value={12}>12</MenuItem>
+                              <MenuItem value={24}>24</MenuItem>
+                              <MenuItem value={48}>48</MenuItem>
+                            </Select>
+                          </Box>
+                          
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                            <Button
+                              variant="outlined"
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                            >
+                              Anterior
+                            </Button>
+                            <Typography variant="body1">
+                              Página {currentPage} de{" "}
+                              {Math.ceil(filteredProducts.length / itemsPerPage)}
+                            </Typography>
+                            <Button
+                              variant="outlined"
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={
+                                currentPage === Math.ceil(filteredProducts.length / itemsPerPage)
+                              }
+                            >
+                              Próxima
+                            </Button>
+                          </Box>
                         </Box>
                       </CardContent>
                     </Card>
@@ -1857,17 +2020,7 @@ function StockManagement() {
                                   }}
                                 >
                                   <Box>
-                                    <Typography
-                                      variant="subtitle2"
-                                      color="textSecondary"
-                                    >
-                                      #{sale.id.slice(0, 8).toUpperCase()} •{" "}
-                                      {sale.date?.toLocaleDateString("pt-BR")}
-                                    </Typography>
-                                    <Typography variant="body1" fontWeight="500">
-                                      {sale.user?.details.fullName ||
-                                        "Cliente não identificado"}
-                                    </Typography>
+                                 
                                     <Typography variant="body2" color="textSecondary">
                                       {sale.items.length} itens • R$ {Number(sale.total).toFixed(2)}
                                     </Typography>
@@ -2045,6 +2198,7 @@ function StockManagement() {
       <Footer />
     </div>
   );
+
 }
 
 export default StockManagement;
