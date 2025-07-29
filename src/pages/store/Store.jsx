@@ -105,8 +105,9 @@ function Store() {
       const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
       const matchesPrice = (minPrice ? product.salePrice >= parseFloat(minPrice) : true) &&
                           (maxPrice ? product.salePrice <= parseFloat(maxPrice) : true);
+      const isEnabled = product.enabled !== false; // Só mostra produtos ativos
 
-      return matchesSearch && matchesCategory && matchesPrice;
+      return matchesSearch && matchesCategory && matchesPrice && isEnabled;
     });
     setFilteredProducts(filtered);
     setCurrentPage(1); // Resetar para a primeira página quando os filtros mudam

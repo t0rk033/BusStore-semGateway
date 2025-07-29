@@ -182,10 +182,15 @@ function StockManagement() {
       return false;
     }
     
-    if (!filters.showDisabled && !product.enabled) {
-      return false;
+    // Filtro de status
+    if (filters.showDisabled === false && !product.enabled) {
+      return false; // Só ativos
     }
-    
+    if (filters.showDisabled === true && product.enabled) {
+      return false; // Só desativados
+    }
+    // Se showDisabled for 'all' ou undefined, mostra todos
+
     return true;
   };
 
@@ -570,7 +575,7 @@ function StockManagement() {
         location: newProduct.location,
         reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
         supplierId: newProduct.supplierId,
-        enabled: totalStock > 0 && newProduct.enabled,
+        enabled: newProduct.enabled && totalStock > 0, // Só ativa se houver estoque
         createdAt: editingProduct ? newProduct.createdAt : new Date(),
       };
 
@@ -771,6 +776,14 @@ function StockManagement() {
       return () => clearTimeout(timer);
     }
   }, [editSuccess]);
+
+  useEffect(() => {
+    const totalStock = newProduct.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0);
+    if (totalStock <= 0 && newProduct.enabled) {
+      setNewProduct(prev => ({ ...prev, enabled: false }));
+    }
+    // Opcional: se quiser ativar automaticamente quando adicionar estoque, pode adicionar else if
+  }, [newProduct.variations]);
 
   return (
     <div className={styles.container}>
@@ -1707,16 +1720,23 @@ function StockManagement() {
                                   }
                                   label="Apenas com desconto"
                                 />
-                                <FormControlLabel
-                                  control={
-                                    <Checkbox
-                                      checked={filters.showDisabled}
-                                      onChange={(e) => setFilters({...filters, showDisabled: e.target.checked})}
-                                    />
-                                  }
-                                  label="Mostrar produtos desativados"
-                                />
                               </FormGroup>
+                            </Grid>
+
+                            {/* Filtro por status */}
+                            <Grid item xs={12} md={3}>
+                              <FormControl fullWidth size="small">
+                                <InputLabel>Status</InputLabel>
+                                <Select
+                                  value={filters.showDisabled}
+                                  onChange={(e) => setFilters({ ...filters, showDisabled: e.target.value })}
+                                  label="Status"
+                                >
+                                  <MenuItem value={false}>Apenas ativos</MenuItem>
+                                  <MenuItem value={true}>Apenas desativados</MenuItem>
+                                  <MenuItem value={'all'}>Todos</MenuItem>
+                                </Select>
+                              </FormControl>
                             </Grid>
                           </Grid>
                         </CardContent>
@@ -1912,7 +1932,14 @@ function StockManagement() {
                                         variant="outlined"
                                         color={product.enabled ? "error" : "success"}
                                         startIcon={product.enabled ? <Cancel /> : <CheckCircle />}
-                                        onClick={() => toggleProductStatus(product.id, product.enabled)}
+                                        onClick={() => {
+                                          const totalStock = product.variations?.reduce((acc, curr) => acc + (curr.stock || 0), 0);
+                                          if (!product.enabled && totalStock <= 0) {
+                                            alert("Não é possível ativar um produto sem estoque!");
+                                            return;
+                                          }
+                                          toggleProductStatus(product.id, product.enabled);
+                                        }}
                                       >
                                         {product.enabled ? "Desativar" : "Ativar"}
                                       </Button>
