@@ -71,6 +71,7 @@ import {
   onSnapshot,
   getDocs,
 } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import ShippedOrders from "./ShippedOrders";
 import SalesStockReports from "./SalesStockReports";
 import styles from "./StockManagement.module.css";
@@ -224,8 +225,18 @@ function StockManagement() {
   // Alternar status do produto (ativo/inativo)
   const toggleProductStatus = async (productId, currentStatus) => {
     try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
       await updateDoc(doc(db, "products", productId), {
         enabled: !currentStatus,
+        updatedBy: userInfo,
+        updatedAt: new Date(),
       });
       setProducts(prev =>
         prev.map(p =>
@@ -256,7 +267,19 @@ function StockManagement() {
 
   const makeAdmin = async (userId) => {
     try {
-      await updateDoc(doc(db, "users", userId), { role: "admin" });
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      await updateDoc(doc(db, "users", userId), {
+        role: "admin",
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
       alert("Usuário promovido a admin com sucesso!");
       setUsers((prev) =>
         prev.map((user) =>
@@ -426,29 +449,46 @@ function StockManagement() {
 
   const saveCategory = async () => {
     try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
       const categoryData = {
         name: newCategory.name,
         subcategories: newCategory.subcategories,
-      };
+        ...(editingCategory
+          ? {
+              updatedBy: userInfo,
+              updatedAt: new Date(),
+            }
+          : {
+              createdBy: userInfo,
+              createdAt: new Date(),
+            }),
+    };
 
-      if (editingCategory) {
-        await updateDoc(
-          doc(db, "categories", editingCategory.id),
-          categoryData
-        );
-        setCategories((prev) =>
-          prev.map((cat) =>
-            cat.id === editingCategory.id
-              ? { ...categoryData, id: editingCategory.id }
-              : cat
-          )
-        );
-      } else {
-        const docRef = await addDoc(collection(db, "categories"), categoryData);
-        setCategories((prev) => [...prev, { ...categoryData, id: docRef.id }]);
-      }
+    if (editingCategory) {
+      await updateDoc(
+        doc(db, "categories", editingCategory.id),
+        categoryData
+      );
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === editingCategory.id
+            ? { ...categoryData, id: editingCategory.id }
+            : cat
+        )
+      );
+    } else {
+      const docRef = await addDoc(collection(db, "categories"), categoryData);
+      setCategories((prev) => [...prev, { ...categoryData, id: docRef.id }]);
+    }
 
-      resetCategoryForm();
+    resetCategoryForm();
     } catch (error) {
       console.error("Erro ao salvar categoria:", error);
     }
@@ -543,6 +583,14 @@ function StockManagement() {
 
   const saveProduct = async () => {
     try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
       const totalStock = newProduct.variations.reduce(
         (acc, curr) => acc + (curr.stock || 0),
         0
@@ -575,8 +623,18 @@ function StockManagement() {
         location: newProduct.location,
         reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
         supplierId: newProduct.supplierId,
-        enabled: newProduct.enabled && totalStock > 0, // Só ativa se houver estoque
+        enabled: newProduct.enabled && totalStock > 0,
         createdAt: editingProduct ? newProduct.createdAt : new Date(),
+        // Auditoria:
+        ...(editingProduct
+          ? {
+              updatedBy: userInfo,
+              updatedAt: new Date(),
+            }
+          : {
+              createdBy: userInfo,
+              createdAt: new Date(),
+            }),
       };
 
       if (editingProduct) {
@@ -638,23 +696,44 @@ function StockManagement() {
 
   const saveSupplier = async () => {
     try {
-      if (editingSupplier) {
-        await updateDoc(doc(db, "suppliers", editingSupplier.id), newSupplier);
-        setSuppliers((prev) =>
-          prev.map((s) =>
-            s.id === editingSupplier.id
-              ? { ...newSupplier, id: editingSupplier.id }
-              : s
-          )
-        );
-      } else {
-        const docRef = await addDoc(collection(db, "suppliers"), newSupplier);
-        setSuppliers((prev) => [...prev, { ...newSupplier, id: docRef.id }]);
-      }
-      resetSupplierForm();
-    } catch (error) {
-      console.error("Error saving supplier:", error);
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      const supplierData = {
+        ...newSupplier,
+        ...(editingSupplier
+          ? {
+              updatedBy: userInfo,
+              updatedAt: new Date(),
+            }
+          : {
+              createdBy: userInfo,
+              createdAt: new Date(),
+            }),
+    };
+
+    if (editingSupplier) {
+      await updateDoc(doc(db, "suppliers", editingSupplier.id), supplierData);
+      setSuppliers((prev) =>
+        prev.map((s) =>
+          s.id === editingSupplier.id
+            ? { ...supplierData, id: editingSupplier.id }
+            : s
+        )
+      );
+    } else {
+      const docRef = await addDoc(collection(db, "suppliers"), supplierData);
+      setSuppliers((prev) => [...prev, { ...supplierData, id: docRef.id }]);
     }
+    resetSupplierForm();
+  } catch (error) {
+    console.error("Error saving supplier:", error);
+  }
   };
 
   const deleteSupplier = async (id) => {
@@ -685,7 +764,20 @@ function StockManagement() {
 
   const markAsShipped = async (saleId) => {
     try {
-      await updateDoc(doc(db, "sales", saleId), { shipped: true, status: "Enviado" });
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      await updateDoc(doc(db, "sales", saleId), {
+        shipped: true,
+        status: "Enviado",
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
       setSales((prev) =>
         prev.map((sale) =>
           sale.id === saleId ? { ...sale, shipped: true, status: "Enviado" } : sale
@@ -698,7 +790,20 @@ function StockManagement() {
 
   const unmarkAsShipped = async (saleId) => {
     try {
-      await updateDoc(doc(db, "sales", saleId), { shipped: false, status: "Pendente" });
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      await updateDoc(doc(db, "sales", saleId), {
+        shipped: false,
+        status: "Pendente",
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
       setSales((prev) =>
         prev.map((sale) =>
           sale.id === saleId ? { ...sale, shipped: false, status: "Pendente" } : sale
@@ -711,7 +816,19 @@ function StockManagement() {
 
   const confirmDelivery = async (saleId) => {
     try {
-      await updateDoc(doc(db, "sales", saleId), { status: "Entregue" });
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      await updateDoc(doc(db, "sales", saleId), {
+        status: "Entregue",
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
       setSalesHistory((prev) =>
         prev.map((sale) =>
           sale.id === saleId ? { ...sale, status: "Entregue" } : sale
@@ -724,7 +841,19 @@ function StockManagement() {
 
   const confirmRequestedSale = async (saleId) => {
     try {
-      await updateDoc(doc(db, "sales", saleId), { status: "Pendente" });
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+
+      await updateDoc(doc(db, "sales", saleId), {
+        status: "Pendente",
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
 
       const confirmedSale = requestedSales.find((sale) => sale.id === saleId);
       setRequestedSales((prev) => prev.filter((sale) => sale.id !== saleId));
@@ -952,6 +1081,7 @@ function StockManagement() {
                                 <Typography variant="h4" fontWeight="700">
                                   {stat.value}
                                 </Typography>
+                                
                               </Box>
                             </CardContent>
                           </Card>
@@ -1010,50 +1140,28 @@ function StockManagement() {
                                     </Box>
 
                                     <Box sx={{ mt: 1 }}>
-                                      <Box sx={{ maxHeight: 200, overflowY: "auto", mb: 2 }}>
-                                        {category.subcategories
-                                          .sort((a, b) => a.localeCompare(b))
-                                          .map((subcategory, index) => (
-                                            <Accordion key={index} elevation={0} sx={{ mb: 1 }}>
-                                              <AccordionSummary expandIcon={<ExpandMore />}>
-                                                <Typography variant="caption" fontWeight="500">
-                                                  {subcategory}
-                                                </Typography>
-                                              </AccordionSummary>
-                                              <AccordionDetails sx={{ p: 1 }}>
-                                                {getProductsBySubcategory(category.name, subcategory).map((product) => (
-                                                  <Box
-                                                    key={product.id}
-                                                    sx={{
-                                                      display: "flex",
-                                                      alignItems: "center",
-                                                      gap: 1,
-                                                      mb: 1,
-                                                    }}
-                                                  >
-                                                    <Avatar
-                                                      src={product.imageUrls[0]}
-                                                      variant="rounded"
-                                                      sx={{ width: 30, height: 30 }}
-                                                    />
-                                                    <Box>
-                                                      <Typography variant="caption" fontWeight="500">
-                                                        {product.name}
-                                                      </Typography>
-                                                      <Typography variant="caption" color="textSecondary">
-                                                        Estoque:{" "}
-                                                        {product.variations.reduce(
-                                                          (acc, curr) => acc + (curr.stock || 0),
-                                                          0
-                                                        )}
-                                                      </Typography>
-                                                    </Box>
-                                                  </Box>
-                                                ))}
-                                              </AccordionDetails>
-                                            </Accordion>
-                                          ))}
-                                      </Box>
+                                      {category.createdBy && (
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                          Criado por: {category.createdBy.name || "Desconhecido"}
+                                          {category.createdAt && (
+                                            <> em {category.createdAt.seconds
+                                              ? new Date(category.createdAt.seconds * 1000).toLocaleString()
+                                              : new Date(category.createdAt).toLocaleString()}
+                                            </>
+                                          )}
+                                        </Typography>
+                                      )}
+                                      {category.updatedBy && (
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                          Editado por: {category.updatedBy.name || "Desconhecido"}
+                                          {category.updatedAt && (
+                                            <> em {category.updatedAt.seconds
+                                              ? new Date(category.updatedAt.seconds * 1000).toLocaleString()
+                                              : new Date(category.updatedAt).toLocaleString()}
+                                            </>
+                                          )}
+                                        </Typography>
+                                      )}
                                     </Box>
                                   </CardContent>
                                 </Card>
@@ -1906,6 +2014,32 @@ function StockManagement() {
                                       ) : (
                                         <Typography variant="h6" color="primary" sx={{ fontWeight: "bold" }}>
                                           R$ {Number(product.salePrice || 0).toFixed(2)}
+                                        </Typography>
+                                      )}
+                                    </Box>
+
+                                    {/* Auditoria */}
+                                    <Box sx={{ mt: 1 }}>
+                                      {product.createdBy && (
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                          Criado por: {product.createdBy.name || "Desconhecido"}
+                                          {product.createdAt && (
+                                            <> em {product.createdAt.seconds
+                                              ? new Date(product.createdAt.seconds * 1000).toLocaleString()
+                                              : new Date(product.createdAt).toLocaleString()}
+                                            </>
+                                          )}
+                                        </Typography>
+                                      )}
+                                      {product.updatedBy && (
+                                        <Typography variant="caption" color="textSecondary" display="block">
+                                          Editado por: {product.updatedBy.name || "Desconhecido"}
+                                          {product.updatedAt && (
+                                            <> em {product.updatedAt.seconds
+                                              ? new Date(product.updatedAt.seconds * 1000).toLocaleString()
+                                              : new Date(product.updatedAt).toLocaleString()}
+                                            </>
+                                          )}
                                         </Typography>
                                       )}
                                     </Box>
