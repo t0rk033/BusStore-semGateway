@@ -224,26 +224,23 @@ function Store() {
 
   return (
     <div className={styles.storeWrapper}>
-      <NavBar />
+      <NavBar
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        onSearchChange={e => setSearchTerm(e.target.value)}
+      />
       
       {/* Hero Section */}
-      <div className={styles.heroSection}>
-        <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>The store on the way!</h1>
-          <p className={styles.heroSubtitle}>Descubra os melhores produtos com descontos exclusivos</p>
-          <div className={styles.searchBar}>
-            <input
-              type="text"
-              placeholder="O que você está procurando?"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button className={styles.searchButton}>
-              <FiSearch size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
+  <div className={styles.heroSection}>
+  <div className={styles.heroContent}>
+    <h1 className={styles.heroTitle}>
+    Raquetes<br />MORMAII
+  </h1>
+    <p className={styles.heroSubtitle}>Sua loja de beach Tennis móvel e agora digital!</p>
+    <button className={styles.heroButton}>ver modelos</button>
+  </div>
+</div>
+
 
       {/* Filtros */}
       <div className={styles.filtersContainer}>

@@ -20,7 +20,7 @@ body {
 
 /* Hero Section */
 .heroSection {
-  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('../../assets/images/lojaFoto.JPG');
+  background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('../../assets/images/lojaFoto.png');
   background-size: cover;
   background-position: center;
   height: 400px;
@@ -28,9 +28,6 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: white !important;
-}
-.heroSection h1{
   color: white;
 }
 
@@ -40,20 +37,37 @@ body {
 }
 
 .heroTitle {
+  color: white;
   font-size: 3rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+  line-height: 1.2;
+  text-align: right;
+  text-transform: uppercase;
+  margin-right: 2rem; /* Ajuste esse valor para alinhar como no modelo */
 }
+
 
 .heroSubtitle {
   font-size: 1.25rem;
-  font-weight: 300;
-  margin-bottom: 2rem;
-  color: white; /* Garante que o texto seja branco */
-  background-color: rgba(0, 0, 0, 0.6); /* Fundo preto semitransparente */
-  padding: 10px 20px; /* Espaçamento interno */
-  border-radius: 8px; /* Bordas arredondadas */
-  display: inline-block; /* Ajusta o tamanho do fundo ao texto */
+  font-weight: 400;
+  margin-bottom: 1.5rem;
+  color: white;
+}
+
+.heroButton {
+  background-color: #4CAF50; /* verde estilo botão da imagem */
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.heroButton:hover {
+  background-color: #43a047;
 }
 
 .searchBar {
