@@ -25,7 +25,9 @@ function Store() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
-  
+  //estados ofertas do dia
+  const [dailyDeals, setDailyDeals] = useState([]);
+const [bestSellers, setBestSellers] = useState([]);
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(12);
@@ -77,7 +79,7 @@ function Store() {
       try {
         const productsQuery = query(
           collection(db, "products"),
-          orderBy("createdAt", "desc") // Ordena por data de criação em ordem decrescente
+          orderBy("createdAt", "desc")
         );
         const querySnapshot = await getDocs(productsQuery);
         const productsData = querySnapshot.docs.map((doc) => ({
@@ -85,10 +87,17 @@ function Store() {
           ...doc.data(),
           variations: doc.data().variations || [],
         }));
+        
         setProducts(productsData);
         setFilteredProducts(productsData);
 
-        // Extrai categorias únicas dos produtos
+        // Define os produtos em destaque (pega os 4 primeiros)
+        if (productsData.length > 0) {
+          setDailyDeals(productsData.slice(0, 1)); // 1 produto para oferta do dia
+          setBestSellers(productsData.slice(1, 4)); // 3 produtos para mais vendidos
+        }
+
+        // Extrai categorias únicas
         const uniqueCategories = [...new Set(productsData.map(product => product.category))];
         setCategories(uniqueCategories);
       } catch (error) {
@@ -229,153 +238,50 @@ function Store() {
         setSearchTerm={setSearchTerm}
         onSearchChange={e => setSearchTerm(e.target.value)}
       />
-      
+
       {/* Hero Section */}
-  <div className={styles.heroSection}>
-  <div className={styles.heroContent}>
-    <h1 className={styles.heroTitle}>
-    Raquetes<br />MORMAII
-  </h1>
-    <p className={styles.heroSubtitle}>Sua loja de beach Tennis móvel e agora digital!</p>
-    <button className={styles.heroButton}>ver modelos</button>
-  </div>
-</div>
-
-
-      {/* Filtros */}
-      <div className={styles.filtersContainer}>
-        <div className={styles.filterSection}>
-          <h3 className={styles.filterTitle}><FiTag size={18} /> Categorias</h3>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className={styles.categoryFilter}
-          >
-            <option value="">Todas as Categorias</option>
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className={styles.filterSection}>
-          <h3 className={styles.filterTitle}>Faixa de Preço</h3>
-          <div className={styles.priceRange}>
-            <input
-              type="number"
-              placeholder="Mínimo"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              className={styles.priceInput}
-            />
-            <span className={styles.priceSeparator}>-</span>
-            <input
-              type="number"
-              placeholder="Máximo"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className={styles.priceInput}
-            />
-          </div>
-        </div>
-
-        <button onClick={clearFilters} className={styles.clearFiltersButton}>
-          <FiX size={16} /> Limpar Filtros
-        </button>
+      <div className={styles.heroSection}>
+        <div className={styles.heroContent}>
+          <h1 className={styles.heroTitle}>
+          Raquetes<br />MORMAII
+        </h1>
+        <p className={styles.heroSubtitle}>Sua loja de beach Tennis móvel e agora digital!</p>
+        <button className={styles.heroButton}>ver modelos</button>
       </div>
+    </div>
 
-      {/* Grade de Produtos */}
-      <div className={styles.productsSection}>
-        <h2 className={styles.sectionTitle}>Todos os Produtos</h2>
-        
-        {/* Seletor de produtos por página */}
-        <div className={styles.productsPerPageSelector}>
-          <span>Produtos por página:</span>
-          <select 
-            value={productsPerPage}
-            onChange={(e) => {
-              setProductsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-          >
-            <option value="12">12</option>
-            <option value="24">24</option>
-            <option value="36">36</option>
-            <option value="48">48</option>
-          </select>
-        </div>
-
-        <div className={styles.productGrid}>
-          {getCurrentProducts().map(product => (
+    {/* Seções de Destaque lado a lado */}
+    <div className={styles.featuredRow}>
+      {/* Seção de Ofertas do Dia */}
+      <div className={styles.featuredSection}>
+        <h2 className={styles.sectionTitle}>Ofertas do Dia</h2>
+        <div className={styles.featuredGrid}>
+          {dailyDeals.map(product => (
             <div 
               key={product.id} 
-              className={styles.productCard}
+              className={styles.featuredCard}
               onClick={() => {
                 setSelectedProduct(product);
                 setOpenProductModal(true);
               }}
             >
-              <div className={styles.productImageContainer}>
-                <div className={styles.imageWrapper}>
-                  <img 
-                    src={product.imageUrls[0]} 
-                    alt={product.name} 
-                    className={styles.productImage}
-                    loading="lazy"
-                  />
-                  {product.discount > 0 && (
-                    <span className={styles.discountBadge}>-{product.discount}%</span>
-                  )}
-                  <button 
-                    className={styles.favoriteButton}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                    }}
-                  >
-                    <FiHeart size={20} />
-                  </button>
-                </div>
+              <div className={styles.featuredImageContainer}>
+                <img 
+                  src={product.imageUrls[0]} 
+                  alt={product.name}
+                  className={styles.featuredImage}
+                  loading="lazy"
+                />
               </div>
-              
-              <div className={styles.productDetails}>
-                <div className={styles.productHeader}>
-                  <h3 className={styles.productTitle}>{product.name}</h3>
-                  <div className={styles.rating}>
-                    {[...Array(5)].map((_, i) => (
-                      <FiStar 
-                        key={i} 
-                        size={16} 
-                        className={i < product.rating ? styles.filledStar : styles.emptyStar}
-                      />
-                    ))}
-                  </div>
-                </div>
-                
-                <div className={styles.priceContainer}>
-                  {Number(product.discount || 0) > 0 ? (
-                    <>
-                      <span className={styles.originalPrice}>
-                        R$ {Number(product.salePrice || 0).toFixed(2)}
-                      </span>
-                      <span className={styles.discountedPrice}>
-                        R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
-                      </span>
-                    </>
-                  ) : (
-                    <span className={styles.regularPrice}>
-                      R$ {Number(product.salePrice || 0).toFixed(2)}
-                    </span>
-                  )}
-                </div>
-                
+              <div className={styles.featuredInfo}>
+                <h3 className={styles.featuredName}>{product.name}</h3>
+                <div className={styles.featuredCode}>{product.code || 'SEM CÓDIGO'}</div>
+                <div className={styles.featuredPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
                 <button 
-                  className={styles.addToCartButton}
+                  className={styles.featuredAddButton}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setSelectedProduct(product);
-                    setOpenProductModal(true);
+                    handleAddToCart(product);
                   }}
                 >
                   <FiShoppingCart size={16} /> Adicionar
@@ -384,169 +290,354 @@ function Store() {
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Paginação */}
-        <div className={styles.paginationContainer}>
-          {filteredProducts.length > productsPerPage && (
-            <div className={styles.pagination}>
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className={styles.paginationButton}
-              >
-                &laquo; Anterior
-              </button>
-              
-              {Array.from({ length: Math.ceil(filteredProducts.length / productsPerPage) }).map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => paginate(index + 1)}
-                  className={`${styles.paginationButton} ${
-                    currentPage === index + 1 ? styles.activePage : ''
-                  }`}
+      {/* Seção de Mais Vendidos */}
+      <div className={styles.featuredSection}>
+        <h2 className={styles.sectionTitle}>Os mais vendidos</h2>
+        <div className={styles.featuredGrid}>
+          {bestSellers.map(product => (
+            <div 
+              key={product.id} 
+              className={styles.featuredCard}
+              onClick={() => {
+                setSelectedProduct(product);
+                setOpenProductModal(true);
+              }}
+            >
+              <div className={styles.featuredImageContainer}>
+                <img 
+                  src={product.imageUrls[0]} 
+                  alt={product.name}
+                  className={styles.featuredImage}
+                  loading="lazy"
+                />
+              </div>
+              <div className={styles.featuredInfo}>
+                <h3 className={styles.featuredName}>{product.name}</h3>
+                <div className={styles.featuredCode}>{product.code || 'SEM CÓDIGO'}</div>
+                <div className={styles.featuredPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
+                <button 
+                  className={styles.featuredAddButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToCart(product);
+                  }}
                 >
-                  {index + 1}
+                  <FiShoppingCart size={16} /> Adicionar
                 </button>
-              ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Filtros */}
+    <div className={styles.filtersContainer}>
+      <div className={styles.filterSection}>
+        <h3 className={styles.filterTitle}><FiTag size={18} /> Categorias</h3>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className={styles.categoryFilter}
+        >
+          <option value="">Todas as Categorias</option>
+          {categories.map(category => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.filterSection}>
+        <h3 className={styles.filterTitle}>Faixa de Preço</h3>
+        <div className={styles.priceRange}>
+          <input
+            type="number"
+            placeholder="Mínimo"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            className={styles.priceInput}
+          />
+          <span className={styles.priceSeparator}>-</span>
+          <input
+            type="number"
+            placeholder="Máximo"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            className={styles.priceInput}
+          />
+        </div>
+      </div>
+
+      <button onClick={clearFilters} className={styles.clearFiltersButton}>
+        <FiX size={16} /> Limpar Filtros
+      </button>
+    </div>
+
+    {/* Grade de Produtos */}
+    <div className={styles.productsSection}>
+      <h2 className={styles.sectionTitle}>Todos os Produtos</h2>
+      
+      {/* Seletor de produtos por página */}
+      <div className={styles.productsPerPageSelector}>
+        <span>Produtos por página:</span>
+        <select 
+          value={productsPerPage}
+          onChange={(e) => {
+            setProductsPerPage(Number(e.target.value));
+            setCurrentPage(1);
+          }}
+        >
+          <option value="12">12</option>
+          <option value="24">24</option>
+          <option value="36">36</option>
+          <option value="48">48</option>
+        </select>
+      </div>
+
+      <div className={styles.productGrid}>
+        {getCurrentProducts().map(product => (
+          <div 
+            key={product.id} 
+            className={styles.productCard}
+            onClick={() => {
+              setSelectedProduct(product);
+              setOpenProductModal(true);
+            }}
+          >
+            <div className={styles.productImageContainer}>
+              <div className={styles.imageWrapper}>
+                <img 
+                  src={product.imageUrls[0]} 
+                  alt={product.name} 
+                  className={styles.productImage}
+                  loading="lazy"
+                />
+                {product.discount > 0 && (
+                  <span className={styles.discountBadge}>-{product.discount}%</span>
+                )}
+                <button 
+                  className={styles.favoriteButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <FiHeart size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className={styles.productDetails}>
+              <div className={styles.productHeader}>
+                <h3 className={styles.productTitle}>{product.name}</h3>
+                <div className={styles.rating}>
+                  {[...Array(5)].map((_, i) => (
+                    <FiStar 
+                      key={i} 
+                      size={16} 
+                      className={i < product.rating ? styles.filledStar : styles.emptyStar}
+                    />
+                  ))}
+                </div>
+              </div>
               
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === Math.ceil(filteredProducts.length / productsPerPage)}
-                className={styles.paginationButton}
+              <div className={styles.priceContainer}>
+                {Number(product.discount || 0) > 0 ? (
+                  <>
+                    <span className={styles.originalPrice}>
+                      R$ {Number(product.salePrice || 0).toFixed(2)}
+                    </span>
+                    <span className={styles.discountedPrice}>
+                      R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
+                    </span>
+                  </>
+                ) : (
+                  <span className={styles.regularPrice}>
+                    R$ {Number(product.salePrice || 0).toFixed(2)}
+                  </span>
+                )}
+              </div>
+              
+              <button 
+                className={styles.addToCartButton}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedProduct(product);
+                  setOpenProductModal(true);
+                }}
               >
-                Próxima &raquo;
+                <FiShoppingCart size={16} /> Adicionar
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`${styles.toast} ${styles[toast.type]}`}>
-          {toast.message}
-        </div>
-      )}
-
-      {/* Botão Flutuante do Carrinho */}
-      <div 
-        className={`${styles.cartIcon} ${items.length > 0 ? styles.pulse : ''}`} 
-        onClick={() => setOpenCartModal(true)}
-      >
-        <FiShoppingCart size={24} />
-        {items.length > 0 && <span className={styles.cartBadge}>{items.length}</span>}
-      </div>
-
-      {/* Carrinho Lateral */}
-      <div className={`${styles.cartModal} ${openCartModal ? styles.open : ''}`}>
-        <div className={styles.cartContent}>
-          <div className={styles.cartHeader}>
-            <h2 className={styles.cartTitle}>Seu Carrinho</h2>
-            <button 
-              className={styles.closeCartButton}
-              onClick={() => setOpenCartModal(false)}
+      {/* Paginação */}
+      <div className={styles.paginationContainer}>
+        {filteredProducts.length > productsPerPage && (
+          <div className={styles.pagination}>
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={styles.paginationButton}
             >
-              <FiX size={24} />
+              &laquo; Anterior
+            </button>
+            
+            {Array.from({ length: Math.ceil(filteredProducts.length / productsPerPage) }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => paginate(index + 1)}
+                className={`${styles.paginationButton} ${
+                  currentPage === index + 1 ? styles.activePage : ''
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === Math.ceil(filteredProducts.length / productsPerPage)}
+              className={styles.paginationButton}
+            >
+              Próxima &raquo;
             </button>
           </div>
+        )}
+      </div>
+    </div>
 
-          {items.length === 0 ? (
-            <div className={styles.cartEmpty}>
-              <p>Seu carrinho está vazio.</p>
-              <button 
-                className={styles.continueShoppingButton}
-                onClick={() => setOpenCartModal(false)}
+    {/* Toast Notification */}
+    {toast.show && (
+      <div className={`${styles.toast} ${styles[toast.type]}`}>
+        {toast.message}
+      </div>
+    )}
+
+    {/* Botão Flutuante do Carrinho */}
+    <div 
+      className={`${styles.cartIcon} ${items.length > 0 ? styles.pulse : ''}`} 
+      onClick={() => setOpenCartModal(true)}
+    >
+      <FiShoppingCart size={24} />
+      {items.length > 0 && <span className={styles.cartBadge}>{items.length}</span>}
+    </div>
+
+    {/* Carrinho Lateral */}
+    <div className={`${styles.cartModal} ${openCartModal ? styles.open : ''}`}>
+      <div className={styles.cartContent}>
+        <div className={styles.cartHeader}>
+          <h2 className={styles.cartTitle}>Seu Carrinho</h2>
+          <button 
+            className={styles.closeCartButton}
+            onClick={() => setOpenCartModal(false)}
+          >
+            <FiX size={24} />
+          </button>
+        </div>
+
+        {items.length === 0 ? (
+          <div className={styles.cartEmpty}>
+            <p>Seu carrinho está vazio.</p>
+            <button 
+              className={styles.continueShoppingButton}
+              onClick={() => setOpenCartModal(false)}
+            >
+              Continuar Comprando
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className={styles.cartItems}>
+              {items.map(item => (
+                <div key={item.id} className={styles.cartItem}>
+                  <img
+                    src={item.imageUrls[0]}
+                    alt={item.name}
+                    className={styles.cartItemImage}
+                  />
+                  <div className={styles.cartItemDetails}>
+                    <h3 className={styles.cartItemName}>{item.name}</h3>
+                    <div className={styles.cartItemVariation}>
+                      <span>Cor: {item.variation.color}</span>
+                      <span>Tamanho: {item.variation.size}</span>
+                    </div>
+                    <div className={styles.cartItemPrice}>
+                      R$ {item.price.toFixed(2)}
+                    </div>
+                    <div className={styles.quantityControls}>
+                      <button
+                        className={styles.quantityButton}
+                        onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
+                      >
+                        -
+                      </button>
+                      <span className={styles.quantityValue}>{item.quantity}</span>
+                      <button
+                        className={styles.quantityButton}
+                        onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    className={styles.removeItemButton}
+                    onClick={() => removeItem(item.id)}
+                  >
+                    <FiTrash size={18} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Resumo do Carrinho */}
+            <div className={styles.cartSummary}>
+              <div className={styles.totalContainer}>
+                <div className={styles.totalRow}>
+                  <span className={styles.totalLabel}>Total</span>
+                  <span className={styles.totalPrice}>R$ {cartTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <button
+                className={styles.checkoutButton}
+                onClick={handleCheckout}
+                disabled={items.length === 0}
               >
-                Continuar Comprando
+                Finalizar Compra <FiChevronRight size={18} />
               </button>
             </div>
-          ) : (
-            <>
-              <div className={styles.cartItems}>
-                {items.map(item => (
-                  <div key={item.id} className={styles.cartItem}>
-                    <img
-                      src={item.imageUrls[0]}
-                      alt={item.name}
-                      className={styles.cartItemImage}
-                    />
-                    <div className={styles.cartItemDetails}>
-                      <h3 className={styles.cartItemName}>{item.name}</h3>
-                      <div className={styles.cartItemVariation}>
-                        <span>Cor: {item.variation.color}</span>
-                        <span>Tamanho: {item.variation.size}</span>
-                      </div>
-                      <div className={styles.cartItemPrice}>
-                        R$ {item.price.toFixed(2)}
-                      </div>
-                      <div className={styles.quantityControls}>
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                        >
-                          -
-                        </button>
-                        <span className={styles.quantityValue}>{item.quantity}</span>
-                        <button
-                          className={styles.quantityButton}
-                          onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      className={styles.removeItemButton}
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <FiTrash size={18} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Resumo do Carrinho */}
-              <div className={styles.cartSummary}>
-                <div className={styles.totalContainer}>
-                  <div className={styles.totalRow}>
-                    <span className={styles.totalLabel}>Total</span>
-                    <span className={styles.totalPrice}>R$ {cartTotal.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <button
-                  className={styles.checkoutButton}
-                  onClick={handleCheckout}
-                  disabled={items.length === 0}
-                >
-                  Finalizar Compra <FiChevronRight size={18} />
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          </>
+        )}
       </div>
-
-      {/* Overlay do Carrinho */}
-      <div 
-        className={`${styles.overlay} ${openCartModal ? styles.open : ''}`} 
-        onClick={() => setOpenCartModal(false)}
-      />
-
-      {/* Modal de Produto */}
-      <ProductModal
-        open={openProductModal}
-        onClose={() => {
-          setOpenProductModal(false);
-          setSelectedProduct(null);
-        }}
-        product={selectedProduct}
-        addToCart={handleAddToCart}
-      />
-
-      <Footer />
     </div>
-  );
+
+    {/* Overlay do Carrinho */}
+    <div 
+      className={`${styles.overlay} ${openCartModal ? styles.open : ''}`} 
+      onClick={() => setOpenCartModal(false)}
+    />
+
+    {/* Modal de Produto */}
+    <ProductModal
+      open={openProductModal}
+      onClose={() => {
+        setOpenProductModal(false);
+        setSelectedProduct(null);
+      }}
+      product={selectedProduct}
+      addToCart={handleAddToCart}
+    />
+
+    <Footer />
+  </div>
+);
 }
 
 export default Store;
