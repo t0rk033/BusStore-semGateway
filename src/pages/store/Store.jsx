@@ -9,6 +9,9 @@ import NavBar from "../../components/NavBar";
 import Footer from '../../components/Footer';
 import { FiSearch, FiX, FiShoppingCart, FiTag, FiChevronRight, FiTrash, FiHeart, FiStar } from 'react-icons/fi';
 import ProductModal from './ProductModal';
+import raquetesimg from '../../assets/images/raquetesimg.png';
+import conjuntosimg from '../../assets/images/conjuntosimg.jpg';
+import garrafaimg from '../../assets/images/garrafaimg.jpg';
 
 function Store() {
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
@@ -251,87 +254,105 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
 
     {/* Seções de Destaque lado a lado */}
-    <div className={styles.featuredRow}>
-      {/* Seção de Ofertas do Dia */}
-      <div className={styles.featuredSection}>
-        <h2 className={styles.sectionTitle}>Ofertas do Dia</h2>
-        <div className={styles.featuredGrid}>
-          {dailyDeals.map(product => (
-            <div 
-              key={product.id} 
-              className={styles.featuredCard}
-              onClick={() => {
-                setSelectedProduct(product);
-                setOpenProductModal(true);
-              }}
-            >
-              <div className={styles.featuredImageContainer}>
-                <img 
-                  src={product.imageUrls[0]} 
-                  alt={product.name}
-                  className={styles.featuredImage}
-                  loading="lazy"
-                />
-              </div>
-              <div className={styles.featuredInfo}>
-                <h3 className={styles.featuredName}>{product.name}</h3>
-                <div className={styles.featuredCode}>{product.code || 'SEM CÓDIGO'}</div>
-                <div className={styles.featuredPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
-                <button 
-                  className={styles.featuredAddButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(product);
-                  }}
-                >
-                  <FiShoppingCart size={16} /> Adicionar
-                </button>
-              </div>
+  <div className={styles.featuredRow}>
+  {/* Seção de Ofertas do Dia */}
+  <div className={styles.featuredSection}>
+    <h2 className={styles.sectionTitle}>Oferta do dia</h2>
+    <div className={styles.featuredGrid}>
+      {dailyDeals.map(product => (
+        <div 
+          key={product.id} 
+          className={styles.featuredCard}
+          onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
+          }}
+        >
+          <div className={styles.featuredImageContainer}>
+            <img 
+              src={product.imageUrls[0]} 
+              alt={product.name}
+              className={styles.featuredImage}
+              loading="lazy"
+            />
+          </div>
+          <div className={styles.featuredInfo}>
+            <h3 className={styles.featuredName}>{product.name}</h3>
+            <div className={styles.featuredOldPrice}>R$ 250,99</div>
+            <div className={styles.featuredPrice}>
+              R$ {Number(product.salePrice).toFixed(2)}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-
-      {/* Seção de Mais Vendidos */}
-      <div className={styles.featuredSection}>
-        <h2 className={styles.sectionTitle}>Os mais vendidos</h2>
-        <div className={styles.featuredGrid}>
-          {bestSellers.map(product => (
-            <div 
-              key={product.id} 
-              className={styles.featuredCard}
-              onClick={() => {
-                setSelectedProduct(product);
-                setOpenProductModal(true);
-              }}
-            >
-              <div className={styles.featuredImageContainer}>
-                <img 
-                  src={product.imageUrls[0]} 
-                  alt={product.name}
-                  className={styles.featuredImage}
-                  loading="lazy"
-                />
-              </div>
-              <div className={styles.featuredInfo}>
-                <h3 className={styles.featuredName}>{product.name}</h3>
-                <div className={styles.featuredCode}>{product.code || 'SEM CÓDIGO'}</div>
-                <div className={styles.featuredPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
-                <button 
-                  className={styles.featuredAddButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(product);
-                  }}
-                >
-                  <FiShoppingCart size={16} /> Adicionar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      ))}
     </div>
+  </div>
+
+  {/* Seção de Mais Vendidos */}
+  <div className={styles.featuredSection}>
+    <h2 className={styles.sectionTitle}>Os mais vendidos</h2>
+    <div className={styles.featuredGrid}>
+      {bestSellers.map(product => (
+        <div 
+          key={product.id} 
+          className={styles.featuredCard}
+          onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
+          }}
+        >
+          <div className={styles.featuredImageContainer}>
+            <img 
+              src={product.imageUrls[0]} 
+              alt={product.name}
+              className={styles.featuredImage}
+              loading="lazy"
+            />
+          </div>
+          <div className={styles.featuredInfo}>
+            <h3 className={styles.featuredName}>{product.name}</h3>
+            <div className={styles.featuredOldPrice}>R$ 250,99</div>
+            <div className={styles.featuredPrice}>
+              R$ {Number(product.salePrice).toFixed(2)}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+{/* Seção de Categorias */}
+<div className={styles.categoriesSection}>
+  <div className={styles.categoriesGrid}>
+    <div 
+      className={styles.categoryCard} 
+      onClick={() => navigate('/produtos?categoria=raquetes')}
+    >
+      <h3 className={styles.categoryName}>Raquetes e bolas</h3>
+      <img src={raquetesimg} alt="Raquetes e bolas" className={styles.categoryImage} />
+      <div className={styles.categoryFooter}>Conferir agora</div>
+    </div>
+
+    <div 
+      className={styles.categoryCard} 
+      onClick={() => navigate('/produtos?categoria=conjuntos')}
+    >
+      <h3 className={styles.categoryName}>Conjuntos</h3>
+      <img src={conjuntosimg} alt="Conjuntos" className={styles.categoryImage} />
+      <div className={styles.categoryFooter}>Conferir agora</div>
+    </div>
+
+    <div 
+      className={styles.categoryCard} 
+      onClick={() => navigate('/produtos?categoria=garrafas')}
+    >
+      <h3 className={styles.categoryName}>Garrafas</h3>
+      <img src={garrafaimg} alt="Garrafas" className={styles.categoryImage} />
+      <div className={styles.categoryFooter}>Conferir agora</div>
+    </div>
+  </div>
+</div>
 
     {/* Filtros */}
     <div className={styles.filtersContainer}>

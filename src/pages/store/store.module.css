@@ -1163,7 +1163,6 @@ bottom: 18vh;
 /* Seções de Destaque - Layout igual à imagem */
 .featuredRow {
   display: flex;
-  justify-content: space-between;
   gap: 20px;
   margin: 40px auto;
   max-width: 1200px;
@@ -1171,7 +1170,6 @@ bottom: 18vh;
 }
 
 .featuredSection {
-  flex: 1;
   background: white;
   border-radius: 12px;
   padding: 20px;
@@ -1179,7 +1177,8 @@ bottom: 18vh;
 }
 
 .featuredSection:first-child {
-  max-width: 400px;
+  flex: 1;
+  max-width: 300px; /* Oferta do dia menor */
 }
 
 .featuredSection:last-child {
@@ -1187,157 +1186,154 @@ bottom: 18vh;
 }
 
 .sectionTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: var(--primary);
-  position: relative;
-  padding-left: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text);
 }
 
-.sectionTitle::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 10px;
-  width: 50px;
-  height: 3px;
-  background: var(--secondary);
-}
-
-/* Oferta do dia - card único centralizado */
-.featuredSection:first-child .featuredGrid {
+.featuredGrid {
   display: flex;
-  justify-content: center;
-}
-
-/* Mais vendidos - cards em linha com scroll horizontal */
-.featuredSection:last-child .featuredGrid {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   gap: 15px;
+}
+
+.featuredSection:first-child .featuredGrid {
+  justify-content: center;
+}
+
+.featuredSection:last-child .featuredGrid {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   overflow-x: auto;
-  padding-bottom: 10px;
-  scrollbar-width: thin;
 }
 
 .featuredSection:last-child .featuredGrid::-webkit-scrollbar {
   height: 6px;
 }
-
 .featuredSection:last-child .featuredGrid::-webkit-scrollbar-thumb {
   background: var(--secondary);
   border-radius: 3px;
 }
 
-/* Cards de produto */
 .featuredCard {
   background: white;
   border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-  transition: transform 0.3s ease;
+  min-width: 160px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
 .featuredCard:hover {
-  transform: translateY(-5px);
+  transform: scale(1.02);
 }
 
 .featuredImageContainer {
   width: 100%;
   height: 180px;
   overflow: hidden;
+  border-radius: 8px 8px 0 0;
 }
 
 .featuredImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.featuredCard:hover .featuredImage {
-  transform: scale(1.05);
 }
 
 .featuredInfo {
-  padding: 15px;
+  padding: 10px;
 }
 
 .featuredName {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
   color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.featuredOldPrice {
+  font-size: 0.75rem;
+  color: #888;
+  text-decoration: line-through;
 }
 
 .featuredPrice {
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: var(--secondary);
-  margin-bottom: 1rem;
+  color: #27ae60;
 }
 
-.featuredAddButton {
+/* Seção de Categorias */
+.categoriesSection {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.categoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Card */
+.categoryCard {
+  position: relative;
   width: 100%;
-  padding: 8px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
+  max-width: 376px;
+  height: 341px;
+  border-radius: 12px;
+  overflow: hidden;
   cursor: pointer;
-  transition: background 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.featuredAddButton:hover {
-  background: var(--accent);
+.categoryCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.categoryImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Título no topo */
+.categoryName {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: white;
+  color: black;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Texto no rodapé */
+.categoryFooter {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  text-align: left;
+  padding: 0.5rem;
+  font-size: 0.9rem;
 }
 
 /* Responsividade */
 @media (max-width: 768px) {
-  .featuredRow {
-    flex-direction: column;
+  .categoriesGrid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
   }
-  
-  .featuredSection:first-child {
-    max-width: 100%;
-  }
-  
-  .featuredSection:last-child .featuredGrid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    overflow-x: visible;
-  }
-}
-
-/* Alinhe os títulos à esquerda */
-.sectionTitle, .featuredSection .sectionTitle {
-  text-align: left !important;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
-}
-
-/* Ajuste o sublinhado do título para começar do início */
-.sectionTitle::after, .featuredSection .sectionTitle::after {
-  left: 0 !important;
-}
-
-/* Centralize os cards dos mais vendidos na linha */
-.featuredSection:last-child .featuredGrid {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: flex-start;
-  gap: 15px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  scrollbar-width: thin;
 }
 
 /* Responsivo: empilhe os cards no mobile */
