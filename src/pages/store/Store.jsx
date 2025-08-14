@@ -34,6 +34,9 @@ const [bestSellers, setBestSellers] = useState([]);
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(12);
+  const [bermudaShortProducts, setBermudaShortProducts] = useState([]);
+  // Adicione o estado para bermudas
+  const [bermudaProducts, setBermudaProducts] = useState([]);
 
   const navigate = useNavigate();
 
@@ -234,6 +237,39 @@ const [bestSellers, setBestSellers] = useState([]);
     });
   }, [currentPage]);
 
+  // Filtra os produtos de short e bermuda
+  useEffect(() => {
+    setBermudaShortProducts(
+      products.filter(
+        p =>
+          p.category?.toLowerCase().trim() === 'vestuário masculino' &&
+          p.subcategory?.toLowerCase().trim() === 'short'
+      )
+    );
+    setBermudaProducts(
+      products.filter(
+        p =>
+          p.category?.toLowerCase().trim() === 'vestuário masculino' &&
+          p.subcategory?.trim() === 'Bermudas' // sem toLowerCase pois está com B maiúsculo no Firebase
+      )
+    );
+  }, [products]);
+
+  // Mescla os arrays caso não haja 5 shorts
+  const bermudaCarouselProducts =
+  bermudaShortProducts.length + bermudaProducts.length >= 5
+    ? [...bermudaShortProducts, ...bermudaProducts].slice(0, 5)
+    : [
+        ...bermudaShortProducts,
+        ...bermudaProducts,
+        ...products.filter(
+          p =>
+            p.category?.toLowerCase().trim() !== 'vestuário masculino' ||
+            (p.subcategory?.toLowerCase().trim() !== 'short' &&
+             p.subcategory?.trim() !== 'Bermudas')
+        )
+      ].slice(0, 5);
+
   return (
     <div className={styles.storeWrapper}>
       <NavBar
@@ -353,7 +389,27 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
   </div>
 </div>
-
+{/* Seção de Bermudas */}
+    <div className={styles.bermudaSection}>
+      <h2 className={styles.bermudaTitle}>Bermudas - Short</h2>
+      <div className={styles.bermudaCarousel}>
+        <button className={styles.carouselArrowLeft}>&#60;</button>
+        <div className={styles.bermudaGrid}>
+          {bermudaCarouselProducts.map(product => (
+            <div key={product.id} className={styles.bermudaCard}>
+              <div className={styles.bermudaImageContainer}>
+                <img src={product.imageUrls[0]} alt={product.name} className={styles.bermudaImage} />
+              </div>
+              <div className={styles.bermudaInfo}>
+                <div className={styles.bermudaName}>{product.name}</div>
+                <div className={styles.bermudaPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button className={styles.carouselArrowRight}>&#62;</button>
+      </div>
+    </div>
     {/* Filtros */}
     <div className={styles.filtersContainer}>
       <div className={styles.filterSection}>
@@ -532,6 +588,8 @@ const [bestSellers, setBestSellers] = useState([]);
         )}
       </div>
     </div>
+
+    
 
     {/* Toast Notification */}
     {toast.show && (
