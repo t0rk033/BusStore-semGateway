@@ -12,7 +12,7 @@
   
   /* Estilos globais */
   body {
-    font-family: 'Inter','Poppins', sans-serif;
+      font-family: "Afacad", sans-serif;
     color: var(--text-color);
     line-height: 1.6;
     margin: 0;

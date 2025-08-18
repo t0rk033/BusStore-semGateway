@@ -13,6 +13,14 @@ import raquetesimg from '../../assets/images/raquetesimg.png';
 import conjuntosimg from '../../assets/images/conjuntosimg.jpg';
 import garrafaimg from '../../assets/images/garrafaimg.jpg';
 
+// Importe as imagens das marcas
+import mormaiiLogo from '../../assets/images/marcas/mormai.png';
+import sharkLogo from '../../assets/images/marcas/shark.png';
+import altogiroLogo from '../../assets/images/marcas/altoGiro.png';
+import dropshotLogo from '../../assets/images/marcas/dropShot.png';
+import wilsonLogo from '../../assets/images/marcas/wilson.png';
+import atleta from '../../assets/images/atleta.jpg';
+
 function Store() {
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
   const [products, setProducts] = useState([]);
@@ -282,40 +290,40 @@ const [bestSellers, setBestSellers] = useState([]);
       <div className={styles.heroSection}>
         <div className={styles.heroContent}>
           <h1 className={styles.heroTitle}>
-          Raquetes<br />MORMAII
+          <span className={styles.raquetesname}>Raquetes</span><br />MORMAII
         </h1>
         <p className={styles.heroSubtitle}>Sua loja de beach Tennis móvel e agora digital!</p>
         <button className={styles.heroButton}>ver modelos</button>
       </div>
     </div>
 
-    {/* Seções de Destaque lado a lado */}
-  <div className={styles.featuredRow}>
+{/* Seções de Destaque lado a lado */}
+<div className={styles.featuredSectionsContainer}>
   {/* Seção de Ofertas do Dia */}
-  <div className={styles.featuredSection}>
-    <h2 className={styles.sectionTitle}>Oferta do dia</h2>
-    <div className={styles.featuredGrid}>
+  <div className={styles.featuredSectionCompact}>
+    <h2 className={styles.sectionTitleCompact}>Oferta do dia</h2>
+    <div className={styles.featuredGridCompact}>
       {dailyDeals.map(product => (
         <div 
           key={product.id} 
-          className={styles.featuredCard}
+          className={styles.featuredCardCompact}
           onClick={() => {
             setSelectedProduct(product);
             setOpenProductModal(true);
           }}
         >
-          <div className={styles.featuredImageContainer}>
+          <div className={styles.featuredImageContainerCompact}>
             <img 
               src={product.imageUrls[0]} 
               alt={product.name}
-              className={styles.featuredImage}
+              className={styles.featuredImageCompact}
               loading="lazy"
             />
           </div>
-          <div className={styles.featuredInfo}>
-            <h3 className={styles.featuredName}>{product.name}</h3>
-            <div className={styles.featuredOldPrice}>R$ 250,99</div>
-            <div className={styles.featuredPrice}>
+          <div className={styles.featuredInfoCompact}>
+            <h3 className={styles.featuredNameCompact}>{product.name}</h3>
+            <div className={styles.featuredOldPriceCompact}>R$ 250,99</div>
+            <div className={styles.featuredPriceCompact}>
               R$ {Number(product.salePrice).toFixed(2)}
             </div>
           </div>
@@ -325,30 +333,30 @@ const [bestSellers, setBestSellers] = useState([]);
   </div>
 
   {/* Seção de Mais Vendidos */}
-  <div className={styles.featuredSection}>
-    <h2 className={styles.sectionTitle}>Os mais vendidos</h2>
-    <div className={styles.featuredGrid}>
+  <div className={styles.featuredSectionCompact}>
+    <h2 className={styles.sectionTitleCompact}>Os mais vendidos</h2>
+    <div className={styles.featuredGridCompact}>
       {bestSellers.map(product => (
         <div 
           key={product.id} 
-          className={styles.featuredCard}
+          className={styles.featuredCardCompact}
           onClick={() => {
             setSelectedProduct(product);
             setOpenProductModal(true);
           }}
         >
-          <div className={styles.featuredImageContainer}>
+          <div className={styles.featuredImageContainerCompact}>
             <img 
               src={product.imageUrls[0]} 
               alt={product.name}
-              className={styles.featuredImage}
+              className={styles.featuredImageCompact}
               loading="lazy"
             />
           </div>
-          <div className={styles.featuredInfo}>
-            <h3 className={styles.featuredName}>{product.name}</h3>
-            <div className={styles.featuredOldPrice}>R$ 250,99</div>
-            <div className={styles.featuredPrice}>
+          <div className={styles.featuredInfoCompact}>
+            <h3 className={styles.featuredNameCompact}>{product.name}</h3>
+            <div className={styles.featuredOldPriceCompact}>R$ 250,99</div>
+            <div className={styles.featuredPriceCompact}>
               R$ {Number(product.salePrice).toFixed(2)}
             </div>
           </div>
@@ -357,7 +365,6 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
   </div>
 </div>
-
 {/* Seção de Categorias */}
 <div className={styles.categoriesSection}>
   <div className={styles.categoriesGrid}>
@@ -391,12 +398,16 @@ const [bestSellers, setBestSellers] = useState([]);
 </div>
 {/* Seção de Bermudas */}
     <div className={styles.bermudaSection}>
-      <h2 className={styles.bermudaTitle}>Bermudas - Short</h2>
+      <h2 className={styles.bermudaTitle}>Bermudas</h2>
       <div className={styles.bermudaCarousel}>
         <button className={styles.carouselArrowLeft}>&#60;</button>
         <div className={styles.bermudaGrid}>
           {bermudaCarouselProducts.map(product => (
-            <div key={product.id} className={styles.bermudaCard}>
+            <div key={product.id} className={styles.bermudaCard}  onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
+          }}
+          style={{ cursor: 'pointer' }}>
               <div className={styles.bermudaImageContainer}>
                 <img src={product.imageUrls[0]} alt={product.name} className={styles.bermudaImage} />
               </div>
@@ -410,186 +421,133 @@ const [bestSellers, setBestSellers] = useState([]);
         <button className={styles.carouselArrowRight}>&#62;</button>
       </div>
     </div>
-    {/* Filtros */}
-    <div className={styles.filtersContainer}>
-      <div className={styles.filterSection}>
-        <h3 className={styles.filterTitle}><FiTag size={18} /> Categorias</h3>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className={styles.categoryFilter}
-        >
-          <option value="">Todas as Categorias</option>
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.filterSection}>
-        <h3 className={styles.filterTitle}>Faixa de Preço</h3>
-        <div className={styles.priceRange}>
-          <input
-            type="number"
-            placeholder="Mínimo"
-            value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            className={styles.priceInput}
-          />
-          <span className={styles.priceSeparator}>-</span>
-          <input
-            type="number"
-            placeholder="Máximo"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            className={styles.priceInput}
-          />
-        </div>
-      </div>
-
-      <button onClick={clearFilters} className={styles.clearFiltersButton}>
-        <FiX size={16} /> Limpar Filtros
-      </button>
-    </div>
-
-    {/* Grade de Produtos */}
-    <div className={styles.productsSection}>
-      <h2 className={styles.sectionTitle}>Todos os Produtos</h2>
-      
-      {/* Seletor de produtos por página */}
-      <div className={styles.productsPerPageSelector}>
-        <span>Produtos por página:</span>
-        <select 
-          value={productsPerPage}
-          onChange={(e) => {
-            setProductsPerPage(Number(e.target.value));
-            setCurrentPage(1);
+    <div className={styles.bermudaSection}>
+  <h2 className={styles.bermudaTitle}>Carrossel 2</h2>
+  <div className={styles.bermudaCarousel}>
+    <button className={styles.carouselArrowLeft}>&#60;</button>
+    <div className={styles.bermudaGrid}>
+      {products.slice(5, 10).map(product => (
+        <div key={product.id} className={styles.bermudaCard} onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
           }}
-        >
-          <option value="12">12</option>
-          <option value="24">24</option>
-          <option value="36">36</option>
-          <option value="48">48</option>
-        </select>
-      </div>
-
-      <div className={styles.productGrid}>
-        {getCurrentProducts().map(product => (
-          <div 
-            key={product.id} 
-            className={styles.productCard}
-            onClick={() => {
-              setSelectedProduct(product);
-              setOpenProductModal(true);
-            }}
-          >
-            <div className={styles.productImageContainer}>
-              <div className={styles.imageWrapper}>
-                <img 
-                  src={product.imageUrls[0]} 
-                  alt={product.name} 
-                  className={styles.productImage}
-                  loading="lazy"
-                />
-                {product.discount > 0 && (
-                  <span className={styles.discountBadge}>-{product.discount}%</span>
-                )}
-                <button 
-                  className={styles.favoriteButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <FiHeart size={20} />
-                </button>
-              </div>
-            </div>
-            
-            <div className={styles.productDetails}>
-              <div className={styles.productHeader}>
-                <h3 className={styles.productTitle}>{product.name}</h3>
-                <div className={styles.rating}>
-                  {[...Array(5)].map((_, i) => (
-                    <FiStar 
-                      key={i} 
-                      size={16} 
-                      className={i < product.rating ? styles.filledStar : styles.emptyStar}
-                    />
-                  ))}
-                </div>
-              </div>
-              
-              <div className={styles.priceContainer}>
-                {Number(product.discount || 0) > 0 ? (
-                  <>
-                    <span className={styles.originalPrice}>
-                      R$ {Number(product.salePrice || 0).toFixed(2)}
-                    </span>
-                    <span className={styles.discountedPrice}>
-                      R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
-                    </span>
-                  </>
-                ) : (
-                  <span className={styles.regularPrice}>
-                    R$ {Number(product.salePrice || 0).toFixed(2)}
-                  </span>
-                )}
-              </div>
-              
-              <button 
-                className={styles.addToCartButton}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedProduct(product);
-                  setOpenProductModal(true);
-                }}
-              >
-                <FiShoppingCart size={16} /> Adicionar
-              </button>
-            </div>
+          style={{ cursor: 'pointer' }}>
+          <div className={styles.bermudaImageContainer}>
+            <img src={product.imageUrls[0]} alt={product.name} className={styles.bermudaImage} />
           </div>
-        ))}
-      </div>
-
-      {/* Paginação */}
-      <div className={styles.paginationContainer}>
-        {filteredProducts.length > productsPerPage && (
-          <div className={styles.pagination}>
-            <button
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={styles.paginationButton}
-            >
-              &laquo; Anterior
-            </button>
-            
-            {Array.from({ length: Math.ceil(filteredProducts.length / productsPerPage) }).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => paginate(index + 1)}
-                className={`${styles.paginationButton} ${
-                  currentPage === index + 1 ? styles.activePage : ''
-                }`}
-              >
-                {index + 1}
-              </button>
-            ))}
-            
-            <button
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === Math.ceil(filteredProducts.length / productsPerPage)}
-              className={styles.paginationButton}
-            >
-              Próxima &raquo;
-            </button>
+          <div className={styles.bermudaInfo}>
+            <div className={styles.bermudaName}>{product.name}</div>
+            <div className={styles.bermudaPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
           </div>
-        )}
+        </div>
+      ))}
+    </div>
+    <button className={styles.carouselArrowRight}>&#62;</button>
+  </div>
+</div>
+     {/* Seção de Marcas */}
+    <div className={styles.brandsSection}>
+      <div className={styles.brandsHeader}>
+        <p>As maiores marcas com a gente</p>
+      </div>
+      <div className={styles.brandsLogos}>
+        <img src={mormaiiLogo} alt="Mormaii" />
+        <img src={sharkLogo} alt="Shark" />
+        <img src={altogiroLogo} alt="Alto Giro" />
+        <img src={dropshotLogo} alt="Drop Shot" />
+        <img src={wilsonLogo} alt="Wilson" />
       </div>
     </div>
 
-    
+    {/* Carrossel 1 */}
+<div className={styles.bermudasContainer}>
+  
+  <div className={styles.bermudasList}>
+    {products
+      .filter(product => 
+        product.category && product.category.match(/bermuda|short/i)
+      )
+      .slice(0, 4)
+      .map((product, index) => (
+        <div key={product.id} className={styles.bermudaItem}>
+          <p className={styles.productName}>
+            {product.name || 'Produto sem nome'}
+          </p>
+          <p className={styles.productPrice}>
+            R$ {index % 2 === 0 ? '200,00' : '300,00'}
+          </p>
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+{/* Carrossel 2 */}
+<div className={styles.bermudaSection}>
+  <h2 className={styles.bermudaTitle}>Carrossel 3</h2>
+  <div className={styles.bermudaCarousel}>
+    <button className={styles.carouselArrowLeft}>&#60;</button>
+    <div className={styles.bermudaGrid}>
+      {products.slice(5, 10).map(product => (
+        <div key={product.id} className={styles.bermudaCard}  onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
+          }}
+          style={{ cursor: 'pointer' }}>
+          <div className={styles.bermudaImageContainer}>
+            <img src={product.imageUrls[0]} alt={product.name} className={styles.bermudaImage} />
+          </div>
+          <div className={styles.bermudaInfo}>
+            <div className={styles.bermudaName}>{product.name}</div>
+            <div className={styles.bermudaPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+    <button className={styles.carouselArrowRight}>&#62;</button>
+  </div>
+</div>
+<div className={styles.bermudaSection}>
+  <h2 className={styles.bermudaTitle}>Carrossel 4</h2>
+  <div className={styles.bermudaCarousel}>
+    <button className={styles.carouselArrowLeft}>&#60;</button>
+    <div className={styles.bermudaGrid}>
+      {products.slice(5, 10).map(product => (
+        <div key={product.id} className={styles.bermudaCard} onClick={() => {
+            setSelectedProduct(product);
+            setOpenProductModal(true);
+          }}
+          style={{ cursor: 'pointer' }}>
+          <div className={styles.bermudaImageContainer}>
+            <img src={product.imageUrls[0]} alt={product.name} className={styles.bermudaImage} />
+          </div>
+          <div className={styles.bermudaInfo}>
+            <div className={styles.bermudaName}>{product.name}</div>
+            <div className={styles.bermudaPrice}>R$ {Number(product.salePrice).toFixed(2)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+    <button className={styles.carouselArrowRight}>&#62;</button>
+  </div>
+</div>
+
+    {/* Seção Atleta */}
+    <div className={styles.athleteSection}>
+  <div className={styles.athleteContent}>
+    <img
+      src={atleta}
+      alt="Atleta"
+      className={styles.athleteImage}
+    />
+    <div className={styles.athleteText}>
+      <p>
+        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+      </p>
+      <h2 className={styles.athleteName}>Nome do Atleta</h2>
+    </div>
+  </div>
+</div>
 
     {/* Toast Notification */}
     {toast.show && (
@@ -713,6 +671,8 @@ const [bestSellers, setBestSellers] = useState([]);
       product={selectedProduct}
       addToCart={handleAddToCart}
     />
+
+   
 
     <Footer />
   </div>

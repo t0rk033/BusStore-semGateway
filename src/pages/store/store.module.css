@@ -14,7 +14,7 @@
 body {
   margin: 0;
   font-family: 'Roboto', sans-serif;
-  background: var(--background);
+  background: #f3f4f7; /* cor igual ao print */
   color: var(--text);
 }
 
@@ -23,12 +23,14 @@ body {
   background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('../../assets/images/lojaFoto.png');
   background-size: cover;
   background-position: center;
-  height: 400px;
+  height: 500px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   color: white;
+  margin-bottom: 60px;
+  
   
 }
 
@@ -36,7 +38,7 @@ body {
   max-width: 800px;
   padding: 0 20px;
   position: relative;
-  left: 40vh;
+  left: 20rem;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -44,17 +46,20 @@ body {
 
 .heroTitle {
   color: white;
-  font-size: 3rem;
-  font-weight: 700;
+  font-size: 96px;
   line-height: 1.2;
   text-align: right;
   text-transform: uppercase;
+  margin-top: 36px;
   
+}
+.raquetesname{
+  font-size: 64px;
 }
  
 
 .heroSubtitle {
-  font-size: 1.25rem;
+  font-size: 28px;
   font-weight: 400;
   margin-bottom: 1.5rem;
   color: white;
@@ -1160,108 +1165,6 @@ bottom: 18vh;
   }
 }
 
-/* Seções de Destaque - Layout igual à imagem */
-.featuredRow {
-  display: flex;
-  gap: 20px;
-  margin: 40px auto;
-  max-width: 1200px;
-  padding: 0 20px;
-}
-
-.featuredSection {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.featuredSection:first-child {
-  flex: 1;
-  max-width: 300px; /* Oferta do dia menor */
-}
-
-.featuredSection:last-child {
-  flex: 2;
-}
-
-.sectionTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text);
-}
-
-.featuredGrid {
-  display: flex;
-  gap: 15px;
-}
-
-.featuredSection:first-child .featuredGrid {
-  justify-content: center;
-}
-
-.featuredSection:last-child .featuredGrid {
-  justify-content: flex-start;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-}
-
-.featuredSection:last-child .featuredGrid::-webkit-scrollbar {
-  height: 6px;
-}
-.featuredSection:last-child .featuredGrid::-webkit-scrollbar-thumb {
-  background: var(--secondary);
-  border-radius: 3px;
-}
-
-.featuredCard {
-  background: white;
-  border-radius: 10px;
-  min-width: 160px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.featuredCard:hover {
-  transform: scale(1.02);
-}
-
-.featuredImageContainer {
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
-  border-radius: 8px 8px 0 0;
-}
-
-.featuredImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.featuredInfo {
-  padding: 10px;
-}
-
-.featuredName {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
-
-.featuredOldPrice {
-  font-size: 0.75rem;
-  color: #888;
-  text-decoration: line-through;
-}
-
-.featuredPrice {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #27ae60;
-}
 
 /* Seção de Categorias */
 .categoriesSection {
@@ -1348,26 +1251,29 @@ bottom: 18vh;
 }
 
 /* Seção Bermuda */
+/* Seção Bermuda - Atualizada */
 .bermudaSection {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-  max-width: 1145px; /* igual às outras seções */
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  max-width: 1140px;
   margin: 32px auto 0 auto;
-  padding: 2rem;     /* igual às outras seções */
+  padding: 2.5rem .5rem;
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items:left;
+  
 }
 
 .bermudaTitle {
-  font-size: 1.15rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #223046;
-  margin-left: 32px;
-  margin-bottom: 12px;
+  margin-left: 24px;
+  margin-bottom: 8px;
   text-align: left;
+  text-transform: uppercase;
 }
 
 .bermudaCarousel {
@@ -1381,18 +1287,19 @@ bottom: 18vh;
   background: #f5f5f5;
   border: none;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 42px;
+  height: 42px;
   font-size: 1.5rem;
-  color: #888;
+  color: #699AC7;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
   transition: background 0.2s;
 }
+
 
 .carouselArrowLeft:hover,
 .carouselArrowRight:hover {
@@ -1401,19 +1308,20 @@ bottom: 18vh;
 
 .bermudaGrid {
   display: flex;
-  gap: 32px;
+  gap: 24px;
+  padding: 0 12px;
   overflow-x: auto;
-  padding: 0 16px;
   scrollbar-width: thin;
+  justify-content: flex-start;
 }
 
 .bermudaCard {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  
   width: 160px;
-  min-width: 160px;
-  max-width: 160px;
+  min-width: 210px;
+  max-width: 210px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1451,26 +1359,256 @@ bottom: 18vh;
   color: #223046;
   margin-bottom: 0.5rem;
   min-height: 2.2em;
+  text-align: left;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bermudaPrice {
   font-size: 1.05rem;
   font-weight: 700;
   color: #34A853;
+  width: 100%;
+  text-align: left;
+}
+
+/* Esconder scrollbar mas manter funcionalidade */
+.bermudaGrid::-webkit-scrollbar {
+  display: none;
+}
+
+.bermudaGrid {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+/* Seção de Marcas */
+.brandsSection {
+  background: #ffffff; /* fundo branco como no print */
+  padding: 0;
+  margin-top: 32px;
+  border-top: 1px solid #d9d9d9; /* borda superior */
+  border-bottom: 1px solid #d9d9d9; /* borda inferior */
+}
+
+.brandsHeader {
+  background: #a3bddb;
+  padding: 6px 0 6px 16px;
+  text-align: left;
+  
+  
+}
+.brandsHeader p{
+ color: #fff;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  margin-left: 3.6rem;
+}
+
+.brandsLogos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  
+}
+
+.brandsLogos img {
+  height: 48px;
+  margin: 0 12px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  height: 72px;
+}
+
+.brandsLogos img:hover {
+  opacity: 1;
+}
+
+/* Seção de Atletas */
+.athleteSection {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  max-width: 1200px;
+  margin: 32px auto 0 auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.athleteContent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.athleteImage {
+  width: 260px;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 0;
+  margin-right: 0;
+}
+
+.athleteText {
+  flex: 1;
+  padding: 16px 24px 0 24px;
+  text-align: left;
+}
+
+.athleteName {
+  background: #a3bddb;
+  color: #fff;
+  font-size: 1.2rem;
+  margin-top: 16px;
+  font-weight: 700;
+  padding: 6px 0 6px 16px;
+  border-radius: 0;
+  text-align: left;
 }
 
 /* Responsivo */
 @media (max-width: 900px) {
-  .bermudaSection {
-    max-width: 98vw;
-    padding: 16px 0;
-  }
-  .bermudaGrid {
+  .athleteContent {
+    flex-direction: column;
+    align-items: center;
     gap: 16px;
-    padding: 0 4px;
   }
-  .bermudaCard {
-    min-width: 140px;
-    max-width: 140px;
+  .athleteImage {
+    width: 180px;
+    height: 180px;
   }
+}
+
+
+/* Margens inferiores para as seções */
+.bermudaSection,
+.categoriesSection,
+.featuredRow {
+  margin-bottom: 32px;
+}
+
+.brandsSection {
+  margin-bottom: 32px;
+}
+
+.athleteSection {
+  margin-bottom: 0;
+}
+/* Adicione estas regras ao seu CSS existente */
+
+/* Container principal das seções em linha */
+.featuredSectionsContainer {
+  display: flex;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0px auto;
+  padding: 0 20px;
+  position: relative;
+  bottom: 6rem;
+  margin-bottom: -6rem;
+}
+
+/* Estilo para cada seção (oferta do dia e mais vendidos) */
+.featuredSectionCompact {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Seção de oferta do dia (mais estreita) */
+.featuredSectionCompact:first-child {
+  max-width: 300px;
+}
+
+/* Títulos das seções */
+.sectionTitleCompact {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Grid de produtos */
+.featuredGridCompact {
+  display: flex;
+  gap: 15px;
+}
+
+/* Alinhamento diferente para cada seção */
+.featuredSectionCompact:first-child .featuredGridCompact {
+  justify-content: center;
+}
+
+.featuredSectionCompact:last-child .featuredGridCompact {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+/* Estilização da scrollbar */
+.featuredSectionCompact:last-child .featuredGridCompact::-webkit-scrollbar {
+  height: 6px;
+}
+.featuredSectionCompact:last-child .featuredGridCompact::-webkit-scrollbar-thumb {
+  background: var(--secondary);
+  border-radius: 3px;
+}
+
+/* Cards de produtos */
+.featuredCardCompact {
+  background: white;
+  border-radius: 10px;
+  min-width: 160px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.featuredCardCompact:hover {
+  transform: scale(1.02);
+}
+
+.featuredImageContainerCompact {
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
+}
+
+.featuredImageCompact {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.featuredInfoCompact {
+  padding: 10px;
+}
+
+.featuredNameCompact {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.featuredOldPriceCompact {
+  font-size: 0.75rem;
+  color: #888;
+  text-decoration: line-through;
+}
+
+.featuredPriceCompact {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #27ae60;
 }
