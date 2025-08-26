@@ -1,3 +1,163 @@
-.productDetails{
-    overflow: auto;
+.root {
+  position: relative;
+}
+
+/* Botões flutuantes (X e coração) */
+.closeBtn {
+  position: absolute !important;
+  top: 10px;
+  left: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+}
+.closeBtn:hover { background: #ffffff; }
+
+.favBtn {
+  position: absolute !important;
+  top: 10px;
+  right: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+}
+.favBtn:hover { background: #ffffff; }
+
+/* Coluna da imagem */
+.imageWrap {
+  width: 100%;
+  border-radius: 12px;
+  background: #f6f7fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 8px 12px;
+}
+.image {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+}
+
+/* Conteúdo à direita */
+.title {
+  font-weight: 700;
+  font-size: 48px !important;
+  line-height: 1.3;
+  margin: 2px 0 6px;
+
+}
+
+.descBox {
+  max-height: 92px;            /* scroll só na descrição */
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-bottom: 10px;
+}
+
+/* scrollbar discreta para a descrição */
+.descBox::-webkit-scrollbar { width: 6px; }
+.descBox::-webkit-scrollbar-thumb {
+  background: #c9c9c9;
+  border-radius: 8px;
+}
+.descBox::-webkit-scrollbar-track { background: transparent; }
+
+/* Preço com centavos em sobrescrito */
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+.currency {
+  font-weight: 600;
+  font-size: 16px;
+}
+.priceInt {
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1;
+}
+.priceCents {
+  font-weight: 700;
+  font-size: 12px;
+  top: -0.6em;
+  position: relative;
+}
+.divider {
+  margin: 10px 0 14px !important;
+}
+
+/* Seções (cor/tamanho) */
+.sectionLabel {
+  font-weight: 700;
+  font-size: 13px;
+  margin: 2px 0 6px;
+}
+
+/* Swatches de cor */
+.swatchRow { display: flex; gap: 8px; margin-bottom: 8px; }
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;          /* arredondado como no print */
+  border: 1px solid rgba(0,0,0,.18);
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.swatch:hover { transform: translateY(-1px); box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.swatchSelected { outline: 2px solid #111; outline-offset: 2px; }
+.disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.2); }
+.swatchWithBorder { border: 1px solid rgba(0,0,0,.35); }
+
+/* Tamanhos */
+.sizeRow { display: flex; gap: 8px; margin-bottom: 12px; }
+.sizeBtn {
+  min-width: 42px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(0,0,0,.22);
+  background: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: .3px;
+  cursor: pointer;
+  transition: all .14s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sizeBtn:hover { transform: translateY(-1px); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.sizeSelected {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+.sizeDisabled {
+  color: #9e9e9e;
+  border-color: rgba(0,0,0,.12);
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Ações */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.buyNow {
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-weight: 800 !important;
+}
+.addToCart {
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-weight: 800 !important;
+  /* “outlined” mais suave, similar ao print com azul claro */
+  border-width: 2px !important;
 }

@@ -1299,7 +1299,14 @@ bottom: 18vh;
   z-index: 2;
   transition: background 0.2s;
 }
-
+.carouselArrowLeft{
+  position: relative;
+  right: 2rem;
+}
+.carouselArrowRight{
+  position: relative;
+  left: 2rem;
+}
 
 .carouselArrowLeft:hover,
 .carouselArrowRight:hover {
