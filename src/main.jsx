@@ -1,11 +1,16 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import RoutesApp from './routes'
-import './global.css'
+// ...existing code...
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { ModalProvider } from './contexts/ModalContext';
+import RoutesApp from './routes';
+// ...existing code...
 
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <RoutesApp/>
-  </StrictMode>,
-)
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <ModalProvider>
+       <RoutesApp/>
+    </ModalProvider>
+  </React.StrictMode>
+);
+// ...existing code...

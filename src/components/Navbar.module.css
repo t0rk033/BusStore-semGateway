@@ -8,10 +8,12 @@
 /* Parte superior: logo, busca, ícones */
 .navbarTop {
   display: flex;
-  justify-content: space-evenly;
+  justify-content: space-between;
   align-items: center;
   height: 10vh;
-  padding: 0 40px;
+  max-width: 71vw;      /* igual às seções principais */
+  margin: 0 auto;       /* centraliza o conteúdo */
+  padding: 0;           /* remove padding lateral fixo */
 }
 
 .logoSection {
@@ -42,6 +44,7 @@
   border-radius: 5px;
   overflow: hidden;
   background-color: white;
+  border-radius: 10px;
 }
 
 .searchInput {
@@ -59,6 +62,8 @@
   font-weight: bold;
   cursor: pointer;
   font-size: 14px;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: .5rem;
 }
 
 .icons {
@@ -87,7 +92,8 @@
   padding: 10px 0;
   display: flex;
   justify-content: center;
-  
+  max-width: 71vw;      /* igual às seções principais */
+  margin: 0 auto;       /* centraliza o conteúdo */
 }
 
 .navLinks {
@@ -108,6 +114,18 @@
 
 .navLinks li a:hover {
   color: #FFC107;
+}
+
+.iconLink {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 1rem;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
 }
 
 /* Responsivo */

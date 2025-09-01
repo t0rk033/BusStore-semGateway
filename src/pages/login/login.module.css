@@ -1,223 +1,228 @@
-.container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    background-color: var(--background-color);
-  }
-  
-  .loginContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-grow: 1;
-    padding: 2rem;
-  }
-  
-  .loginBox {
-    background-color: var(--white);
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-  }
-  
-  .title {
-    font-size: 2rem;
-    color: var(--primary-color);
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-  
-  .form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .inputGroup {
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--accent-color);
-    border-radius: 5px;
-    padding: 0.75rem;
-    background-color: var(--background-color);
-    transition: border-color 0.3s ease;
-  }
-  
-  .inputGroup:focus-within {
-    border-color: var(--secondary-color);
-  }
-  
-  .icon {
-    color: var(--accent-color);
-    margin-right: 0.5rem;
-  }
-  
-  .input {
-    flex-grow: 1;
-    border: none;
-    background: none;
-    font-size: 1rem;
-    color: var(--text-color);
-    outline: none;
-  }
-  
-  .input::placeholder {
-    color: var(--accent-color);
-  }
-  
-  .error {
-    color: #ff4d4d;
-    font-size: 0.875rem;
-    text-align: center;
-  }
-  
-  .button {
-    width: 100%;
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-weight: bold;
-    color: var(--white);
-    background-color: var(--secondary-color);
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .button:hover {
-    background-color: var(--highlight-color);
-  }
-  
-  .divider {
-    display: flex;
-    align-items: center;
-    text-align: center;
-    color: var(--accent-color);
-    margin: 1rem 0;
-  }
-  
-  .divider::before,
-  .divider::after {
-    content: '';
-    flex-grow: 1;
-    background-color: var(--accent-color);
-    height: 1px;
-    margin: 0 0.5rem;
-  }
-  
-  .socialLogin {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .socialButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    font-size: 1rem;
-    color: var(--white);
-    background-color: var(--primary-color);
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .socialButton:hover {
-    background-color: var(--accent-color);
-  }
-  
-  .socialIcon {
-    font-size: 1.2rem;
-  }
-  
-  .signupText {
-    text-align: center;
-    color: var(--text-color);
-  }
-  
-  .signupLink {
-    color: var(--secondary-color);
-    text-decoration: none;
-    font-weight: bold;
-  }
-  
-  .signupLink:hover {
-    text-decoration: underline;
-  }
-  /* Estilos para o link de esqueceu a senha */
-.forgotPassword {
-  text-align: right;
-  margin: -10px 0 15px 0;
-  color: #666;
-  cursor: pointer;
-  font-size: 0.9rem;
+/* Overlay do modal (cobre toda a tela) */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  padding: 20px;
 }
 
-.forgotPassword:hover {
+/* Caixa do modal */
+.modal {
+  background: transparent;
+  border-radius: 12px;
+  max-width: 800px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+ 
+}
+
+.content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 32px;
+  position: relative;
+}
+
+/* Botão fechar no canto superior direito */
+.closeButton {
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 9999;
+}
+
+/* Título */
+.heading {
+  text-align: center;
+  margin: 0 0 18px;
+  font-size: 40px;
   color: #333;
+  font-weight: 500;
+}
+
+/* Formulário */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items:center;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: #666;
+  text-transform: none;
+}
+
+/* Inputs */
+.input {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  color: #222;
+  height: 54px;
+  width: 35rem;
+}
+
+.input:focus {
+  border-color: #2f80ed;
+  box-shadow: none;
+}
+
+/* Link Esqueci senha */
+.forgot {
+  font-size: 12px;
+  color: #2f80ed;
+  text-align: right;
+  cursor: pointer;
+  margin-top: -4px;
+}
+
+.forgot:hover {
   text-decoration: underline;
 }
 
-/* Estilos para o modal de recuperação de senha */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.modal h2 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-}
-
-.modal p {
-  margin-bottom: 1rem;
-}
-
-.modalButtons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1rem;
-}
-
-.secondaryButton {
-  background-color: #f0f0f0;
-  color: #333;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.secondaryButton:hover {
-  background-color: #e0e0e0;
+/* Mensagens */
+.error {
+  color: #c0392b;
+  font-size: 13px;
+  margin-top: 4px;
+  text-align: center;
 }
 
 .success {
-  color: green;
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
+  color: #2e7d32;
+  font-size: 13px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Botão principal (Entrar) */
+.primaryButton {
+  width: 100%;
+  background: #2f80ed;
+  color: white;
+  border: none;
+  padding: 10px 0;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  height:54px;
+  width: 15rem;
+}
+
+.primaryButton:hover {
+  background: #1669d6;
+}
+
+/* Botão secundário */
+.secondaryButton {
+  background: transparent;
+  color: #333;
+  border: 1px solid #ddd;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Criar conta */
+.linkCreate {
+  display: block;
+  text-align: center;
+  color: #2f80ed;
+  margin: 14px 0 6px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.linkCreate:hover {
+  text-decoration: underline;
+}
+
+/* Divider */
+.divider {
+  margin: 16px 0;
+  text-align: center;
+  position: relative;
+  color: #666;
+  font-size: 12px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  height: 1px;
+  background: #ddd;
+  position: absolute;
+  top: 50%;
+  width: 40%;
+}
+.divider::before { left: 0; }
+.divider::after { right: 0; }
+
+/* Botão Google */
+.googleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  width: 140px;
+  margin: 0 auto;
+}
+
+.googleIcon {
+  color: #db4437;
+  font-size: 16px;
+}
+
+/* Box redefinição de senha */
+.resetBox {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed #e6e7ea;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.resetActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .content { padding: 18px; }
+  .modal { max-width: 92%; }
+  .closeButton { right: -8px; top: -8px; }
 }

@@ -20,6 +20,8 @@ import altogiroLogo from '../../assets/images/marcas/altoGiro.png';
 import dropshotLogo from '../../assets/images/marcas/dropShot.png';
 import wilsonLogo from '../../assets/images/marcas/wilson.png';
 import atleta from '../../assets/images/atleta.jpg';
+import { useModal } from '../../contexts/ModalContext';
+import { LoginModal } from '../login/Login';
 
 function Store() {
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
@@ -47,6 +49,7 @@ const [bestSellers, setBestSellers] = useState([]);
   const [bermudaProducts, setBermudaProducts] = useState([]);
 
   const navigate = useNavigate();
+  const { loginOpen, closeLogin } = useModal();
 
   // Função para obter os produtos da página atual
   const getCurrentProducts = useCallback(() => {
@@ -448,7 +451,7 @@ const [bestSellers, setBestSellers] = useState([]);
      {/* Seção de Marcas */}
     <div className={styles.brandsSection}>
       <div className={styles.brandsHeader}>
-        <p>As maiores marcas com a gente</p>
+        <p className={styles.brandsHeaderText}>As maiores marcas com a gente</p>
       </div>
       <div className={styles.brandsLogos}>
         <img src={mormaiiLogo} alt="Mormaii" />
@@ -533,21 +536,23 @@ const [bestSellers, setBestSellers] = useState([]);
 </div>
 
     {/* Seção Atleta */}
-    <div className={styles.athleteSection}>
-  <div className={styles.athleteContent}>
-    <img
-      src={atleta}
-      alt="Atleta"
-      className={styles.athleteImage}
-    />
-    <div className={styles.athleteText}>
-      <p>
-        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-      </p>
-      <h2 className={styles.athleteName}>Nome do Atleta</h2>
+    <div className={styles.athlete}>
+      <div className={styles.athleteSection}>
+        <div className={styles.athleteContent}>
+      <img
+        src={atleta}
+        alt="Atleta"
+        className={styles.athleteImage}
+      />
+      <div className={styles.athleteText}>
+        <p>
+          Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+        </p>
+        <h2 className={styles.athleteName}>Nome do Atleta</h2>
+      </div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
     {/* Toast Notification */}
     {toast.show && (
@@ -672,7 +677,7 @@ const [bestSellers, setBestSellers] = useState([]);
       addToCart={handleAddToCart}
     />
 
-   
+    <LoginModal open={loginOpen} onClose={closeLogin} />
 
     <Footer />
   </div>

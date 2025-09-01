@@ -1,13 +1,15 @@
+// filepath: c:\Users\Guimaraes\Desktop\busSemgateway\BusStore-semGateway\src\pages\login\Login.jsx
 import React, { useState } from 'react';
-import { FaUser, FaLock, FaGoogle, FaFacebook } from 'react-icons/fa';
+import { FaUser, FaLock, FaGoogle } from 'react-icons/fa';
 import { signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
-import { auth, googleProvider, facebookProvider } from '../../firebase';
+import { auth, googleProvider } from '../../firebase';
 import styles from './login.module.css';
 import NavBar from '../../components/NavBar';
 import Footer from '../../components/Footer';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
-function Login() {
+// Modal reutilizável exportado para uso global
+export function LoginModal({ open = true, onClose }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,52 +17,39 @@ function Login() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
 
-  // Função para login com email/senha
+  const navigate = useNavigate();
+
+  if (!open) return null;
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      alert('Login realizado com sucesso!');
-      // Redirecionar o usuário após o login
-      window.location.href = '/#/perfil'; // Altere para a rota desejada
+      if (onClose) onClose();
+      else navigate('/perfil');
     } catch (err) {
       setError('Email ou senha incorretos.');
       console.error(err);
     }
   };
 
-  // Função para login com Google
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      alert('Login com Google realizado com sucesso!');
-      window.location.href = '/dashboard'; // Altere para a rota desejada
+      if (onClose) onClose();
+      else navigate('/perfil');
     } catch (err) {
       setError('Erro ao fazer login com Google.');
       console.error(err);
     }
   };
 
-  // Função para login com Facebook
-  const handleFacebookLogin = async () => {
-    try {
-      await signInWithPopup(auth, facebookProvider);
-      alert('Login com Facebook realizado com sucesso!');
-      window.location.href = '/dashboard'; // Altere para a rota desejada
-    } catch (err) {
-      setError('Erro ao fazer login com Facebook.');
-      console.error(err);
-    }
-  };
-
-  // Função para enviar email de redefinição de senha
   const handlePasswordReset = async () => {
     if (!resetEmail) {
       setResetMessage('Por favor, insira seu email.');
       return;
     }
-
     try {
       await sendPasswordResetEmail(auth, resetEmail);
       setResetMessage(`Email de redefinição enviado para ${resetEmail}. Verifique sua caixa de entrada.`);
@@ -75,116 +64,86 @@ function Login() {
     }
   };
 
+  const handleClose = () => {
+    if (onClose) onClose();
+    else navigate(-1);
+  };
+
   return (
-    <div className={styles.container}>
-      <NavBar />
-      <div className={styles.loginContainer}>
-        <div className={styles.loginBox}>
-          <h1 className={styles.title}>Login</h1>
-          <form onSubmit={handleLogin} className={styles.form}>
-            {/* Campo de Email */}
-            <div className={styles.inputGroup}>
-              <FaUser className={styles.icon} />
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
+      <div className={styles.modal}>
+        <button className={styles.closeButton} onClick={handleClose} aria-label="Fechar">×</button>
+
+        <div className={styles.content}>
+          <h2 className={styles.heading}>Entre com e-mail e senha</h2>
+
+          <form className={styles.form} onSubmit={handleLogin}>
+            <label className={styles.label}>
+              <span className={styles.fieldLabel}>e-mail</span>
               <input
+                className={styles.input}
                 type="email"
-                placeholder="Email"
+                placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={styles.input}
                 required
               />
-            </div>
+            </label>
 
-            {/* Campo de Senha */}
-            <div className={styles.inputGroup}>
-              <FaLock className={styles.icon} />
+            <label className={styles.label}>
+              <span className={styles.fieldLabel}>senha</span>
               <input
+                className={styles.input}
                 type="password"
-                placeholder="Senha"
+                placeholder="senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={styles.input}
                 required
               />
-            </div>
+            </label>
 
-            {/* Link para recuperação de senha */}
-            <p className={styles.forgotPassword} onClick={() => setShowResetModal(true)}>
-              Esqueceu sua senha?
-            </p>
+            <p className={styles.forgot} onClick={() => setShowResetModal(true)}>esqueci minha senha</p>
 
-            {/* Mensagem de Erro */}
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <div className={styles.error}>{error}</div>}
 
-            {/* Botão de Login */}
-            <button type="submit" className={styles.button}>
-              Entrar
+            <button type="submit" className={styles.primaryButton}>Entrar</button>
+
+            <Link to="/registro" className={styles.linkCreate}>Criar conta</Link>
+
+            <div className={styles.divider}><span>ou entrar pela conta google</span></div>
+
+            <button type="button" className={styles.googleButton} onClick={handleGoogleLogin}>
+              <FaGoogle className={styles.googleIcon} /> <span>Google</span>
             </button>
-
-            {/* Divisor */}
-            <div className={styles.divider}>
-              <span>OU</span>
-            </div>
-
-            {/* Login com Redes Sociais */}
-            <div className={styles.socialLogin}>
-              <button
-                type="button"
-                className={styles.socialButton}
-                onClick={handleGoogleLogin}
-              >
-                <FaGoogle className={styles.socialIcon} />
-                Continuar com Google
-              </button>
-              {/* <button
-                type="button"
-                className={styles.socialButton}
-                onClick={handleFacebookLogin}
-              >
-                <FaFacebook className={styles.socialIcon} />
-                Continuar com Facebook
-              </button> */}
-            </div>
-
-            {/* Link para Cadastro */}
-            <p className={styles.signupText}>
-              Não tem uma conta? <Link to="/registro" className={styles.signupLink}>Cadastre-se</Link>
-            </p>
           </form>
+
+          {showResetModal && (
+            <div className={styles.resetBox}>
+              <h3>Redefinir senha</h3>
+              <input className={styles.input} type="email" placeholder="Seu email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+              {resetMessage && <p className={resetMessage.includes('Erro') ? styles.error : styles.success}>{resetMessage}</p>}
+              <div className={styles.resetActions}>
+                <button onClick={handlePasswordReset} className={styles.primaryButton}>Enviar</button>
+                <button onClick={() => { setShowResetModal(false); setResetMessage(''); }} className={styles.secondaryButton}>Cancelar</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      <Footer />
-
-      {/* Modal de recuperação de senha */}
-      {showResetModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <h2>Redefinir Senha</h2>
-            <p>Digite seu email para receber o link de redefinição:</p>
-            <input
-              type="email"
-              placeholder="Seu email"
-              value={resetEmail}
-              onChange={(e) => setResetEmail(e.target.value)}
-              className={styles.input}
-            />
-            {resetMessage && <p className={resetMessage.includes('Erro') ? styles.error : styles.success}>{resetMessage}</p>}
-            <div className={styles.modalButtons}>
-              <button onClick={handlePasswordReset} className={styles.button}>
-                Enviar
-              </button>
-              <button onClick={() => {
-                setShowResetModal(false);
-                setResetMessage('');
-              }} className={styles.secondaryButton}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-export default Login;
+// Página standalone (rota /login) — mantém comportamento de "modal route" existente
+export default function LoginPage() {
+  const location = useLocation();
+  const isModal = Boolean(location.state && location.state.background);
+
+  return (
+    <div>
+      {!isModal && <NavBar />}
+      <LoginModal open={true} />
+      {!isModal && <Footer />}
+    </div>
+  );
+}

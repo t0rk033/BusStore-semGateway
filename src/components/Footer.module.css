@@ -1,55 +1,92 @@
 .footer {
-    background-color: #023047;
-    color: var(--white);
-    padding: 4vh 5vw;
-    text-align: center;
+  background-color: #041630;
+  color: #fff;
+  padding: 20px 0 10px; /* remove o 5vw para alinhar com as seções */
+  font-family: Arial, sans-serif;
 }
 
+/* Conteúdo principal do footer */
 .footerContent {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 20px;
-    border-bottom: 1px solid #ffffff33;
-    padding-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  border-bottom: 1px solid #ffffff33;
+  padding-bottom: 15px;
+  max-width: 71vw;      /* igual às seções principais */
+  margin: 0 auto;       /* centraliza o conteúdo */
 }
 
-.footerSection {
-    flex: 1;
-    min-width: 250px;
+/* Seção esquerda (redes sociais) */
+.footerSectionLeft {
+  text-align: left;
 }
 
-.footerSection h4 {
-    font-size: 18px;
-    margin-bottom: 10px;
-    color: #FFC107;
+.footerSectionLeft h4 {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.footerSection p, 
-.footerSection li {
-    font-size: 14px;
-    color: #ffffffa8;
-    margin-bottom: 8px;
+.footerSectionLeft p {
+  font-size: 0.9rem;
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.footerSection ul {
-    list-style: none;
-    padding: 0;
+/* Logo central */
+.footerLogo {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.footerSection a {
-    color: #ffffffa8;
-    text-decoration: none;
-    transition: color 0.3s ease;
+.footerLogo img {
+  width: 90px;
+  height: auto;
 }
 
-.footerSection a:hover {
-    color: #FFC107;
+/* Seção direita (contato) */
+.footerSectionRight {
+  text-align: right;
 }
 
+.footerSectionRight h4 {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.footerSectionRight p {
+  font-size: 0.9rem;
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Ícones */
+.icon {
+  font-size: 14px;
+}
+
+.iconRight {
+  font-size: 14px;
+}
+
+/* Rodapé inferior */
 .footerBottom {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 12px;
-    color: #ffffffa8;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: #ffffffa8;
+  max-width: 71vw;      /* igual às seções principais */
+  margin-left: auto;
+  margin-right: auto;
 }
