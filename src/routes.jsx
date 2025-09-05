@@ -12,6 +12,7 @@ import { AuthProvider } from './AuthContext';
 import Profile from './pages/users/Profile';
 import Unauthorized from './Unauthorized';
 import AdminRoute from './privateRoute';
+import SearchResult from './components/SearchResults';
 
 import { ModalProvider, useModal } from './contexts/ModalContext';
 
@@ -43,6 +44,7 @@ function RoutesApp() {
               <Route path='/perfil' element={<Profile />} />
               <Route path='/unauthorized' element={<Unauthorized />} />
               <Route path='*' element={<Navigate to="/" />} />
+              <Route path="/busca" element={<SearchResult />} />
             </Routes>
 
             {/* modal global renderizado dentro do Router */}

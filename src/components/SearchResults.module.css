@@ -1,0 +1,140 @@
+.searchResultsWrapper {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 50vh;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.searchHeader {
+  background: white;
+  padding: 40px 20px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.searchHeader h1 {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 2rem;
+}
+
+.searchHeader p {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.noResults {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.noResults h2 {
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.noResults p {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 24px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.productCard {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.productCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.productImageContainer {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.productImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.productCard:hover .productImage {
+  transform: scale(1.05);
+}
+
+.productInfo {
+  padding: 16px;
+}
+
+.productName {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.productPrice {
+  font-size: 1.2rem;
+  color: #007bff;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.productOldPrice {
+  font-size: 0.9rem;
+  color: #999;
+  text-decoration: line-through;
+}
+
+@media (max-width: 768px) {
+  .resultsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .searchHeader {
+    padding: 30px 16px;
+  }
+  
+  .searchHeader h1 {
+    font-size: 1.5rem;
+  }
+}

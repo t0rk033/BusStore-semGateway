@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useModal } from '../contexts/ModalContext';
 import styles from './Navbar.module.css';
 import logo from '../assets/images/logo.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaUser, FaShoppingCart } from 'react-icons/fa';
 
 function NavBar({ searchTerm, setSearchTerm, onSearchChange }) {
   const { openLogin } = useModal();
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      navigate(`/busca?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   return (
     <div className={styles.wrapper}>
@@ -24,16 +37,21 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange }) {
               className={styles.searchInput}
               value={searchTerm}
               onChange={onSearchChange}
+              onKeyPress={handleKeyPress}
             />
-            <button className={styles.searchButton}>BUSCAR</button>
+            <button 
+              className={styles.searchButton}
+              onClick={handleSearch}
+            >
+              BUSCAR
+            </button>
           </div>
           <div className={styles.icons}>
-            {/* botão com estilo igual ao Link anterior */}
             <button
               type="button"
               onClick={openLogin}
               aria-label="Abrir login"
-              className={styles.iconLink} // reutiliza classe de link (crie iconLink se não existir)
+              className={styles.iconLink}
               style={{
                 background: 'none',
                 border: 'none',
@@ -48,8 +66,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange }) {
             >
               <FaUser />
             </button>
-
-      
           </div>
         </div>
       </div>
@@ -57,7 +73,7 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange }) {
       {/* Linha branca de separação */}
       <div className={styles.separator} />
 
-      {/* Menu inferior (mesmo fundo azul escuro) */}
+      {/* Menu inferior */}
       <div className={styles.navbarBottom}>
         <ul className={styles.navLinks}>
           <li><Link to="/">FEMININO</Link></li>
@@ -68,8 +84,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange }) {
           <li><Link to="/">BOLSAS</Link></li>
         </ul>
       </div>
-
-      {/* remova duplicação se houver outro botão "Entrar" */}
     </div>
   );
 }
