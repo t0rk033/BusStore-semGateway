@@ -22,6 +22,7 @@ import wilsonLogo from '../../assets/images/marcas/wilson.png';
 import atleta from '../../assets/images/atleta.jpg';
 import { useModal } from '../../contexts/ModalContext';
 import { LoginModal } from '../login/Login';
+import PaymentModal from './PaymentModal';
 
 function Store() {
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
@@ -47,6 +48,8 @@ const [bestSellers, setBestSellers] = useState([]);
   const [bermudaShortProducts, setBermudaShortProducts] = useState([]);
   // Adicione o estado para bermudas
   const [bermudaProducts, setBermudaProducts] = useState([]);
+  // moda de pagamento
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const navigate = useNavigate();
   const { loginOpen, closeLogin } = useModal();
@@ -156,90 +159,21 @@ const [bestSellers, setBestSellers] = useState([]);
     showToast('Produto adicionado ao carrinho!', 'success');
   };
 
-  const handleCheckout = async () => {
-    if (!user) {
-      showToast("Você precisa estar logado para finalizar a compra.", "error");
-      navigate("/login");
-      return;
-    }
+const handleCheckout = () => {
+  if (!user) {
+    showToast("Você precisa estar logado para finalizar a compra.", "error");
+    navigate("/login");
+    return;
+  }
 
-    if (items.length === 0) {
-      showToast("Seu carrinho está vazio.", "error");
-      return;
-    }
+  if (items.length === 0) {
+    showToast("Seu carrinho está vazio.", "error");
+    return;
+  }
 
-    try {
-      // Cria uma nova venda no Firestore com o status "Solicitada"
-      const saleData = {
-        userId: user.uid,
-        user: {
-          details: {
-            fullName: userData?.fullName || "Nome não informado",
-            cpf: userData?.cpf || "CPF não informado",
-            phone: userData?.phone || "Telefone não informado",
-            address: {
-              street: userData?.address?.street || "Rua não informada",
-              number: userData?.address?.number || "Número não informado",
-              neighborhood: userData?.address?.neighborhood || "Bairro não informado",
-              city: userData?.address?.city || "Cidade não informada",
-              state: userData?.address?.state || "Estado não informado",
-            },
-          },
-        },
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name || "Produto sem nome",
-          variation: item.variation || {},
-          quantity: item.quantity || 0,
-          price: item.price || 0,
-          imageUrl: item.imageUrls?.[0] || "",
-        })),
-        total: cartTotal || 0,
-        status: "Solicitada",
-        date: new Date(),
-      };
-
-      const docRef = await addDoc(collection(db, "sales"), saleData);
-
-      // Redireciona para o WhatsApp com os dados da compra
-      const phoneNumber = "5521996789997"; // Substitua pelo número de WhatsApp desejado
-      const message = encodeURIComponent(`
-        Olá, gostaria de finalizar a compra com os seguintes dados:
-        
-        Produtos:
-        ${items
-          .map(
-            (item) =>
-              `- ${item.name} (${item.variation.color || "Cor não informada"}, ${
-                item.variation.size || "Tamanho não informado"
-              }) x${item.quantity} - R$ ${item.price.toFixed(2)}`
-          )
-          .join("\n")}
-        
-        Subtotal: R$ ${cartTotal.toFixed(2)}
-        
-        Nome: ${userData?.fullName || "Nome não informado"}
-        CPF: ${userData?.cpf || "CPF não informado"}
-        Endereço: ${userData?.address?.street || "Rua não informada"}, ${
-        userData?.address?.number || "Número não informado"
-      }, ${userData?.address?.neighborhood || "Bairro não informado"}, ${
-        userData?.address?.city || "Cidade não informada"
-      } - ${userData?.address?.state || "Estado não informado"}
-        
-        Pedido ID: ${docRef.id}
-      `);
-
-      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
-      window.location.href = whatsappUrl;
-
-      // Limpa o carrinho após o checkout
-      emptyCart();
-      showToast("Compra solicitada com sucesso!", "success");
-    } catch (error) {
-      console.error("Erro ao solicitar compra:", error);
-      showToast("Erro ao solicitar compra. Tente novamente.", "error");
-    }
-  };
+  // Abre o modal de pagamento em vez de redirecionar para o WhatsApp
+  setShowPaymentModal(true);
+};
 
   useEffect(() => {
     window.scrollTo({
@@ -680,6 +614,14 @@ const [bestSellers, setBestSellers] = useState([]);
     <LoginModal open={loginOpen} onClose={closeLogin} />
 
     <Footer />
+   
+<PaymentModal
+  open={showPaymentModal}
+  onClose={() => setShowPaymentModal(false)}
+  total={cartTotal}
+  user={user}
+  userData={userData}
+/>
   </div>
 );
 }

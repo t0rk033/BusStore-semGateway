@@ -8,6 +8,53 @@ function PaymentModal({ open, onClose, total, user, userData }) {
   const [paymentResult, setPaymentResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Adicione esta função no seu PaymentModal
+const processPayment = async (cardFormData) => {
+  setProcessing(true);
+  setErrorMessage('');
+  setPaymentResult(null);
+
+  try {
+    const { token, issuer_id, payment_method_id } = cardFormData;
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/process-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        token,
+        amount: total,
+        description: `Compra na loja - Valor: R$ ${total.toFixed(2)}`,
+        installments: 1, // Você pode adicionar seleção de parcelas se quiser
+        payment_method_id,
+        issuer_id,
+        email: user?.email || '',
+        identification_type: 'CPF',
+        identification_number: userData?.cpf || '',
+        items: [] // Você pode passar os itens se necessário no backend
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Erro ao processar pagamento');
+    }
+
+    setPaymentResult(data);
+    
+  } catch (error) {
+    console.error('Erro ao processar pagamento:', error);
+    setPaymentResult({
+      status: 'error',
+      message: error.message || 'Erro ao processar pagamento',
+      details: 'Tente novamente ou entre em contato com nosso suporte.'
+    });
+  } finally {
+    setProcessing(false);
+  }
+};
   // Mapeamento completo de mensagens
   const paymentStatusConfig = {
     // Status aprovados
@@ -158,18 +205,18 @@ function PaymentModal({ open, onClose, total, user, userData }) {
         },
         callbacks: {
           onReady: () => console.log('Formulário de pagamento pronto'),
-          onSubmit: async (cardFormData) => {
-            try {
-              await handlePayment(cardFormData);
-            } catch (error) {
-              console.error('Erro no pagamento:', error);
-              setPaymentResult({
-                status: 'error',
-                message: 'Erro ao processar pagamento',
-                details: error.message
-              });
-            }
-          },
+onSubmit: async (cardFormData) => {
+  try {
+    await processPayment(cardFormData);
+  } catch (error) {
+    console.error('Erro no pagamento:', error);
+    setPaymentResult({
+      status: 'error',
+      message: 'Erro ao processar pagamento',
+      details: error.message
+    });
+  }
+},
           onError: (error) => {
             console.error('Erro no formulário:', error);
             setErrorMessage('Erro no formulário de pagamento. Verifique os dados.');
