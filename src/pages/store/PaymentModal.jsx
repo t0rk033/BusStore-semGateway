@@ -1,63 +1,83 @@
 import React, { useState, useEffect } from 'react';
 import styles from './PaymentModal.module.css';
 
-function PaymentModal({ open, onClose, total, user, userData }) {
+function PaymentModal({ open, onClose, total, user, userData, orderId, userId, items = [] }) {
   const [mp, setMp] = useState(null);
   const [formInitialized, setFormInitialized] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Adicione esta função no seu PaymentModal
-const processPayment = async (cardFormData) => {
-  setProcessing(true);
-  setErrorMessage('');
-  setPaymentResult(null);
+  // Função para processar o pagamento
+  const processPayment = async (cardFormData) => {
+    setProcessing(true);
+    setErrorMessage('');
+    setPaymentResult(null);
 
-  try {
-    const { token, issuer_id, payment_method_id } = cardFormData;
+    try {
+      const { token, issuer_id, payment_method_id } = cardFormData;
 
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/process-payment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        token,
+      console.log('Enviando para backend:', {
+        hasToken: !!token,
         amount: total,
-        description: `Compra na loja - Valor: R$ ${total.toFixed(2)}`,
-        installments: 1, // Você pode adicionar seleção de parcelas se quiser
-        payment_method_id,
-        issuer_id,
-        email: user?.email || '',
-        identification_type: 'CPF',
-        identification_number: userData?.cpf || '',
-        items: [] // Você pode passar os itens se necessário no backend
-      }),
-    });
+        email: user?.email || 'Não informado',
+        orderId: orderId || 'Não informado',
+        userId: userId || 'Não informado',
+        itemsCount: items.length
+      });
 
-    const data = await response.json();
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      const response = await fetch(`${API_URL}/api/process-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          amount: total,
+          description: `Compra na BusStore - ${items.length} item(s) - Valor: R$ ${total.toFixed(2)}`,
+          installments: 1,
+          payment_method_id,
+          issuer_id,
+          email: user?.email || '',
+          identification_type: 'CPF',
+          identification_number: userData?.cpf || '',
+          orderId: orderId || `order_${Date.now()}`,
+          userId: userId || 'guest',
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name || "Produto sem nome",
+            variation: item.variation || {},
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+            imageUrl: item.imageUrls?.[0] || "",
+          }))
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Erro ao processar pagamento');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erro ao processar pagamento');
+      }
+
+      setPaymentResult(data);
+      
+    } catch (error) {
+      console.error('Erro ao processar pagamento:', error);
+      setPaymentResult({
+        status: 'error',
+        message: error.message || 'Erro ao processar pagamento',
+        details: 'Tente novamente ou entre em contato com nosso suporte.'
+      });
+    } finally {
+      setProcessing(false);
     }
+  };
 
-    setPaymentResult(data);
-    
-  } catch (error) {
-    console.error('Erro ao processar pagamento:', error);
-    setPaymentResult({
-      status: 'error',
-      message: error.message || 'Erro ao processar pagamento',
-      details: 'Tente novamente ou entre em contato com nosso suporte.'
-    });
-  } finally {
-    setProcessing(false);
-  }
-};
   // Mapeamento completo de mensagens
   const paymentStatusConfig = {
-    // Status aprovados
     approved: {
       icon: '✅',
       title: 'Pagamento Aprovado!',
@@ -65,8 +85,6 @@ const processPayment = async (cardFormData) => {
       description: (result) => result.description || 'Seu pagamento foi aprovado com sucesso!',
       showDetails: true
     },
-    
-    // Status pendentes
     pending: {
       icon: '🔄',
       title: 'Pagamento Pendente',
@@ -88,8 +106,6 @@ const processPayment = async (cardFormData) => {
       description: (result) => result.description || 'Seu pagamento está em análise. Isso pode levar até 2 dias úteis.',
       showDetails: true
     },
-    
-    // Status de erro/rejeição
     rejected: {
       icon: '❌',
       title: 'Pagamento Recusado',
@@ -109,8 +125,6 @@ const processPayment = async (cardFormData) => {
       description: (result) => result.description || 'O pagamento foi cancelado.',
       showDetails: false
     },
-    
-    // Status diversos
     refunded: {
       icon: '🔄',
       title: 'Reembolso Efetuado',
@@ -125,8 +139,6 @@ const processPayment = async (cardFormData) => {
       description: (result) => result.description || 'Foi realizado um estorno no valor do pagamento.',
       showDetails: true
     },
-    
-    // Status padrão
     default: {
       icon: '❓',
       title: 'Status Desconhecido',
@@ -138,7 +150,6 @@ const processPayment = async (cardFormData) => {
 
   // Mensagens detalhadas para status_detail
   const statusDetailMessages = {
-    // Erros de cartão
     'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão. Tente outro método de pagamento.',
     'cc_rejected_bad_filled_card_number': 'Número do cartão inválido. Verifique os dados.',
     'cc_rejected_bad_filled_date': 'Data de validade incorreta. Verifique os dados.',
@@ -150,13 +161,9 @@ const processPayment = async (cardFormData) => {
     'cc_rejected_duplicated_payment': 'Pagamento duplicado. Verifique suas transações.',
     'cc_rejected_high_risk': 'Pagamento recusado por segurança. Tente outro método.',
     'cc_rejected_other_reason': 'Pagamento não aprovado. Tente novamente.',
-    
-    // Status pendentes
     'pending_contingency': 'Pagamento em análise. Aguarde confirmação.',
     'pending_review_manual': 'Pagamento em revisão manual. Aguarde.',
     'pending_waiting_payment': 'Aguardando confirmação de pagamento.',
-    
-    // Erros de processamento
     'missing_required_fields': 'Dados incompletos. Preencha todas as informações.',
     'invalid_items': 'Itens do carrinho inválidos. Recarregue a página.',
     'processing_error': 'Erro ao processar pagamento. Tente novamente.',
@@ -171,7 +178,7 @@ const processPayment = async (cardFormData) => {
       script.src = 'https://sdk.mercadopago.com/js/v2';
 
       script.onload = () => {
-        const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+        const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY || 'TEST-d4b57614-bf60-4dac-b391-944a48b68160';
         setMp(new window.MercadoPago(publicKey, { locale: 'pt-BR' }));
       };
 
@@ -205,18 +212,18 @@ const processPayment = async (cardFormData) => {
         },
         callbacks: {
           onReady: () => console.log('Formulário de pagamento pronto'),
-onSubmit: async (cardFormData) => {
-  try {
-    await processPayment(cardFormData);
-  } catch (error) {
-    console.error('Erro no pagamento:', error);
-    setPaymentResult({
-      status: 'error',
-      message: 'Erro ao processar pagamento',
-      details: error.message
-    });
-  }
-},
+          onSubmit: async (cardFormData) => {
+            try {
+              await processPayment(cardFormData);
+            } catch (error) {
+              console.error('Erro no pagamento:', error);
+              setPaymentResult({
+                status: 'error',
+                message: 'Erro ao processar pagamento',
+                details: error.message
+              });
+            }
+          },
           onError: (error) => {
             console.error('Erro no formulário:', error);
             setErrorMessage('Erro no formulário de pagamento. Verifique os dados.');
@@ -228,54 +235,9 @@ onSubmit: async (cardFormData) => {
     }
   }, [mp, open, total, user, userData]);
 
-  // Processa o pagamento
-  const handlePayment = async (cardFormData) => {
-    setProcessing(true);
-    setErrorMessage('');
-    setPaymentResult(null);
-  
-    try {
-      const { token, payer: { email } } = cardFormData;
-  
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/process-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          amount: total,
-          email,
-          identification_type: 'CPF',
-          identification_number: userData?.cpf || ''
-        }),
-      });
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.message || 'Erro ao processar pagamento');
-      }
-  
-      // Atualiza o estado com todos os dados do pagamento
-      setPaymentResult(data);
-      
-    } catch (error) {
-      console.error('Erro completo:', error);
-      setPaymentResult({
-        status: 'error',
-        message: error.message || 'Erro ao processar pagamento',
-        details: 'Tente novamente ou entre em contato com nosso suporte.'
-      });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   // Fecha o modal e reseta os estados
   const handleClose = () => {
     onClose();
-    // Reseta os estados após um pequeno delay para evitar flickering
     setTimeout(() => {
       setPaymentResult(null);
       setErrorMessage('');
@@ -305,13 +267,11 @@ onSubmit: async (cardFormData) => {
           &times;
         </button>
 
-        {/* Exibe o formulário ou o resultado do pagamento */}
         {!paymentResult ? (
           <>
             <h2 className={styles.modalTitle}>Finalizar Pagamento</h2>
             <p className={styles.totalAmount}>Total: R$ {total.toFixed(2)}</p>
             
-            {/* Formulário de pagamento */}
             <div id="payment-form-container" className={styles.paymentFormContainer}></div>
             
             {errorMessage && (
@@ -334,7 +294,6 @@ onSubmit: async (cardFormData) => {
               {statusConfig.description(paymentResult)}
             </p>
             
-            {/* Detalhes do pagamento */}
             {statusConfig.showDetails && paymentResult && (
               <div className={styles.paymentDetails}>
                 <h3>Detalhes do Pagamento</h3>
@@ -352,7 +311,6 @@ onSubmit: async (cardFormData) => {
               </div>
             )}
             
-            {/* Ações pós-pagamento */}
             <div className={styles.paymentActions}>
               {paymentResult.status === 'approved' && (
                 <button 
@@ -375,7 +333,6 @@ onSubmit: async (cardFormData) => {
           </div>
         )}
 
-        {/* Loading durante processamento */}
         {processing && (
           <div className={styles.loadingOverlay}>
             <div className={styles.spinner}></div>

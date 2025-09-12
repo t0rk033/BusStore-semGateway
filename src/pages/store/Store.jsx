@@ -50,6 +50,9 @@ const [bestSellers, setBestSellers] = useState([]);
   const [bermudaProducts, setBermudaProducts] = useState([]);
   // moda de pagamento
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  //estados id
+  const [currentOrderId, setCurrentOrderId] = useState('');
+const [cartItems, setCartItems] = useState([]);
 
   const navigate = useNavigate();
   const { loginOpen, closeLogin } = useModal();
@@ -171,9 +174,17 @@ const handleCheckout = () => {
     return;
   }
 
-  // Abre o modal de pagamento em vez de redirecionar para o WhatsApp
+  // Gerar orderId único
+  const newOrderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  setCurrentOrderId(newOrderId);
+  
+  // Guardar itens do carrinho
+  setCartItems([...items]);
+  
+  // Abre o modal de pagamento
   setShowPaymentModal(true);
 };
+
 
   useEffect(() => {
     window.scrollTo({
@@ -621,6 +632,9 @@ const handleCheckout = () => {
   total={cartTotal}
   user={user}
   userData={userData}
+  orderId={currentOrderId}
+  userId={user?.uid}
+  items={cartItems}
 />
   </div>
 );
