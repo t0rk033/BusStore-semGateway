@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from './PaymentModal.module.css';
+import { db } from "../../firebase";
+import { collection, addDoc, updateDoc, doc, getDoc } from "firebase/firestore";
 
 function PaymentModal({ open, onClose, total, user, userData, orderId, userId, items = [] }) {
   const [mp, setMp] = useState(null);
@@ -7,6 +9,82 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
   const [processing, setProcessing] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Função para testar conexão com o backend
+  const testBackendConnection = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/health`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Backend conectado:', data);
+        return true;
+      } else {
+        console.error('❌ Erro ao conectar com o backend');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Erro de conexão com backend:', error);
+      return false;
+    }
+  };
+
+  // Função para atualizar o estoque após a compra
+  const updateStockAfterPurchase = async (purchasedItems) => {
+    try {
+      for (const item of purchasedItems) {
+        try {
+          const productRef = doc(db, "products", item.id);
+          const productDoc = await getDoc(productRef);
+          
+          if (productDoc.exists()) {
+            const productData = productDoc.data();
+            
+            // Verificar se existem variações
+            if (productData.variations && Array.isArray(productData.variations)) {
+              const updatedVariations = productData.variations.map(variation => {
+                // Lógica para encontrar a variação correta
+                const matchesSize = !item.variation?.size || variation.size === item.variation.size;
+                const matchesColor = !item.variation?.color || variation.color === item.variation.color;
+                const matchesModel = !item.variation?.model || variation.model === item.variation.model;
+                
+                if (matchesSize && matchesColor && matchesModel) {
+                  return {
+                    ...variation,
+                    stock: Math.max(0, (variation.stock || 0) - (item.quantity || 1))
+                  };
+                }
+                return variation;
+              });
+              
+              await updateDoc(productRef, {
+                variations: updatedVariations,
+                updatedAt: new Date()
+              });
+              
+              console.log(`✅ Estoque atualizado para produto ${item.id}`);
+            } else {
+              // Produto sem variações - atualizar estoque geral
+              const currentStock = productData.stock || productData.quantity || 0;
+              await updateDoc(productRef, {
+                stock: Math.max(0, currentStock - (item.quantity || 1)),
+                updatedAt: new Date()
+              });
+              
+              console.log(`✅ Estoque geral atualizado para produto ${item.id}`);
+            }
+          } else {
+            console.warn(`⚠️ Produto ${item.id} não encontrado para atualização de estoque`);
+          }
+        } catch (productError) {
+          console.error(`❌ Erro ao atualizar estoque do produto ${item.id}:`, productError);
+        }
+      }
+    } catch (error) {
+      console.error("Erro geral ao atualizar estoque:", error);
+    }
+  };
 
   // Função para processar o pagamento
   const processPayment = async (cardFormData) => {
@@ -16,6 +94,11 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
 
     try {
       const { token, issuer_id, payment_method_id } = cardFormData;
+
+      console.log('🔍 Iniciando processamento de pagamento');
+      console.log('User data:', userData);
+      console.log('Items:', items);
+      console.log('User:', user);
 
       console.log('Enviando para backend:', {
         hasToken: !!token,
@@ -28,42 +111,105 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
+      // Dados para enviar ao backend - CORRIGIDO para match com o backend
+      const requestData = {
+        token,
+        amount: total,
+        description: `Compra na BusStore - ${items.length} item(s) - Valor: R$ ${total.toFixed(2)}`,
+        installments: 1,
+        payment_method_id,
+        issuer_id,
+        email: user?.email || '',
+        identification_type: 'CPF',
+        identification_number: userData?.cpf || '12345678900', // OBRIGATÓRIO - valor padrão para teste
+        orderId: orderId || `order_${Date.now()}`,
+        userId: userId || 'guest',
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name || "Produto sem nome",
+          variation: item.variation || {},
+          quantity: item.quantity || 1,
+          price: item.price || 0,
+          imageUrl: item.imageUrls?.[0] || "",
+        }))
+      };
+
+      console.log('Dados enviados para o backend:', requestData);
+
       const response = await fetch(`${API_URL}/api/process-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          token,
-          amount: total,
-          description: `Compra na BusStore - ${items.length} item(s) - Valor: R$ ${total.toFixed(2)}`,
-          installments: 1,
-          payment_method_id,
-          issuer_id,
-          email: user?.email || '',
-          identification_type: 'CPF',
-          identification_number: userData?.cpf || '',
-          orderId: orderId || `order_${Date.now()}`,
-          userId: userId || 'guest',
-          items: items.map(item => ({
-            id: item.id,
-            name: item.name || "Produto sem nome",
-            variation: item.variation || {},
-            quantity: item.quantity || 1,
-            price: item.price || 0,
-            imageUrl: item.imageUrls?.[0] || "",
-          }))
-        }),
+        body: JSON.stringify(requestData),
+        mode: 'cors',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Erro ao processar pagamento');
+      // Verificar se a resposta é JSON válido
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Resposta não é JSON válido:', responseText);
+        throw new Error('Resposta do servidor inválida');
       }
 
+      if (!response.ok) {
+        console.error('Erro do backend:', data);
+        throw new Error(data.message || `Erro ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('📨 Resposta completa do backend:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
+
+      console.log('Resposta do backend:', data);
       setPaymentResult(data);
       
+      // SALVAR A COMPRA NO BANCO DE DADOS SE O PAGAMENTO FOI APROVADO
+      if (data.status === 'approved') {
+        try {
+          const saleData = {
+            items: items.map(item => ({
+              id: item.id,
+              name: item.name || "Produto sem nome",
+              variation: item.variation || {},
+              quantity: item.quantity || 1,
+              price: item.price || 0,
+              imageUrl: item.imageUrls?.[0] || "",
+            })),
+            total: total,
+            status: 'approved',
+            paymentId: data.payment_id || data.id,
+            paymentMethod: data.payment_method || 'credit_card',
+            userId: userId || 'guest',
+            userEmail: user?.email || '',
+            userData: userData || {},
+            createdAt: new Date(),
+            shipped: false,
+            deliveryStatus: 'pending'
+          };
+
+          console.log('Salvando venda no Firestore:', saleData);
+
+          // Salvar no Firestore
+          const saleRef = await addDoc(collection(db, "sales"), saleData);
+          console.log("Compra salva com ID: ", saleRef.id);
+          
+          // Atualizar estoque dos produtos
+          await updateStockAfterPurchase(items);
+          
+        } catch (error) {
+          console.error("Erro ao salvar compra:", error);
+          // Não lançar erro aqui para não interferir com o fluxo de pagamento
+        }
+      }
+
     } catch (error) {
       console.error('Erro ao processar pagamento:', error);
       setPaymentResult({
@@ -206,7 +352,7 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
             email: user?.email || '',
             identification: {
               type: 'CPF',
-              number: userData?.cpf || '',
+              number: userData?.cpf || '12345678900',
             },
           },
         },
@@ -234,6 +380,13 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
       setFormInitialized(true);
     }
   }, [mp, open, total, user, userData]);
+
+  // Testa a conexão com o backend quando o modal abre
+  useEffect(() => {
+    if (open) {
+      testBackendConnection();
+    }
+  }, [open]);
 
   // Fecha o modal e reseta os estados
   const handleClose = () => {
@@ -279,6 +432,24 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
                 <p>{errorMessage}</p>
               </div>
             )}
+
+            {/* Botão de teste de conexão */}
+            <button 
+              onClick={async () => {
+                const connected = await testBackendConnection();
+                alert(connected ? '✅ Backend conectado!' : '❌ Falha na conexão com o backend');
+              }}
+              style={{
+                margin: '10px', 
+                padding: '8px 16px',
+                backgroundColor: '#f0f0f0',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Testar Conexão com Backend
+            </button>
           </>
         ) : (
           <div className={styles.paymentResult}>

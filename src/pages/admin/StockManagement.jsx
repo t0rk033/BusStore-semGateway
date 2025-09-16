@@ -30,8 +30,13 @@ import {
   FormControlLabel,
   Collapse,
   Snackbar,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from "@mui/material";
+import { HourglassEmpty } from "@mui/icons-material";
 import BusinessIcon from "@mui/icons-material/Business";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import LinkIcon from "@mui/icons-material/Link";
@@ -58,6 +63,10 @@ import {
   List,
   FilterList,
   Close,
+  Today,
+  MoneyOff,
+  Pending,
+  Refresh
 } from "@mui/icons-material";
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
@@ -70,6 +79,10 @@ import {
   doc,
   onSnapshot,
   getDocs,
+  query,
+  where,
+  orderBy,
+  getDoc
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import ShippedOrders from "./ShippedOrders";
@@ -146,7 +159,53 @@ function StockManagement() {
   });
   const [editSuccess, setEditSuccess] = useState(false);
   const [expandedProductForm, setExpandedProductForm] = useState(true);
+  const [payments, setPayments] = useState([]);
+  const [paymentNotifications, setPaymentNotifications] = useState([]);
+  const [refundDialog, setRefundDialog] = useState({ open: false, payment: null });
+  const [financialData, setFinancialData] = useState({
+    dailyRevenue: 0,
+    monthlyRevenue: 0,
+    averageTicket: 0,
+    conversionRate: 0
+  });
+  const [userOrders, setUserOrders] = useState([]);
   const formRef = useRef(null);
+  const [trackingLinks, setTrackingLinks] = useState({});
+const [editingTracking, setEditingTracking] = useState(null);
+const handleTrackingLinkSubmit = async (saleId, trackingNumber, carrier) => {
+  try {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const userInfo = {
+      uid: currentUser?.uid || '',
+      name: currentUser?.displayName || currentUser?.email || '',
+      email: currentUser?.email || '',
+    };
+
+    await updateDoc(doc(db, "sales", saleId), {
+      tracking: {
+        number: trackingNumber,
+        carrier: carrier,
+        updatedAt: new Date(),
+        updatedBy: userInfo
+      },
+      status: "Enviado",
+      updatedBy: userInfo,
+      updatedAt: new Date(),
+    });
+
+    setTrackingLinks(prev => ({
+      ...prev,
+      [saleId]: { number: trackingNumber, carrier }
+    }));
+
+    setEditingTracking(null);
+    alert('Link de rastreio adicionado com sucesso!');
+  } catch (error) {
+    console.error("Erro ao adicionar link de rastreio:", error);
+    alert('Erro ao adicionar link de rastreio');
+  }
+};
 
   // Função para aplicar os filtros
   const applyFilters = (product) => {
@@ -248,6 +307,179 @@ function StockManagement() {
     }
   };
 
+  // Função para verificar status de pagamento
+  const checkPaymentStatus = async (saleId) => {
+    try {
+      const response = await fetch(`/api/payments/${saleId}`);
+      if (!response.ok) throw new Error('Erro ao buscar status');
+      const paymentData = await response.json();
+      return paymentData.status || 'unknown';
+    } catch (error) {
+      console.error('Erro ao verificar status do pagamento:', error);
+      return 'unknown';
+    }
+  };
+
+  // Função para processar reembolsos
+  const handleRefund = async (paymentId, reason = "Reembolso solicitado pelo admin") => {
+    try {
+      const response = await fetch(`/api/payments/${paymentId}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      
+      if (response.ok) {
+        alert('Reembolso processado com sucesso!');
+        fetchPayments(); // Atualizar a lista de pagamentos
+        setRefundDialog({ open: false, payment: null });
+      } else {
+        alert('Erro ao processar reembolso');
+      }
+    } catch (error) {
+      console.error('Erro no reembolso:', error);
+    }
+  };
+
+  // Buscar pagamentos
+  const fetchPayments = async () => {
+    try {
+      const response = await fetch('/api/payments');
+      if (!response.ok) throw new Error('Erro ao buscar pagamentos');
+      const paymentsData = await response.json();
+      setPayments(paymentsData.payments || []);
+    } catch (error) {
+      console.error('Erro ao buscar pagamentos:', error);
+    }
+  };
+
+  // Buscar dados financeiros
+  const fetchFinancialData = async () => {
+    try {
+      // Calcular métricas básicas
+      const approvedPayments = payments.filter(p => p.status === 'approved');
+      const dailyRevenue = approvedPayments
+        .filter(p => {
+          const paymentDate = new Date(p.createdAt);
+          const today = new Date();
+          return paymentDate.toDateString() === today.toDateString();
+        })
+        .reduce((acc, curr) => acc + curr.amount, 0);
+
+      const monthlyRevenue = approvedPayments
+        .filter(p => {
+          const paymentDate = new Date(p.createdAt);
+          const today = new Date();
+          return paymentDate.getMonth() === today.getMonth() && 
+                 paymentDate.getFullYear() === today.getFullYear();
+        })
+        .reduce((acc, curr) => acc + curr.amount, 0);
+
+      const averageTicket = approvedPayments.length > 0 
+        ? approvedPayments.reduce((acc, curr) => acc + curr.amount, 0) / approvedPayments.length 
+        : 0;
+
+      setFinancialData({
+        dailyRevenue,
+        monthlyRevenue,
+        averageTicket,
+        conversionRate: approvedPayments.length / Math.max(payments.length, 1) * 100
+      });
+    } catch (error) {
+      console.error('Erro ao calcular dados financeiros:', error);
+    }
+  };
+
+  // Buscar pedidos do usuário atual
+// StockManagement.js - fetchUserOrders CORRIGIDA (sem ordenação)
+const fetchUserOrders = async () => {
+  try {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    
+    console.log('🔄 Buscando pedidos do usuário...');
+    
+    if (currentUser) {
+      // REMOVER a ordenação para evitar o erro de índice temporariamente
+      const salesQuery = query(
+        collection(db, "sales"),
+        where("userId", "==", currentUser.uid)
+        // orderBy("createdAt", "desc") // REMOVIDO temporariamente
+      );
+      
+      const paymentsQuery = query(
+        collection(db, "payments"),
+        where("userId", "==", currentUser.uid)
+        // orderBy("createdAt", "desc") // REMOVIDO temporariamente
+      );
+
+      const [salesSnapshot, paymentsSnapshot] = await Promise.all([
+        getDocs(salesQuery),
+        getDocs(paymentsQuery)
+      ]);
+
+      console.log('📊 Resultado sales:', salesSnapshot.docs.length, 'documentos');
+      console.log('📊 Resultado payments:', paymentsSnapshot.docs.length, 'documentos');
+
+      // Combinar resultados e ordenar manualmente
+      const allOrders = [
+        ...salesSnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          type: 'sale',
+          // Garantir que temos uma data para ordenação
+          createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt || new Date())
+        })),
+        ...paymentsSnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data(),
+          type: 'payment',
+          // Garantir que temos uma data para ordenação
+          createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt || new Date())
+        }))
+      ].sort((a, b) => {
+        const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
+        const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
+        return dateB - dateA; // Ordenar do mais recente para o mais antigo
+      });
+
+      console.log('🎯 Total de pedidos encontrados:', allOrders.length);
+      setUserOrders(allOrders);
+    }
+  } catch (error) {
+    console.error("❌ Erro ao buscar pedidos:", error);
+    
+    // Fallback: buscar todos e filtrar localmente
+    try {
+      console.log('🔄 Tentando fallback...');
+      const [allSales, allPayments] = await Promise.all([
+        getDocs(collection(db, "sales")),
+        getDocs(collection(db, "payments"))
+      ]);
+      
+      const filteredSales = allSales.docs
+        .filter(doc => doc.data().userId === auth.currentUser.uid)
+        .map(doc => ({ id: doc.id, ...doc.data(), type: 'sale' }));
+      
+      const filteredPayments = allPayments.docs
+        .filter(doc => doc.data().userId === auth.currentUser.uid)
+        .map(doc => ({ id: doc.id, ...doc.data(), type: 'payment' }));
+      
+      const fallbackOrders = [...filteredSales, ...filteredPayments]
+        .sort((a, b) => {
+          const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
+          const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+      
+      console.log('🔄 Fallback - pedidos encontrados:', fallbackOrders.length);
+      setUserOrders(fallbackOrders);
+    } catch (fallbackError) {
+      console.error('❌ Fallback também falhou:', fallbackError);
+    }
+  }
+};
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -263,7 +495,15 @@ function StockManagement() {
     };
 
     fetchUsers();
+    fetchPayments();
+    fetchUserOrders();
   }, []);
+
+  useEffect(() => {
+    if (payments.length > 0) {
+      fetchFinancialData();
+    }
+  }, [payments]);
 
   const makeAdmin = async (userId) => {
     try {
@@ -291,7 +531,40 @@ function StockManagement() {
       alert("Erro ao promover usuário.");
     }
   };
+//area de produtos
+const [trackingDialog, setTrackingDialog] = useState({ open: false, order: null });
+const [trackingNumber, setTrackingNumber] = useState('');
+const updateTrackingNumber = async (orderId, trackingNumber) => {
+  try {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const userInfo = {
+      uid: currentUser?.uid || '',
+      name: currentUser?.displayName || currentUser?.email || '',
+      email: currentUser?.email || '',
+    };
 
+    await updateDoc(doc(db, "sales", orderId), {
+      trackingNumber: trackingNumber,
+      shippingStatus: trackingNumber ? 'shipped' : 'pending',
+      updatedBy: userInfo,
+      updatedAt: new Date(),
+    });
+
+    // Atualizar estado local
+    setUserOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, trackingNumber, shippingStatus: 'shipped' } : order
+    ));
+
+    setTrackingDialog({ open: false, order: null });
+    setTrackingNumber('');
+    alert('Código de rastreamento atualizado com sucesso!');
+  } catch (error) {
+    console.error('Erro ao atualizar rastreamento:', error);
+    alert('Erro ao atualizar código de rastreamento');
+  }
+};
+  // Filtrar, buscar e ordenar produtos
   const filteredProducts = products
     .filter(product => {
       const matchesSearch = 
@@ -363,54 +636,46 @@ function StockManagement() {
         setCategories(categoriesData);
       }
     );
+const unsubscribeSales = onSnapshot(
+    collection(db, "sales"),
+    (snapshot) => {
+      const salesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Garantir conversão correta das datas
+        createdAt: doc.data().createdAt?.toDate 
+          ? doc.data().createdAt.toDate() 
+          : new Date(doc.data().createdAt || new Date()),
+        date: doc.data().date?.toDate 
+          ? doc.data().date.toDate() 
+          : new Date(doc.data().date || new Date())
+      }));
 
-    const unsubscribeSales = onSnapshot(
-      collection(db, "sales"),
-      async (snapshot) => {
-        const salesData = await Promise.all(
-          snapshot.docs.map(async (doc) => {
-            const saleData = doc.data();
-            const clientQuery = await getDocs(
-              collection(db, "sales", doc.id, "client")
-            );
-            const clientData = clientQuery.docs.map((clientDoc) =>
-              clientDoc.data()
-            )[0];
+      console.log('Vendas carregadas do Firestore:', salesData);
 
-            let addressData = {};
-            if (clientQuery.docs.length > 0) {
-              const addressQuery = await getDocs(
-                collection(
-                  db,
-                  "sales",
-                  doc.id,
-                  "client",
-                  clientQuery.docs[0].id,
-                  "address"
-                )
-              );
-              addressData = addressQuery.docs.map((addressDoc) =>
-                addressDoc.data()
-              )[0];
-            }
-
-            return {
-              id: doc.id,
-              ...saleData,
-              date: saleData.date?.toDate(),
-              client: clientData,
-              address: addressData,
-            };
-          })
-        );
-
-        setSales(salesData.filter((sale) => sale.status === "Pendente"));
-        setRequestedSales(salesData.filter((sale) => sale.status === "Solicitada"));
-        setDeliveredSales(salesData.filter((sale) => sale.status === "Entregue"));
-        setTotalSales(salesData.reduce((acc, sale) => acc + sale.total, 0));
-      }
-    );
-
+      // Filtrar vendas - compatível com ambos os formatos (antigo e novo)
+      setSales(salesData.filter((sale) => 
+        sale.status === "Pendente" || sale.status === "pending"
+      ));
+      
+      setRequestedSales(salesData.filter((sale) => 
+        sale.status === "Solicitada" || sale.status === "requested"
+      ));
+      
+      setDeliveredSales(salesData.filter((sale) => 
+        sale.status === "Entregue" || sale.status === "delivered"
+      ));
+      
+      // Calcular total de vendas
+      const totalSalesValue = salesData.reduce((acc, sale) => {
+        return acc + (sale.total || 0);
+      }, 0);
+      setTotalSales(totalSalesValue);
+    },
+    (error) => {
+      console.error('Erro ao carregar vendas:', error);
+    }
+  );
     const unsubscribeSuppliers = onSnapshot(
       collection(db, "suppliers"),
       (snapshot) => {
@@ -528,32 +793,64 @@ function StockManagement() {
 
   const handlePrintOrder = (sale) => {
     const printWindow = window.open("", "_blank");
+    
     printWindow.document.write(`
       <html>
         <head>
           <title>Pedido #${sale.id.slice(0, 8).toUpperCase()}</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
-            .printable-content { max-width: 800px; margin: 0 auto; }
-            h6 { font-size: 18px; }
-            p { font-size: 14px; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .order-info { margin-bottom: 20px; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            .total { text-align: right; font-weight: bold; font-size: 18px; margin-top: 20px; }
           </style>
         </head>
         <body>
-          <div id="print-content"></div>
+          <div class="header">
+            <h1>BusStore</h1>
+            <h2>Comprovante de Pedido</h2>
+          </div>
+          
+          <div class="order-info">
+            <p><strong>Nº do Pedido:</strong> ${sale.id.slice(0, 8).toUpperCase()}</p>
+            <p><strong>Data:</strong> ${sale.createdAt.toLocaleDateString()} ${sale.createdAt.toLocaleTimeString()}</p>
+            <p><strong>Status:</strong> ${sale.status === 'approved' ? 'Aprovado' : sale.status}</p>
+            <p><strong>Cliente:</strong> ${sale.userData?.name || sale.userEmail || 'Cliente'}</p>
+          </div>
+          
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Quantidade</th>
+                <th>Preço Unitário</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sale.items.map(item => `
+                <tr>
+                  <td>${item.name} ${item.variation?.size ? `- Tamanho: ${item.variation.size}` : ''} ${item.variation?.color ? `- Cor: ${item.variation.color}` : ''}</td>
+                  <td>${item.quantity}</td>
+                  <td>R$ ${item.price.toFixed(2)}</td>
+                  <td>R$ ${(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="total">
+            Total: R$ ${sale.total.toFixed(2)}
+          </div>
         </body>
       </html>
     `);
-
-    const printContent = printWindow.document.getElementById("print-content");
-    printWindow.ReactDOM.render(
-      <OrderPrintContent sale={sale} />,
-      printContent
-    );
-
+    
+    printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
-      printWindow.close();
     }, 500);
   };
 
@@ -764,6 +1061,13 @@ function StockManagement() {
 
   const markAsShipped = async (saleId) => {
     try {
+      const paymentStatus = await checkPaymentStatus(saleId);
+      
+      if (paymentStatus !== 'approved') {
+        alert('Não é possível enviar pedido com pagamento não aprovado');
+        return;
+      }
+
       const auth = getAuth();
       const currentUser = auth.currentUser;
       const userInfo = {
@@ -829,7 +1133,7 @@ function StockManagement() {
         updatedBy: userInfo,
         updatedAt: new Date(),
       });
-      setSalesHistory((prev) =>
+      setSales((prev) =>
         prev.map((sale) =>
           sale.id === saleId ? { ...sale, status: "Entregue" } : sale
         )
@@ -914,6 +1218,480 @@ function StockManagement() {
     // Opcional: se quiser ativar automaticamente quando adicionar estoque, pode adicionar else if
   }, [newProduct.variations]);
 
+  // Componente para o Dashboard Financeiro
+  const FinancialDashboard = () => {
+    return (
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5">Dashboard Financeiro</Typography>
+            <Button 
+              variant="outlined" 
+              startIcon={<Refresh />}
+              onClick={fetchFinancialData}
+            >
+              Atualizar
+            </Button>
+          </Box>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <MetricCard
+                title="Receita Diária"
+                value={`R$ ${financialData.dailyRevenue.toFixed(2)}`}
+                icon={<Today />}
+                color="success"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <MetricCard
+                title="Receita Mensal"
+                value={`R$ ${financialData.monthlyRevenue.toFixed(2)}`}
+                icon={<TrendingUp />}
+                color="info"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <MetricCard
+                title="Ticket Médio"
+                value={`R$ ${financialData.averageTicket.toFixed(2)}`}
+                icon={<Paid />}
+                color="primary"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <MetricCard
+                title="Taxa de Conversão"
+                value={`${financialData.conversionRate.toFixed(1)}%`}
+                icon={<CheckCircle />}
+                color="warning"
+              />
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Componente para cartão de métrica
+  const MetricCard = ({ title, value, icon, color = "primary" }) => {
+    return (
+      <Card variant="outlined">
+        <CardContent sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Box sx={{ 
+            color: `${color}.main`,
+            bgcolor: `${color}.light`,
+            p: 2,
+            borderRadius: 2
+          }}>
+            {icon}
+          </Box>
+          <Box>
+            <Typography variant="subtitle2" color="textSecondary">
+              {title}
+            </Typography>
+            <Typography variant="h4" fontWeight="700">
+              {value}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Componente para Gestão de Pagamentos
+  const PaymentManagement = () => {
+    const paymentStatusColors = {
+      approved: 'success',
+      pending: 'warning',
+      rejected: 'error',
+      refunded: 'info',
+      unknown: 'default'
+    };
+
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" fontWeight="700">
+            Gestão de Pagamentos
+          </Typography>
+          <Button 
+            variant="outlined" 
+            startIcon={<Refresh />}
+            onClick={fetchPayments}
+          >
+            Atualizar
+          </Button>
+        </Box>
+
+        <Card>
+          <CardContent>
+            <Grid container spacing={2}>
+              {payments.map((payment) => (
+                <Grid item xs={12} key={payment.paymentId}>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="subtitle1" fontWeight="600">
+                          Pedido: {payment.orderId}
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary">
+                          ID: {payment.paymentId}
+                        </Typography>
+                        <Chip 
+                          label={payment.status} 
+                          color={paymentStatusColors[payment.status] || 'default'} 
+                          size="small" 
+                          sx={{ mt: 1 }}
+                        />
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="h6" color="primary" fontWeight="600">
+                          R$ {payment.amount.toFixed(2)}
+                        </Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {new Date(payment.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {payment.status === 'approved' && (
+                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => setRefundDialog({ open: true, payment })}
+                        >
+                          Reembolsar
+                        </Button>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  };
+
+  // Componente para Meus Pedidos
+ // StockManagement.js - Componente MyOrders CORRIGIDO
+const MyOrders = () => {
+  const [localFilter, setLocalFilter] = useState('todos');
+
+  // Função para obter status de entrega com base no código de rastreamento
+  const getShippingStatus = (order) => {
+    if (order.status === 'delivered' || order.status === 'Entregue') return 'Entregue';
+    if (order.trackingNumber) return 'Enviado';
+    if (order.status === 'approved') return 'Processando';
+    return 'Pendente';
+  };
+
+  // Função para obter ícone de status
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Entregue': return <CheckCircle color="success" />;
+      case 'Enviado': return <LocalShipping color="info" />;
+      case 'Processando': return <Pending color="warning" />;
+      default: return <HourglassEmpty color="disabled" />;
+    }
+  };
+
+  // Filtra os pedidos com base no localFilter
+  const filteredOrders = userOrders.filter(order => {
+    const status = getShippingStatus(order);
+    if (localFilter === 'todos') return true;
+    return status.toLowerCase() === localFilter.toLowerCase();
+  });
+
+  if (userOrders.length === 0) {
+    return (
+      <Card>
+        <CardContent sx={{ textAlign: 'center', py: 6 }}>
+          <LocalShipping sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h6" color="textSecondary" gutterBottom>
+            Você ainda não fez nenhum pedido
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Quando fizer um pedido, ele aparecerá aqui com todos os detalhes e opções de rastreamento.
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" fontWeight="700">
+          Meus Pedidos
+        </Typography>
+        <Chip 
+          label={`${filteredOrders.length} pedido(s)`} 
+          color="primary" 
+          variant="outlined" 
+        />
+      </Box>
+
+      {/* Filtros de Pedidos */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+            Filtrar por status:
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {['Todos', 'Pendente', 'Processando', 'Enviado', 'Entregue'].map(status => (
+              <Chip
+                key={status}
+                label={status}
+                variant={localFilter === status.toLowerCase() ? 'filled' : 'outlined'}
+                color="primary"
+                onClick={() => setLocalFilter(status.toLowerCase())}
+              />
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
+
+      {filteredOrders.length === 0 ? (
+        <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', my: 4 }}>
+          Nenhum pedido encontrado com o filtro selecionado.
+        </Typography>
+      ) : (
+        filteredOrders.map(order => {
+          const shippingStatus = getShippingStatus(order);
+
+          return (
+            <Card key={order.id} sx={{ mb: 3, position: 'relative' }}>
+              {/* Header do Pedido */}
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h6" fontWeight="600">
+                      Pedido #{order.id.slice(0, 8).toUpperCase()}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      {order.createdAt?.toLocaleDateString?.() || new Date().toLocaleDateString()} • 
+                      {order.createdAt?.toLocaleTimeString?.() || new Date().toLocaleTimeString()}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Chip 
+                      label={shippingStatus}
+                      icon={getStatusIcon(shippingStatus)}
+                      color={
+                        shippingStatus === 'Entregue' ? 'success' :
+                        shippingStatus === 'Enviado' ? 'info' :
+                        shippingStatus === 'Processando' ? 'warning' : 'default'
+                      }
+                      variant="outlined"
+                    />
+                    <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
+                      R$ {order.total?.toFixed(2) || order.transaction_amount?.toFixed(2) || '0.00'}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Informações do Pedido */}
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" gutterBottom color="primary">
+                      📦 Informações do Pedido
+                    </Typography>
+                    <Box sx={{ pl: 2 }}>
+                      <Typography variant="body2">
+                        <strong>ID:</strong> {order.paymentId || order.id}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Status do Pagamento:</strong> 
+                        <Chip 
+                          label={order.status === 'approved' ? 'Aprovado' : order.status || 'Processando'} 
+                          size="small"
+                          color={order.status === 'approved' ? 'success' : 'default'}
+                          sx={{ ml: 1 }}
+                        />
+                      </Typography>
+                      {order.trackingNumber && (
+                        <Typography variant="body2">
+                          <strong>Código de Rastreamento:</strong> 
+                          <Chip 
+                            label={order.trackingNumber} 
+                            size="small"
+                            color="info"
+                            sx={{ ml: 1 }}
+                            onDelete={() => window.open(`https://www.linkcorreios.com.br/${order.trackingNumber}`, '_blank')}
+                            deleteIcon={<LinkIcon />}
+                          />
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" gutterBottom color="primary">
+                      💳 Informações de Pagamento
+                    </Typography>
+                    <Box sx={{ pl: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Método:</strong> {order.paymentMethod || 'Cartão de Crédito'}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Parcelas:</strong> {order.installments || 1}x
+                      </Typography>
+                      {order.paymentDate && (
+                        <Typography variant="body2">
+                          <strong>Data do Pagamento:</strong> {new Date(order.paymentDate).toLocaleDateString()}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Itens do Pedido */}
+                {order.items && order.items.length > 0 && (
+                  <>
+                    <Divider sx={{ my: 3 }} />
+                    <Typography variant="subtitle2" gutterBottom color="primary">
+                      🛒 Itens do Pedido
+                    </Typography>
+                    <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                      {order.items.map((item, index) => (
+                        <Box key={index} sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          py: 1,
+                          borderBottom: index < order.items.length - 1 ? 1 : 0,
+                          borderColor: 'divider'
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar 
+                              src={item.image} 
+                              variant="rounded" 
+                              sx={{ width: 50, height: 50 }}
+                            />
+                            <Box>
+                              <Typography variant="body2" fontWeight="500">
+                                {item.name}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                {item.variation?.size && `Tamanho: ${item.variation.size} `}
+                                {item.variation?.color && `Cor: ${item.variation.color}`}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2">
+                              {item.quantity} x R$ {item.price.toFixed(2)}
+                            </Typography>
+                            <Typography variant="body2" fontWeight="600">
+                              R$ {(item.price * item.quantity).toFixed(2)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </>
+                )}
+
+                {/* Ações do Pedido */}
+                <Divider sx={{ my: 3 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                  <Box>
+                    <Button 
+                      variant="outlined" 
+                      size="small"
+                      onClick={() => handlePrintOrder(order)}
+                      startIcon={<Print />}
+                    >
+                      Imprimir
+                    </Button>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {order.trackingNumber && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.open(`https://www.linkcorreios.com.br/${order.trackingNumber}`, '_blank')}
+                        startIcon={<LinkIcon />}
+                      >
+                        Rastrear Pedido
+                      </Button>
+                    )}
+                    
+                    {order.status === 'approved' && !order.trackingNumber && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => setTrackingDialog({ open: true, order })}
+                      >
+                        Adicionar Rastreamento
+                      </Button>
+                    )}
+                    
+                    {shippingStatus === 'Enviado' && (
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
+                        onClick={() => confirmDelivery(order.id)}
+                      >
+                        Confirmar Recebimento
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+
+      {/* Diálogo para adicionar código de rastreamento */}
+      <Dialog open={trackingDialog.open} onClose={() => setTrackingDialog({ open: false, order: null })}>
+        <DialogTitle>Adicionar Código de Rastreamento</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+            Para o pedido: #{trackingDialog.order?.id.slice(0, 8).toUpperCase()}
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Código de Rastreamento"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={trackingNumber}
+            onChange={(e) => setTrackingNumber(e.target.value)}
+            placeholder="Ex: PL123456789BR"
+          />
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+            Insira o código fornecido pela transportadora
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTrackingDialog({ open: false, order: null })}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => updateTrackingNumber(trackingDialog.order?.id, trackingNumber)}
+            variant="contained"
+            disabled={!trackingNumber}
+          >
+            Salvar Código
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
   return (
     <div className={styles.container}>
       <Snackbar
@@ -927,6 +1705,37 @@ function StockManagement() {
         </Alert>
       </Snackbar>
       
+      {/* Diálogo de Reembolso */}
+      <Dialog open={refundDialog.open} onClose={() => setRefundDialog({ open: false, payment: null })}>
+        <DialogTitle>Confirmar Reembolso</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Deseja reembolsar o pagamento {refundDialog.payment?.paymentId} no valor de 
+            R$ {refundDialog.payment?.amount.toFixed(2)}?
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Motivo do reembolso"
+            type="text"
+            fullWidth
+            variant="outlined"
+            defaultValue="Reembolso solicitado pelo admin"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRefundDialog({ open: false, payment: null })}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => handleRefund(refundDialog.payment?.paymentId, "Reembolso solicitado pelo admin")}
+            color="error"
+          >
+            Confirmar Reembolso
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <NavBar />
       <Box
         sx={{
@@ -956,10 +1765,10 @@ function StockManagement() {
             {[
               { id: "products", icon: <Inventory />, label: "Produtos" },
               { id: "productList", icon: <List />, label: "Lista de Produtos" },
-              { id: "requested", icon: <LocalShipping />, label: "Solicitadas" },
+              
               { id: "suppliers", icon: <BusinessIcon />, label: "Fornecedores" },
-              { id: "orders", icon: <LocalShipping />, label: "Pedidos" },
-              { id: "delivered", icon: <CheckCircle />, label: "Entregues" },
+              { id: "myOrders", icon: <LocalShipping />, label: "Meus Pedidos" },
+              { id: "payments", icon: <Paid />, label: "Pagamentos" },
               { id: "reports", icon: <TrendingUp />, label: "Relatórios" },
             ].map((item) => (
               <Button
@@ -1004,6 +1813,7 @@ function StockManagement() {
           >
             <Tab value="products" label="Produtos" />
             <Tab value="users" label="Usuários" />
+            <Tab value="finance" label="Financeiro" />
           </Tabs>
 
           <Box sx={{ mt: 4 }}>
@@ -1056,7 +1866,7 @@ function StockManagement() {
                       {[
                         {
                           icon: <TrendingUp sx={{ fontSize: 40, color: theme.palette.success.main }} />,
-                          label: "Vendas Totais",
+                          label: "Vendas Totales",
                           value: `R$ ${totalSales.toFixed(2)}`,
                         },
                         {
@@ -1588,10 +2398,10 @@ function StockManagement() {
                                           )}
                                         </Grid>
                                       </Paper>
-                                    ))}
+                                ))}
                                   </Box>
-                                </Grid>
-                              </Grid>
+                                  </Grid>
+                                  </Grid>
 
                               <Grid item xs={12}>
                                 <FormControlLabel
@@ -1638,6 +2448,7 @@ function StockManagement() {
                                     }
                                     onClick={saveProduct}
                                     sx={{ minWidth: 200 }}
+                                    ref={formRef}
                                   >
                                     {editingProduct
                                       ? "Confirmar Alterações"
@@ -2133,127 +2944,6 @@ function StockManagement() {
                     </Card>
                   </>
                 )}
-
-                {activeView === "requested" && (
-                  <>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        mb: 4,
-                        gap: 2,
-                      }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <LocalShipping
-                          sx={{
-                            fontSize: 40,
-                            color: "primary.main",
-                            bgcolor: "primary.light",
-                            p: 1.5,
-                            borderRadius: 4,
-                          }}
-                        />
-                        <Typography variant="h4" fontWeight="700">
-                          Compras Solicitadas
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Card sx={{ mb: 4 }}>
-                      <CardContent>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 3 }}>
-                          Pedidos Solicitados ({requestedSales.length})
-                        </Typography>
-                        <Grid container spacing={2}>
-                          {requestedSales.map((sale) => (
-                            <Grid item xs={12} key={sale.id}>
-                              <Paper
-                                variant="outlined"
-                                sx={{ p: 2, borderRadius: 3 }}
-                              >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Box>
-                                 
-                                    <Typography variant="body2" color="textSecondary">
-                                      {sale.items.length} itens • R$ {Number(sale.total).toFixed(2)}
-                                    </Typography>
-                                  </Box>
-                                  <Box>
-                                    <Button
-                                      variant="contained"
-                                      size="small"
-                                      onClick={() => handlePrintOrder(sale)}
-                                      startIcon={<Print />}
-                                    >
-                                      Imprimir
-                                    </Button>
-                                  </Box>
-                                </Box>
-
-                                <Divider sx={{ my: 2 }} />
-                                <Box>
-                                  {sale.items.map((item) => (
-                                    <Box
-                                      key={item.id}
-                                      sx={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        mb: 1,
-                                      }}
-                                    >
-                                      <Typography variant="body2">
-                                        {item.name} ({item.quantity})
-                                      </Typography>
-                                      <Typography variant="body2" fontWeight="500">
-                                        R$ {Number(item.price).toFixed(2)}
-                                      </Typography>
-                                    </Box>
-                                  ))}
-                                </Box>
-
-                                <Divider sx={{ my: 2 }} />
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "flex-end",
-                                    gap: 1,
-                                  }}
-                                >
-                                  <Button
-                                    variant="outlined"
-                                    color="error"
-                                    size="small"
-                                    onClick={() => deleteRequestedSale(sale.id)}
-                                    startIcon={<Delete />}
-                                  >
-                                    Excluir
-                                  </Button>
-                                  <Button
-                                    variant="contained"
-                                    size="small"
-                                    onClick={() => confirmRequestedSale(sale.id)}
-                                    startIcon={<CheckCircle />}
-                                  >
-                                    Confirmar
-                                  </Button>
-                                </Box>
-                              </Paper>
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-
                 {activeView === "suppliers" && (
                   <ShippedOrders
                     sales={sales}
@@ -2294,6 +2984,14 @@ function StockManagement() {
                     notes={notes}
                     handleNoteChange={handleNoteChange}
                   />
+                )}
+
+                {activeView === "myOrders" && (
+                  <MyOrders />
+                )}
+
+                {activeView === "payments" && (
+                  <PaymentManagement />
                 )}
 
                 {activeView === "reports" && (
@@ -2351,6 +3049,13 @@ function StockManagement() {
                     </Grid>
                   </CardContent>
                 </Card>
+              </Box>
+            )}
+
+            {activeTab === "finance" && (
+              <Box>
+                <FinancialDashboard />
+                <PaymentManagement />
               </Box>
             )}
           </Box>
