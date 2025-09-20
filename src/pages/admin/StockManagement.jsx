@@ -44,8 +44,8 @@ import {
   Switch,
   Breadcrumbs,
   SpeedDial,
-  SpeedDialIcon,
-  SpeedDialAction
+  SpeedDialAction,
+  SpeedDialIcon
 } from "@mui/material";
 import {
   Add,
@@ -59,6 +59,8 @@ import {
   TrendingUp,
   Label,
   Description,
+  Category as CategoryIcon,
+  Save,
   Paid,
   Storage,
   Warning as WarningIcon,
@@ -68,6 +70,7 @@ import {
   List as ListIcon,
   FilterList,
   Close,
+  HelpOutline,
   Today,
   Refresh,
   HourglassEmpty as HourglassEmptyIcon,
@@ -82,12 +85,12 @@ import {
   History,
   Backup,
   Download,
-  TrendingDown,
-  Remove,
   AccountCircle,
-  Pending
+  Pending,
+  Remove,
+  TrendingDown
 } from "@mui/icons-material";
-import { format, subDays, isWithinInterval } from 'date-fns';
+import { format, subDays, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import { db, auth } from "../../firebase";
@@ -102,7 +105,9 @@ import {
   query,
   where,
   orderBy,
-  getDoc
+  getDoc,
+  startAfter,
+  limit
 } from "firebase/firestore";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import ShippedOrders from "./ShippedOrders";
@@ -309,6 +314,102 @@ function StockManagement() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [restorePoint, setRestorePoint] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+
+
+  // Constantes e funções para Logs de Auditoria amigáveis
+  const AUDIT_ACTION_META = {
+    // Produtos
+    CRIAR_PRODUTO: { text: 'Criação de Produto', color: 'success', icon: <Add /> },
+    EDITAR_PRODUTO: { text: 'Edição de Produto', color: 'info', icon: <Edit /> },
+    EXCLUIR_PRODUTO: { text: 'Exclusão de Produto', color: 'error', icon: <Delete /> },
+    ATIVAR_PRODUTO: { text: 'Ativação de Produto', color: 'success', icon: <CheckCircle /> },
+    DESATIVAR_PRODUTO: { text: 'Desativação de Produto', color: 'warning', icon: <Cancel /> },
+    // Categorias
+    CRIAR_CATEGORIA: { text: 'Criação de Categoria', color: 'success', icon: <Add /> },
+    EDITAR_CATEGORIA: { text: 'Edição de Categoria', color: 'info', icon: <Edit /> },
+    EXCLUIR_CATEGORIA: { text: 'Exclusão de Categoria', color: 'error', icon: <Delete /> },
+    // Fornecedores
+    CRIAR_FORNECEDOR: { text: 'Criação de Fornecedor', color: 'success', icon: <Add /> },
+    EDITAR_FORNECEDOR: { text: 'Edição de Fornecedor', color: 'info', icon: <Edit /> },
+    EXCLUIR_FORNECEDOR: { text: 'Exclusão de Fornecedor', color: 'error', icon: <Delete /> },
+    // Vendas
+    MARCAR_ENVIADO: { text: 'Pedido Enviado', color: 'info', icon: <LocalShipping /> },
+    DESMARCAR_ENVIADO: { text: 'Envio Desfeito', color: 'warning', icon: <Remove /> },
+    CONFIRMAR_ENTREGA: { text: 'Entrega Confirmada', color: 'success', icon: <CheckCircle /> },
+    CONFIRMAR_SOLICITACAO: { text: 'Solicitação Confirmada', color: 'success', icon: <CheckCircle /> },
+    EXCLUIR_SOLICITACAO: { text: 'Solicitação Excluída', color: 'error', icon: <Delete /> },
+    // Usuários
+    PROMOVER_USUARIO: { text: 'Promoção de Usuário', color: 'secondary', icon: <TrendingUp /> },
+    // Financeiro
+    PROCESSAR_REEMBOLSO: { text: 'Reembolso Processado', color: 'warning', icon: <Paid /> },
+    // Sistema
+    ATUALIZAR_CONFIGURACOES: { text: 'Configurações Atualizadas', color: 'info', icon: <Settings /> },
+    CRIAR_BACKUP: { text: 'Backup Criado', color: 'secondary', icon: <Backup /> },
+    EXPORTAR_DADOS: { text: 'Dados Exportados', color: 'secondary', icon: <Download /> },
+    DEFAULT: { text: 'Ação Desconhecida', color: 'default', icon: <HelpOutline /> }
+  };
+
+  const getAuditActionMeta = (action) => {
+    return AUDIT_ACTION_META[action] || { ...AUDIT_ACTION_META.DEFAULT, text: action };
+  };
+
+  const formatAuditTarget = (target) => {
+    if (!target) return 'N/A';
+    const parts = target.split('/');
+    if (parts.length < 2) return target;
+    
+    const type = parts[0];
+    const id = parts[1];
+    
+    const typeMap = {
+      products: 'Produto',
+      categories: 'Categoria',
+      suppliers: 'Fornecedor',
+      sales: 'Venda',
+      users: 'Usuário',
+      payments: 'Pagamento',
+      system: 'Sistema'
+    };
+
+    return `${typeMap[type] || type}: ${id.slice(0, 8)}...`;
+  };
+
+  const FriendlyLogDetails = ({ log }) => {
+    const { details, action } = log;
+
+    if (!details || Object.keys(details).length === 0) {
+      return <Typography sx={{ p: 2, fontStyle: 'italic' }}>Nenhum detalhe adicional disponível.</Typography>;
+    }
+
+    const renderKeyValue = (key, value) => (
+      <Box key={key} sx={{ display: 'flex', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+        <Typography variant="body2" sx={{ fontWeight: 'bold', minWidth: { xs: 100, sm: 150 } }}>{key}:</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>{String(value)}</Typography>
+      </Box>
+    );
+
+    switch (action) {
+      case 'EXCLUIR_PRODUTO':
+      case 'EXCLUIR_CATEGORIA':
+      case 'EXCLUIR_FORNECEDOR':
+        return (
+          <Alert severity="warning" icon={<WarningIcon />}>
+            <Typography>O item a seguir foi permanentemente excluído: <strong>{details.productName || details.categoryName || details.supplierName}</strong> (ID: {details.productId || details.categoryId || details.supplierId})</Typography>
+          </Alert>
+        );
+      default:
+        return <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(details, null, 2)}</pre>;
+    }
+  };
+
+  // Estados para Logs de Auditoria e Paginação
+  const [auditLogPage, setAuditLogPage] = useState(1);
+  const [lastVisibleAuditLog, setLastVisibleAuditLog] = useState(null);
+  const [firstVisibleAuditLog, setFirstVisibleAuditLog] = useState(null);
+  const [isLastAuditLogPage, setIsLastAuditLogPage] = useState(false);
+  const [logDetailsOpen, setLogDetailsOpen] = useState(false);
+  const [selectedLogDetails, setSelectedLogDetails] = useState(null);
+  const AUDIT_LOGS_PER_PAGE = 20;
 
   // Verificar permissões do usuário
   const hasPermission = (permission) => {
@@ -615,72 +716,89 @@ function StockManagement() {
     if (!hasPermission(PERMISSIONS.VIEW_FINANCE)) return;
     
     try {
-      // DEBUG: Log para verificar os status únicos dos pagamentos
-      if (payments.length > 0) {
-        const uniqueStatuses = [...new Set(payments.map(p => p.status).filter(Boolean))];
-        console.log('DEBUG: Status de pagamentos encontrados no sistema:', uniqueStatuses);
-      }
-      console.log('Primeiro pagamento:', paymentsData[0]);
-console.log('Tipo de createdAt:', typeof paymentsData[0]?.createdAt);
-console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
+      // Utiliza 'allSales' para os cálculos, considerando vendas enviadas ou entregues como concluídas.
+      const completedSalesData = allSales.filter(s => 
+        ['enviado', 'entregue', 'shipped', 'delivered'].includes(s.status?.toLowerCase())
+      );
+      setCompletedSales(completedSalesData);
 
-      // Calcular métricas básicas
-     const approvedPayments = payments.filter(p => {
-  const status = p.status?.toLowerCase();
-  // Inclui também status 'approved' do seu documento de exemplo
-  return ['approved', 'aprovado', 'paid', 'completed', 'pago', 'concluído', 'accredited'].includes(status);
-});
-      const dailyRevenue = approvedPayments
+      const dailyRevenue = completedSalesData
         .filter(p => {
-          const paymentDate = new Date(p.createdAt);
+          const saleDate = p.createdAt; // Já é um objeto Date
           const today = new Date();
-          return paymentDate.toDateString() === today.toDateString();
+          return saleDate.toDateString() === today.toDateString();
         })
-        .reduce((acc, curr) => acc + curr.amount, 0);
+        .reduce((acc, curr) => acc + (curr.total || 0), 0);
 
-      const monthlyRevenue = approvedPayments
+      const monthlyRevenue = completedSalesData
         .filter(p => {
-          const paymentDate = new Date(p.createdAt);
+          const saleDate = p.createdAt;
           const today = new Date();
-          return paymentDate.getMonth() === today.getMonth() && 
-                 paymentDate.getFullYear() === today.getFullYear();
+          return saleDate.getMonth() === today.getMonth() && 
+                 saleDate.getFullYear() === today.getFullYear();
         })
-        .reduce((acc, curr) => acc + curr.amount, 0);
+        .reduce((acc, curr) => acc + (curr.total || 0), 0);
 
-      const averageTicket = approvedPayments.length > 0 
-        ? approvedPayments.reduce((acc, curr) => acc + curr.amount, 0) / approvedPayments.length 
+      const averageTicket = completedSalesData.length > 0 
+        ? completedSalesData.reduce((acc, curr) => acc + (curr.total || 0), 0) / completedSalesData.length 
         : 0;
 
-      const approvedOrderIds = new Set(approvedPayments.map(p => p.orderId));
-      const completedSalesData = allSales.filter(s => approvedOrderIds.has(s.id));
-      setCompletedSales(completedSalesData);
+      const conversionRate = allSales.length > 0 
+        ? (completedSalesData.length / allSales.length) * 100 
+        : 0;
 
       // Calcular tendência de receita (últimos 7 dias)
       const revenueTrend = [];
       for (let i = 6; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        
+
         const dailyRevenueForTrend = completedSalesData
           .filter(s => {
             const saleDate = s.createdAt;
             return format(saleDate, 'yyyy-MM-dd') === dateStr;
           })
           .reduce((acc, curr) => acc + (curr.total || 0), 0);
-        
+
         revenueTrend.push({
           date: format(date, 'dd/MM'),
           revenue: dailyRevenueForTrend
         });
       }
 
+      // Produtos mais vendidos
+      const productSales = {};
+      completedSalesData.forEach(sale => {
+        (sale.items || []).forEach(item => {
+          if (!productSales[item.name]) {
+            productSales[item.name] = { name: item.name, quantity: 0, revenue: 0 };
+          }
+          productSales[item.name].quantity += item.quantity || 0;
+          productSales[item.name].revenue += (item.quantity || 0) * (item.price || 0);
+        });
+      });
+      const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+      // Vendas por categoria
+      const categorySales = {};
+      completedSalesData.forEach(sale => {
+        (sale.items || []).forEach(item => {
+          const category = products.find(p => p.id === item.productId)?.category || 'Outros';
+          if (!categorySales[category]) {
+            categorySales[category] = { name: category, value: 0 };
+          }
+          categorySales[category].value += (item.quantity || 0) * (item.price || 0);
+        });
+      });
+      const salesByCategory = Object.values(categorySales);
+
       setFinancialData({
         dailyRevenue,
         monthlyRevenue,
         averageTicket,
-        conversionRate: payments.length > 0 ? (approvedPayments.length / payments.length) * 100 : 0,
-        topProducts: [],
-        salesByCategory: [],
+        conversionRate,
+        topProducts,
+        salesByCategory,
         revenueTrend
       });
     } catch (error) {
@@ -711,32 +829,16 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
           where("userId", "==", currentUser.uid)
         );
         
-        // Buscar pagamentos do usuário
-        const paymentsQuery = query(
-          collection(db, "payments"),
-          where("userId", "==", currentUser.uid)
-        );
+        const salesSnapshot = await getDocs(salesQuery);
 
-        const [salesSnapshot, paymentsSnapshot] = await Promise.all([
-          getDocs(salesQuery),
-          getDocs(paymentsQuery)
-        ]);
-
-        // Combinar resultados e ordenar manualmente
-        const allOrders = [
-          ...salesSnapshot.docs.map(doc => ({ 
+        // Mapear e ordenar os pedidos
+        const allOrders = salesSnapshot.docs.map(doc => ({ 
             id: doc.id, 
             ...doc.data(),
             type: 'sale',
             createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt || new Date())
-          })),
-          ...paymentsSnapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data(),
-            type: 'payment',
-            createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt || new Date())
           }))
-        ].sort((a, b) => {
+        .sort((a, b) => {
           const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
           const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
           return dateB - dateA; // Ordenar do mais recente para o mais antigo
@@ -749,21 +851,12 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
       
       // Fallback: buscar todos e filtrar localmente
       try {
-        const [allSales, allPayments] = await Promise.all([
-          getDocs(collection(db, "sales")),
-          getDocs(collection(db, "payments"))
-        ]);
+        const allSales = await getDocs(collection(db, "sales"));
         
         const auth = getAuth();
-        const filteredSales = allSales.docs
+        const fallbackOrders = allSales.docs
           .filter(doc => doc.data().userId === auth.currentUser.uid)
-          .map(doc => ({ id: doc.id, ...doc.data(), type: 'sale' }));
-        
-        const filteredPayments = allPayments.docs
-          .filter(doc => doc.data().userId === auth.currentUser.uid)
-          .map(doc => ({ id: doc.id, ...doc.data(), type: 'payment' }));
-        
-        const fallbackOrders = [...filteredSales, ...filteredPayments]
+          .map(doc => ({ id: doc.id, ...doc.data(), type: 'sale' }))
           .sort((a, b) => {
             const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
             const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
@@ -778,24 +871,72 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
   };
 
   // Buscar logs de auditoria
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = async (direction = 'first') => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) return;
-    
+    setLoading(true);
     try {
-      const q = query(collection(db, "auditLogs"), orderBy("timestamp", "desc"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logsCollection = collection(db, "auditLogs");
+      let q;
+
+      if (direction === 'next' && lastVisibleAuditLog) {
+        q = query(logsCollection, orderBy("timestamp", "desc"), startAfter(lastVisibleAuditLog), limit(AUDIT_LOGS_PER_PAGE));
+      } else { // 'first' or 'prev' (simplificado para refetch)
+        q = query(logsCollection, orderBy("timestamp", "desc"), limit(AUDIT_LOGS_PER_PAGE));
+      }
+
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
         const logsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           timestamp: doc.data().timestamp?.toDate?.() || new Date(doc.data().timestamp || new Date())
         }));
+
         setAuditLogs(logsData);
-      });
-      
-      return unsubscribe;
+        setFirstVisibleAuditLog(snapshot.docs[0]);
+        setLastVisibleAuditLog(snapshot.docs[snapshot.docs.length - 1]);
+
+        // Lógica de paginação simples
+        if (direction === 'first') setAuditLogPage(1);
+        if (direction === 'next') setAuditLogPage(p => p + 1);
+        // A lógica de 'prev' precisaria de mais estado para ser eficiente, por ora, recarrega a primeira.
+
+        // Checar se é a última página
+        const nextCheckQuery = query(logsCollection, orderBy("timestamp", "desc"), startAfter(snapshot.docs[snapshot.docs.length - 1]), limit(1));
+        const nextCheckSnapshot = await getDocs(nextCheckQuery);
+        setIsLastAuditLogPage(nextCheckSnapshot.empty);
+      } else {
+        if (direction === 'next') setIsLastAuditLogPage(true);
+        if (direction === 'first') setAuditLogs([]);
+      }
     } catch (error) {
       console.error("Erro ao buscar logs de auditoria:", error);
+      addNotification("Erro", "Não foi possível carregar os logs de auditoria.", "error");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Funções para o diálogo de detalhes do log
+  const handleViewLogDetails = (log) => {
+    setSelectedLogDetails(log);
+    setLogDetailsOpen(true);
+  };
+
+  // Função para validar formulário de categoria
+  const validateCategoryForm = () => {
+    const errors = {};
+    if (!newCategory.name.trim()) {
+      errors.categoryName = "Nome da categoria é obrigatório";
+    }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCloseLogDetails = () => {
+    setLogDetailsOpen(false);
+    setSelectedLogDetails(null);
   };
 
   // Buscar configurações do sistema
@@ -1192,34 +1333,33 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
       }
     );
     
-    const unsubscribeAuditLogs = fetchAuditLogs();
-    fetchSystemSettings();
-    fetchPayments();
+    if (hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) {
+      fetchAuditLogs('first');
+    }
+    fetchSystemSettings();    
     fetchUserOrders();
 
     return () => {
       unsubscribeProducts();
-      unsubscribeSales();
+      if (unsubscribeSales) unsubscribeSales();
       unsubscribeSuppliers();
       unsubscribeCategories();
       unsubscribeUsers();
-      if (unsubscribeAuditLogs) unsubscribeAuditLogs();
     };
   }, [currentUser, systemSettings.lowStockThreshold]);
 
   useEffect(() => {
-    // O cálculo financeiro depende de pagamentos, vendas e produtos.
+    // O cálculo financeiro depende de vendas e produtos.
     // Garante que todos os dados necessários estão carregados antes de calcular.
-    if (hasPermission(PERMISSIONS.VIEW_FINANCE) && payments.length > 0) {
-    fetchFinancialData();
-    
-  }
-}, [payments, hasPermission(PERMISSIONS.VIEW_FINANCE)]); // Reage a mudanças em qualquer um desses dados
+    if (hasPermission(PERMISSIONS.VIEW_FINANCE) && allSales.length > 0 && products.length > 0) {
+      fetchFinancialData();
+    }
+  }, [allSales, products, hasPermission(PERMISSIONS.VIEW_FINANCE)]);
 
   // Funções de gerenciamento de usuários
   const makeAdmin = async (userId) => {
     if (!hasPermission(PERMISSIONS.EDIT_USERS)) {
-      alert("Você não tem permissão para editar usuários");
+      addNotification("Permissão negada", "Você não tem permissão para editar usuários.", "error");
       return;
     }
     
@@ -1248,7 +1388,6 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
         }
       });
 
-      alert("Usuário promovido a admin com sucesso!");
       setUsers((prev) =>
         prev.map((user) =>
           user.id === userId ? { ...user, role: "admin" } : user
@@ -1258,8 +1397,45 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
       addNotification("Usuário promovido", "O usuário foi promovido a administrador com sucesso.", "success");
     } catch (error) {
       console.error("Erro ao promover usuário:", error);
-      alert("Erro ao promover usuário.");
       addNotification("Erro", "Não foi possível promover o usuário.", "error");
+    }
+  };
+
+  const updateTrackingNumber = async (orderId, trackingNumber) => {
+    if (!hasPermission(PERMISSIONS.EDIT_SALES)) {
+      addNotification("Permissão negada", "Você não tem permissão para editar pedidos.", "error");
+      return;
+    }
+    if (!orderId || !trackingNumber) {
+      addNotification("Dados inválidos", "ID do pedido ou código de rastreio ausente.", "warning");
+      return;
+    }
+  
+    try {
+      const userInfo = {
+        uid: currentUser?.uid || '',
+        name: currentUser?.displayName || currentUser?.email || '',
+        email: currentUser?.email || '',
+      };
+  
+      await updateDoc(doc(db, "sales", orderId), {
+        trackingNumber: trackingNumber,
+        status: 'enviado', // Atualiza o status para 'enviado'
+        updatedBy: userInfo,
+        updatedAt: new Date(),
+      });
+  
+      // Atualiza o estado local para refletir a mudança imediatamente
+      setUserOrders(prev => prev.map(order => 
+        order.id === orderId ? { ...order, trackingNumber, status: 'enviado' } : order
+      ));
+  
+      setTrackingDialog({ open: false, order: null });
+      setTrackingNumber('');
+      addNotification('Sucesso', 'Código de rastreamento atualizado com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar rastreamento:', error);
+      addNotification('Erro', 'Não foi possível atualizar o código de rastreamento.', 'error');
     }
   };
 
@@ -1669,7 +1845,11 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
           name: currentUser?.displayName || currentUser?.email || '',
           email: currentUser?.email || '',
         },
-        timestamp: new Date()
+        timestamp: new Date(),
+        details: {
+          productName: productToDelete?.name || 'Nome não encontrado',
+          productId: id
+        }
       });
 
       setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -1809,7 +1989,11 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
           name: currentUser?.displayName || currentUser?.email || '',
           email: currentUser?.email || '',
         },
-        timestamp: new Date()
+        timestamp: new Date(),
+        details: {
+          supplierName: supplierToDelete?.name || 'Nome não encontrado',
+          supplierId: id
+        }
       });
 
       setSuppliers((prev) => prev.filter((s) => s.id !== id));
@@ -1932,7 +2116,7 @@ console.log('Valor de createdAt:', paymentsData[0]?.createdAt);
 
   const confirmDelivery = async (saleId) => {
     if (!hasPermission(PERMISSIONS.EDIT_SALES)) {
-      alert("Você não tem permissão para editar vendas");
+      addNotification("Permissão negada", "Você não tem permissão para editar vendas.", "error");
       return;
     }
     
@@ -3024,13 +3208,22 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </Alert>
       );
     }
-    
+
     return (
       <Box>
-        <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>
-          Logs de Auditoria
-        </Typography>
-        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Typography variant="h4" fontWeight="700">
+            Logs de Auditoria
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => fetchAuditLogs('first')}
+          >
+            Atualizar
+          </Button>
+        </Box>
+
         <Card>
           <CardContent>
             <TableContainer>
@@ -3045,38 +3238,185 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {auditLogs.slice(0, 100).map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>
-                        {log.timestamp.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        {log.user?.name || 'Usuário desconhecido'}
-                      </TableCell>
-                      <TableCell>
-                        {log.action}
-                      </TableCell>
-                      <TableCell>
-                        {log.target}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            console.log(log.details);
-                            alert(JSON.stringify(log.details, null, 2));
-                          }}
-                        >
-                          Ver Detalhes
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {auditLogs.map((log) => {
+                    const meta = getAuditActionMeta(log.action);
+                    return (
+                      <TableRow key={log.id} hover>
+                        <TableCell>
+                          {format(log.timestamp, 'dd/MM/yyyy HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          {log.user?.name || 'Usuário Desconhecido'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            icon={meta.icon} 
+                            label={meta.text} 
+                            color={meta.color} 
+                            size="small" 
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                          {formatAuditTarget(log.target)}
+                        </TableCell>
+                        <TableCell>
+                          <Button size="small" onClick={() => handleViewLogDetails(log)}>Ver Detalhes</Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 1 }}>
+              <Button
+                onClick={() => alert('Paginação anterior ainda não implementada.')} // Simplificado por agora
+                disabled={auditLogPage === 1}
+              >
+                Anterior
+              </Button>
+              <Typography sx={{ alignSelf: 'center' }}>
+                Página {auditLogPage}
+              </Typography>
+              <Button
+                onClick={() => fetchAuditLogs('next')}
+                disabled={isLastAuditLogPage}
+              >
+                Próxima
+              </Button>
+            </Box>
           </CardContent>
         </Card>
+      </Box>
+    );
+  };
+
+  // Componente para Gestão de Categorias
+  const CategoriesManagement = () => {
+    if (!hasPermission(PERMISSIONS.VIEW_CATEGORIES)) {
+      return <Alert severity="error">Você não tem permissão para gerenciar categorias.</Alert>;
+    }
+
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Typography variant="h4" fontWeight="700">
+            Gestão de Categorias
+          </Typography>
+          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => {
+                setEditingCategory(null);
+                resetCategoryForm();
+              }}
+            >
+              Nova Categoria
+            </Button>
+          )}
+        </Box>
+
+        <Grid container spacing={4}>
+          {/* Formulário de Categoria */}
+          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    {editingCategory ? "Editar Categoria" : "Nova Categoria"}
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        label="Nome da Categoria"
+                        name="name"
+                        value={newCategory.name}
+                        onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
+                        fullWidth
+                        required
+                        error={!!validationErrors.categoryName}
+                        helperText={validationErrors.categoryName}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle1" sx={{ mb: 1 }}>Subcategorias</Typography>
+                      {newCategory.subcategories.map((subcat, index) => (
+                        <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                          <TextField
+                            label={`Subcategoria ${index + 1}`}
+                            value={subcat}
+                            onChange={(e) => handleSubcategoryChange(index, e.target.value)}
+                            fullWidth
+                            size="small"
+                          />
+                          <IconButton
+                            onClick={() => {
+                              const updatedSubcategories = newCategory.subcategories.filter((_, i) => i !== index);
+                              setNewCategory((prev) => ({ ...prev, subcategories: updatedSubcategories }));
+                            }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))}
+                      <Button startIcon={<Add />} onClick={addSubcategory} size="small">
+                        Adicionar Subcategoria
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      {editingCategory && (
+                        <Button variant="outlined" onClick={resetCategoryForm}>
+                          Cancelar
+                        </Button>
+                      )}
+                      <Button variant="contained" onClick={saveCategory}>
+                        {editingCategory ? "Salvar Alterações" : "Criar Categoria"}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          )}
+
+          {/* Lista de Categorias */}
+          <Grid item xs={12} md={hasPermission(PERMISSIONS.EDIT_CATEGORIES) ? 8 : 12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Categorias Cadastradas</Typography>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Nome</TableCell>
+                        <TableCell>Subcategorias</TableCell>
+                        {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && <TableCell align="right">Ações</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {categories.map((category) => (
+                        <TableRow key={category.id} hover>
+                          <TableCell>{category.name}</TableCell>
+                          <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {category.subcategories.map(sc => <Chip key={sc} label={sc} size="small" />)}
+                          </TableCell>
+                          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+                            <TableCell align="right">
+                              <IconButton size="small" onClick={() => startEditingCategory(category)}><Edit fontSize="small" /></IconButton>
+                              {hasPermission(PERMISSIONS.DELETE_CATEGORIES) && <IconButton size="small" onClick={() => deleteCategory(category.id)}><Delete fontSize="small" /></IconButton>}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Box>
     );
   };
@@ -3119,6 +3459,19 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </Alert>
       </Snackbar>
       
+      {/* Diálogo de Detalhes do Log */}
+      <Dialog open={logDetailsOpen} onClose={handleCloseLogDetails} maxWidth="md" fullWidth>
+        <DialogTitle>Detalhes da Ação</DialogTitle>
+        <DialogContent dividers>
+          {selectedLogDetails && <FriendlyLogDetails log={selectedLogDetails} />}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseLogDetails} variant="contained">
+            Fechar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Diálogo de Reembolso */}
       <Dialog open={refundDialog.open} onClose={() => setRefundDialog({ open: false, payment: null })}>
         <DialogTitle>Confirmar Reembolso</DialogTitle>
@@ -3252,6 +3605,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 { id: "dashboard", icon: <DashboardIcon />, label: "Dashboard", permission: PERMISSIONS.VIEW_FINANCE },
                 { id: "products", icon: <Inventory />, label: "Produtos", permission: PERMISSIONS.VIEW_PRODUCTS },
                 { id: "productList", icon: <ListIcon />, label: "Lista de Produtos", permission: PERMISSIONS.VIEW_PRODUCTS },
+                { id: "categories", icon: <CategoryIcon />, label: "Categorias", permission: PERMISSIONS.VIEW_CATEGORIES },
                 { id: "suppliers", icon: <Business />, label: "Fornecedores", permission: PERMISSIONS.VIEW_SUPPLIERS },
                 { id: "myOrders", icon: <LocalShipping />, label: "Meus Pedidos", permission: PERMISSIONS.VIEW_SALES },
                 { id: "payments", icon: <Paid />, label: "Pagamentos", permission: PERMISSIONS.VIEW_FINANCE },
@@ -3316,6 +3670,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
               {activeView === 'dashboard' && 'Dashboard'}
               {activeView === 'products' && 'Cadastro de Produtos'}
               {activeView === 'productList' && 'Lista de Produtos'}
+              {activeView === 'categories' && 'Categorias'}
               {activeView === 'suppliers' && 'Fornecedores'}
               {activeView === 'myOrders' && 'Meus Pedidos'}
               {activeView === 'payments' && 'Pagamentos'}
@@ -4353,6 +4708,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             </>
           )}
           
+          {activeView === 'categories' && <CategoriesManagement />}
           {activeView === 'suppliers' && (
             <Box>
               <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>

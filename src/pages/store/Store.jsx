@@ -22,7 +22,6 @@ import wilsonLogo from '../../assets/images/marcas/wilson.png';
 import atleta from '../../assets/images/atleta.jpg';
 import { useModal } from '../../contexts/ModalContext';
 import { LoginModal } from '../login/Login';
-import PaymentModal from './PaymentModal';
 
 function Store() {
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
@@ -48,11 +47,6 @@ const [bestSellers, setBestSellers] = useState([]);
   const [bermudaShortProducts, setBermudaShortProducts] = useState([]);
   // Adicione o estado para bermudas
   const [bermudaProducts, setBermudaProducts] = useState([]);
-  // moda de pagamento
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  //estados id
-  const [currentOrderId, setCurrentOrderId] = useState('');
-const [cartItems, setCartItems] = useState([]);
 
   const navigate = useNavigate();
   const { loginOpen, closeLogin } = useModal();
@@ -115,13 +109,13 @@ const [cartItems, setCartItems] = useState([]);
         setFilteredProducts(productsData);
 
         // Define os produtos em destaque (pega os 4 primeiros)
-        if (productsData.length > 0) {
+        if (productsData.length > 3) {
           setDailyDeals(productsData.slice(0, 1)); // 1 produto para oferta do dia
           setBestSellers(productsData.slice(1, 4)); // 3 produtos para mais vendidos
         }
 
         // Extrai categorias únicas
-        const uniqueCategories = [...new Set(productsData.map(product => product.category))];
+        const uniqueCategories = [...new Set(productsData.map(p => p.category).filter(Boolean))];
         setCategories(uniqueCategories);
       } catch (error) {
         showToast('Erro ao carregar produtos', 'error');
@@ -162,28 +156,19 @@ const [cartItems, setCartItems] = useState([]);
     showToast('Produto adicionado ao carrinho!', 'success');
   };
 
-const handleCheckout = () => {
-  if (!user) {
-    showToast("Você precisa estar logado para finalizar a compra.", "error");
-    navigate("/login");
-    return;
-  }
-
-  if (items.length === 0) {
-    showToast("Seu carrinho está vazio.", "error");
-    return;
-  }
-
-  // Gerar orderId único
-  const newOrderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  setCurrentOrderId(newOrderId);
-  
-  // Guardar itens do carrinho
-  setCartItems([...items]);
-  
-  // Abre o modal de pagamento
-  setShowPaymentModal(true);
-};
+  const handleCheckout = () => {
+    if (!user) {
+      showToast("Você precisa estar logado para finalizar a compra.", "error");
+      navigate("/login");
+      return;
+    }
+    if (items.length === 0) {
+      showToast("Seu carrinho está vazio.", "error");
+      return;
+    }
+    // Redireciona para a página de checkout
+    navigate('/checkout');
+  };
 
 
   useEffect(() => {
@@ -232,6 +217,7 @@ const handleCheckout = () => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         onSearchChange={e => setSearchTerm(e.target.value)}
+        categories={categories}
       />
 
       {/* Hero Section */}
@@ -626,16 +612,6 @@ const handleCheckout = () => {
 
     <Footer />
    
-<PaymentModal
-  open={showPaymentModal}
-  onClose={() => setShowPaymentModal(false)}
-  total={cartTotal}
-  user={user}
-  userData={userData}
-  orderId={currentOrderId}
-  userId={user?.uid}
-  items={cartItems}
-/>
   </div>
 );
 }

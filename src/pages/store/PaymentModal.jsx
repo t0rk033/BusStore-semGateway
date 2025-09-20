@@ -111,7 +111,7 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
 
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      // Dados para enviar ao backend - CORRIGIDO para match com o backend
+      // Dados para enviar ao backend
       const requestData = {
         token,
         amount: total,
@@ -121,7 +121,7 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
         issuer_id,
         email: user?.email || '',
         identification_type: 'CPF',
-        identification_number: userData?.cpf || '12345678900', // OBRIGATÓRIO - valor padrão para teste
+        identification_number: userData?.cpf || '12345678900',
         orderId: orderId || `order_${Date.now()}`,
         userId: userId || 'guest',
         items: items.map(item => ({
@@ -146,7 +146,6 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
         mode: 'cors',
       });
 
-      // Verificar se a resposta é JSON válido
       const responseText = await response.text();
       let data;
       
@@ -161,12 +160,6 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
         console.error('Erro do backend:', data);
         throw new Error(data.message || `Erro ${response.status}: ${response.statusText}`);
       }
-
-      console.log('📨 Resposta completa do backend:', {
-        status: response.status,
-        statusText: response.statusText,
-        data: data
-      });
 
       console.log('Resposta do backend:', data);
       setPaymentResult(data);
@@ -206,7 +199,6 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
           
         } catch (error) {
           console.error("Erro ao salvar compra:", error);
-          // Não lançar erro aqui para não interferir com o fluxo de pagamento
         }
       }
 

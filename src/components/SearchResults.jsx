@@ -29,11 +29,23 @@ function SearchResults() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const searchQuery = queryParams.get('q') || '';
+  const categoryQuery = queryParams.get('categoria') || '';
 
   // Carregar todos os produtos
   useEffect(() => {
     fetchAllProducts();
   }, []);
+
+  // Sincroniza o filtro de categoria da URL com o estado do componente
+  useEffect(() => {
+    if (categoryQuery) {
+      // Define a categoria do URL como o filtro ativo
+      setSelectedCategories([categoryQuery]);
+    } else if (searchQuery) {
+      // Limpa o filtro de categoria se for uma nova busca por texto
+      setSelectedCategories([]);
+    }
+  }, [location.search]); // Reage a qualquer mudança na URL
 
   // Aplicar filtros quando os critérios mudarem
   useEffect(() => {
@@ -199,6 +211,7 @@ function SearchResults() {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         onSearchChange={handleSearchChange}
+        categories={categories}
       />
 
       
@@ -206,6 +219,12 @@ function SearchResults() {
       <div className={styles.mainContent}>
         {/* Sidebar de filtros */}
         <div className={styles.filtersSidebar}>
+          {(categoryQuery || searchQuery) && (
+            <div className={styles.activeFilterDisplay}>
+              <h3>Resultados para:</h3>
+              <p>{categoryQuery || searchQuery}</p>
+            </div>
+          )}
           <h3>Filtrar por</h3>
           
           {/* Filtro de Categoria */}
@@ -328,7 +347,11 @@ function SearchResults() {
         {/* Área de produtos */}
         <div className={styles.productsArea}>
           <div className={styles.productsHeader}>
-            <h2>Produtos</h2>
+            <h2>
+              {categoryQuery 
+                ? `Produtos em "${categoryQuery}"` 
+                : searchQuery ? `Resultados para "${searchQuery}"` : 'Todos os Produtos'}
+            </h2>
             <div className={styles.sortOptions}>
               <span>Ordenar por:</span>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
