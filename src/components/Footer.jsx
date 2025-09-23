@@ -28,10 +28,10 @@ function Footer() {
         <div className={styles.footerSectionRight}>
           <h4>Entre em contato</h4>
           <p>
-            (32) 99999-9999 <FaPhoneAlt className={styles.iconRight} />
+            (32) 98857-9997 <FaPhoneAlt className={styles.iconRight} />
           </p>
           <p>
-            exemplo.contato@gmail.com <FaEnvelope className={styles.iconRight} />
+            contato@busstore.com.br <FaEnvelope className={styles.iconRight} />
           </p>
         </div>
       </div>

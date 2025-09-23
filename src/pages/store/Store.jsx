@@ -516,13 +516,8 @@ const [bestSellers, setBestSellers] = useState([]);
 
         {items.length === 0 ? (
           <div className={styles.cartEmpty}>
-            <p>Seu carrinho está vazio.</p>
-            <button 
-              className={styles.continueShoppingButton}
-              onClick={() => setOpenCartModal(false)}
-            >
-              Continuar Comprando
-            </button>
+            <FiHeart size={48} />
+            <p>Seu carrinho esta vazio</p>
           </div>
         ) : (
           <>

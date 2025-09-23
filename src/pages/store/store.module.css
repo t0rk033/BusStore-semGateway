@@ -577,6 +577,21 @@ body {
   cursor: pointer;
 }
 
+.cartEmpty {
+  flex: 1; /* Ocupa o espaço disponível no modal */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centraliza horizontalmente */
+  justify-content: center; /* Centraliza verticalmente */
+  padding: 2rem;
+  color: #08152A; /* Cor que você pediu */
+}
+
+.cartEmpty p {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+}
+
 .cartItems {
   flex: 1;
   overflow-y: auto;
@@ -691,8 +706,8 @@ body {
 .checkoutButton {
   width: 100%;
   padding: 1rem;
-  background: var(--green) !important;
-  color: var(--white);
+  background: #F6AC24!important;
+  color: #08152A;
   border: none;
   border-radius: 0.5rem;
   font-size: 1rem;
