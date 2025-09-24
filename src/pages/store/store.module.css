@@ -660,6 +660,13 @@ body {
 .cartSummary {
   padding: 1.5rem;
   border-top: 1px solid #eee;
+  
+}
+.totalRow{
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-weight: bolder;
 }
 
 .shippingContainer {
