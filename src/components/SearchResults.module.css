@@ -1,308 +1,180 @@
-/* SearchResults.module.css */
+/* Estrutura principal do componente */
 .searchResultsWrapper {
-  min-height: 100vh;
-  background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
 }
 
-.loadingContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 50vh;
-}
-
-.spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 16px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.searchHeader {
-  background: white;
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #eaeaea;
-}
-
-.searchHeader h1 {
-  color: #333;
-  margin-bottom: 10px;
-  font-size: 1.8rem;
-  font-weight: 600;
-}
-
-.searchHeader p {
-  color: #666;
-  font-size: 1rem;
-}
-
+/* Container principal para a barra lateral e a área de produtos */
 .mainContent {
-  display: flex;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
-  gap: 30px;
+    display: flex;
+    max-width: 72vw;
+    margin: 20px auto;
+    width: 100%;
+    padding: 0 20px;
+    gap: 20px;
 }
 
+/* Barra lateral para os filtros */
 .filtersSidebar {
-  width: 300px;
-  flex-shrink: 0;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  height: fit-content;
-  max-height: 80vh;
-  overflow-y: auto;
+    width: 250px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 20px; /* Mantém a sidebar visível ao rolar a página */
+    height: fit-content;
+    overflow: auto;
+    max-height: 95vh; /* Limita a altura máxima da sidebar */
 }
 
-.filtersHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #eaeaea;
-  padding-bottom: 10px;
-}
-
-.filtersHeader h3 {
-  font-size: 1.2rem;
-  color: #333;
-  margin: 0;
-}
-
-.clearAllButton {
-  background: none;
-  border: none;
-  color: #007bff;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.clearAllButton:hover {
-  text-decoration: underline;
+/* Título e grupos de filtro */
+.filtersSidebar h3 {
+    margin-top: 0;
+    font-size: 1.2em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .filterGroup {
-  margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .filterGroup h4 {
-  font-size: 1rem;
-  margin-bottom: 12px;
-  color: #444;
-  font-weight: 600;
-  text-transform: capitalize;
+    font-size: 1em;
+    color: #555;
+    margin-bottom: 10px;
 }
 
-.filterOptions {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
+/* Estilo para cada checkbox e label */
 .filterCheckbox {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #555;
+    display: block;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #666;
+    user-select: none; /* Previne a seleção do texto */
 }
 
-.filterCheckbox input {
-  margin-right: 10px;
-  accent-color: #007bff;
+.filterCheckbox input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #337ab7; /* Cor do checkbox */
 }
 
-.moreOptions {
-  font-size: 0.8rem;
-  color: #777;
-  margin-top: 5px;
-  font-style: italic;
-}
-
+/* Estilo para a área de produtos */
 .productsArea {
-  flex: 1;
+    flex-grow: 1;
 }
 
+/* Cabeçalho da área de produtos */
 .productsHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  background: white;
-  padding: 15px 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
 }
 
 .productsHeader h2 {
-  font-size: 1.5rem;
-  color: #333;
-  margin: 0;
+    font-size: 1.2em;
+    margin: 0;
+    color: #333;
 }
 
-.resultsCount {
-  font-size: 0.9rem;
-  color: #666;
+.sortOptions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9em;
+    color: #555;
 }
 
-.noResults {
-  text-align: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+.sortOptions select {
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 0.9em;
 }
 
-.noResults h2 {
-  color: #333;
-  margin-bottom: 16px;
-  font-size: 1.5rem;
+/* Lista de produtos (em vez de grid) */
+.productsList {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.noResults p {
-  color: #666;
-  font-size: 1rem;
-  margin-bottom: 20px;
-}
-
-.clearFiltersButton {
-  padding: 10px 20px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.clearFiltersButton:hover {
-  background: #0056b3;
-}
-
-.productsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-}
-
+/* Estilo de cada card de produto, agora em formato de linha */
 .productCard {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;
+    display: flex;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
 }
 
 .productCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 .productImageContainer {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
+    width: 200px; /* Largura fixa para a imagem, como no design */
+    height: 200px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    border-radius: 8px 0 0 8px;
 }
 
 .productImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.productCard:hover .productImage {
-  transform: scale(1.05);
-}
-
-.discountBadge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: #ff4444;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .productInfo {
-  padding: 15px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex-grow: 1;
 }
 
 .productName {
-  font-size: 1rem;
-  color: #333;
-  margin-bottom: 5px;
-  font-weight: 500;
-  line-height: 1.3;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 5px 0;
 }
 
 .productBrand {
-  font-size: 0.8rem;
-  color: #666;
-  margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #888;
+    margin-bottom: 10px;
 }
 
 .priceContainer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.productPrice {
-  font-size: 1.2rem;
-  color: #007bff;
-  font-weight: bold;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
 }
 
 .productOldPrice {
-  font-size: 0.9rem;
-  color: #999;
-  text-decoration: line-through;
+    text-decoration: line-through;
+    color: #999;
+    font-size: 0.9em;
 }
 
-@media (max-width: 768px) {
-  .mainContent {
-    flex-direction: column;
-    padding: 0 15px;
-  }
-  
-  .filtersSidebar {
-    width: 100%;
-    margin-bottom: 20px;
-    max-height: none;
-  }
-  
-  .productsHeader {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-  
-  .productsGrid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 15px;
-  }
-  
-  .productImageContainer {
-    height: 160px;
-  }
+.productPrice {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
 }

@@ -135,7 +135,6 @@ import {
 // Configuração de cores para gráficos
 const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
 
-// Sistema de permissões
 const ROLES = {
   ADMIN: 'admin',
   MANAGER: 'manager',
@@ -144,7 +143,6 @@ const ROLES = {
 };
 
 const PERMISSIONS = {
-  // Produtos
   VIEW_PRODUCTS: 'view_products',
   EDIT_PRODUCTS: 'edit_products',
   DELETE_PRODUCTS: 'delete_products',
@@ -152,18 +150,14 @@ const PERMISSIONS = {
   VIEW_CATEGORIES: 'view_categories',
   EDIT_CATEGORIES: 'edit_categories',
   DELETE_CATEGORIES: 'delete_categories',
-  // Fornecedores
   VIEW_SUPPLIERS: 'view_suppliers',
   EDIT_SUPPLIERS: 'edit_suppliers',
   DELETE_SUPPLIERS: 'delete_suppliers',
-  // Vendas
   VIEW_SALES: 'view_sales',
   EDIT_SALES: 'edit_sales',
   DELETE_SALES: 'delete_sales',
-  // Financeiro
   VIEW_FINANCE: 'view_finance',
   EDIT_FINANCE: 'edit_finance',
-  // Usuários
   VIEW_USERS: 'view_users',
   EDIT_USERS: 'edit_users',
   // Relatórios
@@ -201,14 +195,11 @@ function StockManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isTablet = useMediaQuery(theme.breakpoints.down("lg"));
-  
-  // Estados de autenticação e permissões
+
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(ROLES.VIEWER);
   const [userPermissions, setUserPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Estados principais
   const [activeTab, setActiveTab] = useState("products");
   const [activeView, setActiveView] = useState("dashboard");
   const [products, setProducts] = useState([]);
@@ -315,24 +306,18 @@ function StockManagement() {
   const [restorePoint, setRestorePoint] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
 
-
-  // Constantes e funções para Logs de Auditoria amigáveis
   const AUDIT_ACTION_META = {
-    // Produtos
     CRIAR_PRODUTO: { text: 'Criação de Produto', color: 'success', icon: <Add /> },
     EDITAR_PRODUTO: { text: 'Edição de Produto', color: 'info', icon: <Edit /> },
     EXCLUIR_PRODUTO: { text: 'Exclusão de Produto', color: 'error', icon: <Delete /> },
     ATIVAR_PRODUTO: { text: 'Ativação de Produto', color: 'success', icon: <CheckCircle /> },
     DESATIVAR_PRODUTO: { text: 'Desativação de Produto', color: 'warning', icon: <Cancel /> },
-    // Categorias
     CRIAR_CATEGORIA: { text: 'Criação de Categoria', color: 'success', icon: <Add /> },
     EDITAR_CATEGORIA: { text: 'Edição de Categoria', color: 'info', icon: <Edit /> },
     EXCLUIR_CATEGORIA: { text: 'Exclusão de Categoria', color: 'error', icon: <Delete /> },
-    // Fornecedores
     CRIAR_FORNECEDOR: { text: 'Criação de Fornecedor', color: 'success', icon: <Add /> },
     EDITAR_FORNECEDOR: { text: 'Edição de Fornecedor', color: 'info', icon: <Edit /> },
     EXCLUIR_FORNECEDOR: { text: 'Exclusão de Fornecedor', color: 'error', icon: <Delete /> },
-    // Vendas
     MARCAR_ENVIADO: { text: 'Pedido Enviado', color: 'info', icon: <LocalShipping /> },
     DESMARCAR_ENVIADO: { text: 'Envio Desfeito', color: 'warning', icon: <Remove /> },
     CONFIRMAR_ENTREGA: { text: 'Entrega Confirmada', color: 'success', icon: <CheckCircle /> },
@@ -340,9 +325,7 @@ function StockManagement() {
     EXCLUIR_SOLICITACAO: { text: 'Solicitação Excluída', color: 'error', icon: <Delete /> },
     // Usuários
     PROMOVER_USUARIO: { text: 'Promoção de Usuário', color: 'secondary', icon: <TrendingUp /> },
-    // Financeiro
     PROCESSAR_REEMBOLSO: { text: 'Reembolso Processado', color: 'warning', icon: <Paid /> },
-    // Sistema
     ATUALIZAR_CONFIGURACOES: { text: 'Configurações Atualizadas', color: 'info', icon: <Settings /> },
     CRIAR_BACKUP: { text: 'Backup Criado', color: 'secondary', icon: <Backup /> },
     EXPORTAR_DADOS: { text: 'Dados Exportados', color: 'secondary', icon: <Download /> },
@@ -402,7 +385,6 @@ function StockManagement() {
     }
   };
 
-  // Estados para Logs de Auditoria e Paginação
   const [auditLogPage, setAuditLogPage] = useState(1);
   const [lastVisibleAuditLog, setLastVisibleAuditLog] = useState(null);
   const [firstVisibleAuditLog, setFirstVisibleAuditLog] = useState(null);
@@ -411,23 +393,19 @@ function StockManagement() {
   const [selectedLogDetails, setSelectedLogDetails] = useState(null);
   const AUDIT_LOGS_PER_PAGE = 20;
 
-  // Verificar permissões do usuário
   const hasPermission = (permission) => {
     return userPermissions.includes(permission);
   };
 
-  // Verificar se o usuário tem pelo menos uma das permissões
   const hasAnyPermission = (permissions) => {
     return permissions.some(permission => userPermissions.includes(permission));
   };
 
-  // Efeito para autenticação e carregamento de permissões
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
         
-        // Buscar informações do usuário no Firestore
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
@@ -449,12 +427,10 @@ function StockManagement() {
     return () => unsubscribe();
   }, []);
 
-  // Efeito para ajustar sidebar em dispositivos móveis
   useEffect(() => {
     setSidebarOpen(!isMobile);
   }, [isMobile]);
 
-  // Função para aplicar os filtros
   const applyFilters = (product) => {
     if (filters.category && product.category !== filters.category) {
       return false;
@@ -496,12 +472,9 @@ function StockManagement() {
     if (filters.showDisabled === true && product.enabled) {
       return false; // Só desativados
     }
-    // Se showDisabled for 'all' ou undefined, mostra todos
 
     return true;
   };
-
-  // Resetar filtros
   const resetFilters = () => {
     setFilters({
       category: '',
@@ -516,10 +489,8 @@ function StockManagement() {
     });
   };
 
-  // Obter categorias únicas para o filtro
   const uniqueCategories = [...new Set(products.map(p => p.category))].filter(Boolean);
   
-  // Obter subcategorias únicas baseadas na categoria selecionada
   const uniqueSubcategories = filters.category 
     ? [...new Set(
         products
@@ -528,7 +499,6 @@ function StockManagement() {
       )].filter(Boolean)
     : [];
 
-  // Alternar status do produto (ativo/inativo)
   const toggleProductStatus = async (productId, currentStatus) => {
     if (!hasPermission(PERMISSIONS.EDIT_PRODUCTS)) {
       alert("Você não tem permissão para editar produtos");
@@ -556,7 +526,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: currentStatus ? "DESATIVAR_PRODUTO" : "ATIVAR_PRODUTO",
         target: `products/${productId}`,
@@ -575,7 +544,6 @@ function StockManagement() {
         )
       );
 
-      // Adicionar notificação
       addNotification(
         currentStatus ? "Produto desativado" : "Produto ativado",
         `O produto foi ${currentStatus ? "desativado" : "ativado"} com sucesso.`,
@@ -587,7 +555,6 @@ function StockManagement() {
     }
   };
 
-  // Função para adicionar notificações
   const addNotification = (title, message, severity = "info") => {
     const newNotification = {
       id: Date.now(),
@@ -601,7 +568,6 @@ function StockManagement() {
     setNotifications(prev => [newNotification, ...prev.slice(0, 49)]); // Limitar a 50 notificações
   };
 
-  // Função para marcar notificação como lida
   const markNotificationAsRead = (id) => {
     setNotifications(prev => 
       prev.map(notification => 
@@ -610,7 +576,6 @@ function StockManagement() {
     );
   };
 
-  // Função para verificar status de pagamento
   const checkPaymentStatus = async (saleId) => {
     try {
       const response = await fetch(`/api/payments/${saleId}`);
@@ -623,7 +588,6 @@ function StockManagement() {
     }
   };
 
-  // Função para processar reembolsos
   const handleRefund = async (paymentId, reason = "Reembolso solicitado pelo admin") => {
     try {
       const response = await fetch(`/api/payments/${paymentId}/refund`, {
@@ -636,8 +600,6 @@ function StockManagement() {
         alert('Reembolso processado com sucesso!');
         fetchPayments(); // Atualizar a lista de pagamentos
         setRefundDialog({ open: false, payment: null });
-        
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "PROCESSAR_REEMBOLSO",
           target: `payments/${paymentId}`,
@@ -664,7 +626,6 @@ function StockManagement() {
     }
   };
 
-  // Buscar pagamentos
  const fetchPayments = async () => {
   if (!hasPermission(PERMISSIONS.VIEW_FINANCE)) return;
 
@@ -674,8 +635,6 @@ function StockManagement() {
     
     let paymentsData = querySnapshot.docs.map(doc => {
       const data = doc.data();
-      
-      // Converter Timestamp para Date corretamente
       let createdAtDate;
       if (data.createdAt && typeof data.createdAt.toDate === 'function') {
         // Se for um Timestamp do Firestore
@@ -699,7 +658,6 @@ function StockManagement() {
       };
     });
 
-    // Ordenar por data decrescente
     paymentsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     setPayments(paymentsData);
@@ -711,12 +669,10 @@ function StockManagement() {
   }
 };
 
-  // Buscar dados financeiros
   const fetchFinancialData = async () => {
     if (!hasPermission(PERMISSIONS.VIEW_FINANCE)) return;
     
     try {
-      // Utiliza 'allSales' para os cálculos, considerando vendas enviadas ou entregues como concluídas.
       const completedSalesData = allSales.filter(s => 
         ['enviado', 'entregue', 'shipped', 'delivered'].includes(s.status?.toLowerCase())
       );
@@ -747,7 +703,6 @@ function StockManagement() {
         ? (completedSalesData.length / allSales.length) * 100 
         : 0;
 
-      // Calcular tendência de receita (últimos 7 dias)
       const revenueTrend = [];
       for (let i = 6; i >= 0; i--) {
         const date = subDays(new Date(), i);
@@ -766,7 +721,6 @@ function StockManagement() {
         });
       }
 
-      // Produtos mais vendidos
       const productSales = {};
       completedSalesData.forEach(sale => {
         (sale.items || []).forEach(item => {
@@ -779,7 +733,6 @@ function StockManagement() {
       });
       const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-      // Vendas por categoria
       const categorySales = {};
       completedSalesData.forEach(sale => {
         (sale.items || []).forEach(item => {
@@ -803,7 +756,6 @@ function StockManagement() {
       });
     } catch (error) {
       console.error('Erro ao calcular dados financeiros:', error);
-      // Em caso de erro, zera os dados para evitar que valores antigos sejam exibidos
       setFinancialData({
         dailyRevenue: 0,
         monthlyRevenue: 0,
@@ -816,19 +768,16 @@ function StockManagement() {
     }
   };
 
-  // Buscar pedidos do usuário atual
   const fetchUserOrders = async () => {
     try {
       const auth = getAuth();
       const currentUser = auth.currentUser;
       
       if (currentUser) {
-        // Buscar vendas do usuário
         const salesQuery = query(
           collection(db, "sales"),
           where("userId", "==", currentUser.uid)
         );
-        
         const salesSnapshot = await getDocs(salesQuery);
 
         // Mapear e ordenar os pedidos
@@ -849,7 +798,6 @@ function StockManagement() {
     } catch (error) {
       console.error("Erro ao buscar pedidos:", error);
       
-      // Fallback: buscar todos e filtrar localmente
       try {
         const allSales = await getDocs(collection(db, "sales"));
         
@@ -870,7 +818,6 @@ function StockManagement() {
     }
   };
 
-  // Buscar logs de auditoria
   const fetchAuditLogs = async (direction = 'first') => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) return;
     setLoading(true);
@@ -897,12 +844,9 @@ function StockManagement() {
         setFirstVisibleAuditLog(snapshot.docs[0]);
         setLastVisibleAuditLog(snapshot.docs[snapshot.docs.length - 1]);
 
-        // Lógica de paginação simples
         if (direction === 'first') setAuditLogPage(1);
         if (direction === 'next') setAuditLogPage(p => p + 1);
-        // A lógica de 'prev' precisaria de mais estado para ser eficiente, por ora, recarrega a primeira.
 
-        // Checar se é a última página
         const nextCheckQuery = query(logsCollection, orderBy("timestamp", "desc"), startAfter(snapshot.docs[snapshot.docs.length - 1]), limit(1));
         const nextCheckSnapshot = await getDocs(nextCheckQuery);
         setIsLastAuditLogPage(nextCheckSnapshot.empty);
@@ -918,13 +862,11 @@ function StockManagement() {
     }
   };
 
-  // Funções para o diálogo de detalhes do log
   const handleViewLogDetails = (log) => {
     setSelectedLogDetails(log);
     setLogDetailsOpen(true);
   };
 
-  // Função para validar formulário de categoria
   const validateCategoryForm = () => {
     const errors = {};
     if (!newCategory.name.trim()) {
@@ -939,7 +881,6 @@ function StockManagement() {
     setSelectedLogDetails(null);
   };
 
-  // Buscar configurações do sistema
   const fetchSystemSettings = async () => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) return;
     
@@ -955,7 +896,6 @@ function StockManagement() {
     }
   };
 
-  // Salvar configurações do sistema
   const saveSystemSettings = async () => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) {
       alert("Você não tem permissão para alterar configurações do sistema");
@@ -975,7 +915,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
 
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "ATUALIZAR_CONFIGURACOES",
         target: "system/settings",
@@ -991,7 +930,6 @@ function StockManagement() {
     }
   };
 
-  // Criar backup dos dados
   const createBackup = async () => {
     if (!hasPermission(PERMISSIONS.BACKUP_RESTORE)) {
       alert("Você não tem permissão para criar backups");
@@ -1001,7 +939,6 @@ function StockManagement() {
     try {
       setBackupStatus({ inProgress: true, message: "Criando backup..." });
       
-      // Coletar todos os dados
       const collections = ['products', 'categories', 'suppliers', 'sales', 'users'];
       const backupData = {};
       
@@ -1010,7 +947,6 @@ function StockManagement() {
         backupData[collectionName] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       }
       
-      // Adicionar metadados do backup
       const backupMetadata = {
         timestamp: new Date(),
         createdBy: {
@@ -1022,7 +958,6 @@ function StockManagement() {
         itemCount: Object.values(backupData).reduce((acc, curr) => acc + curr.length, 0)
       };
       
-      // Salvar backup no Firestore
       const backupRef = await addDoc(collection(db, "backups"), {
         ...backupMetadata,
         data: backupData
@@ -1035,7 +970,6 @@ function StockManagement() {
         backupId: backupRef.id 
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "CRIAR_BACKUP",
         target: `backups/${backupRef.id}`,
@@ -1046,7 +980,6 @@ function StockManagement() {
 
       addNotification("Backup criado", "O backup dos dados foi criado com sucesso.", "success");
       
-      // Limpar status após 5 segundos
       setTimeout(() => {
         setBackupStatus({});
       }, 5000);
@@ -1061,7 +994,6 @@ function StockManagement() {
     }
   };
 
-  // Exportar dados
   const exportData = async (format, range) => {
     if (!hasPermission(PERMISSIONS.EXPORT_DATA)) {
       alert("Você não tem permissão para exportar dados");
@@ -1072,7 +1004,6 @@ function StockManagement() {
       let dataToExport = [];
       let fileName = '';
       
-      // Determinar o intervalo de datas
       let startDate, endDate;
       const now = new Date();
       
@@ -1094,7 +1025,6 @@ function StockManagement() {
           endDate = null;
       }
       
-      // Filtrar vendas por intervalo de datas, se aplicável
       if (activeView === 'reports' && startDate && endDate) {
         dataToExport = sales.filter(sale => {
           const saleDate = sale.createdAt?.toDate?.() || new Date(sale.createdAt || new Date());
@@ -1106,7 +1036,6 @@ function StockManagement() {
         fileName = `produtos_${format(now, 'yyyy-MM-dd')}`;
       }
       
-      // Converter para o formato desejado
       let output;
       let mimeType;
       
@@ -1120,7 +1049,6 @@ function StockManagement() {
         fileName += '.json';
       }
       
-      // Criar e baixar o arquivo
       const blob = new Blob([output], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1131,7 +1059,6 @@ function StockManagement() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "EXPORTAR_DADOS",
         target: activeView,
@@ -1156,7 +1083,6 @@ function StockManagement() {
     }
   };
 
-  // Converter dados para CSV
   const convertToCSV = (data) => {
     if (data.length === 0) return '';
     
@@ -1166,7 +1092,6 @@ function StockManagement() {
     for (const row of data) {
       const values = headers.map(header => {
         const value = row[header];
-        // Tratar valores que contêm vírgulas ou aspas
         if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
           return `"${value.replace(/"/g, '""')}"`;
         }
@@ -1178,7 +1103,6 @@ function StockManagement() {
     return csvRows.join('\n');
   };
 
-  // Função para validar formulário de produto
   const validateProductForm = () => {
     const errors = {};
     
@@ -1206,7 +1130,6 @@ function StockManagement() {
       errors.discount = "Desconto deve estar entre 0 e 100%";
     }
     
-    // Validar variações
     newProduct.variations.forEach((variation, index) => {
       if (variation.stock && parseInt(variation.stock) < 0) {
         errors[`variation-${index}-stock`] = "Estoque não pode ser negativo";
@@ -1217,7 +1140,6 @@ function StockManagement() {
     return Object.keys(errors).length === 0;
   };
 
-  // Efeitos para carregar dados
   useEffect(() => {
     if (!currentUser) return;
     
@@ -1233,7 +1155,6 @@ function StockManagement() {
         }));
         setProducts(productsData);
         
-        // Verificar produtos com estoque baixo
         const lowStockProducts = productsData.filter(product => {
           const totalStock = product.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0);
           return totalStock > 0 && totalStock <= systemSettings.lowStockThreshold;
@@ -1275,7 +1196,6 @@ function StockManagement() {
         }));
         setAllSales(salesData);
 
-        // Filtrar vendas - compatível com ambos os formatos (antigo e novo)
         setSales(salesData.filter((sale) => 
           sale.status === "Pendente" || sale.status === "pending"
         ));
@@ -1288,13 +1208,11 @@ function StockManagement() {
           sale.status === "Entregue" || sale.status === "delivered"
         ));
         
-        // Calcular total de vendas
         const totalSalesValue = salesData.reduce((acc, sale) => {
           return acc + (sale.total || 0);
         }, 0);
         setTotalSales(totalSalesValue);
         
-        // Verificar se há novas vendas pendentes
         if (salesData.some(sale => 
           (sale.status === "Pendente" || sale.status === "pending") && 
           sale.createdAt > subDays(new Date(), 1)
@@ -1349,8 +1267,6 @@ function StockManagement() {
   }, [currentUser, systemSettings.lowStockThreshold]);
 
   useEffect(() => {
-    // O cálculo financeiro depende de vendas e produtos.
-    // Garante que todos os dados necessários estão carregados antes de calcular.
     if (hasPermission(PERMISSIONS.VIEW_FINANCE) && allSales.length > 0 && products.length > 0) {
       fetchFinancialData();
     }
@@ -1376,7 +1292,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "PROMOVER_USUARIO",
         target: `users/${userId}`,
@@ -1425,7 +1340,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
   
-      // Atualiza o estado local para refletir a mudança imediatamente
       setUserOrders(prev => prev.map(order => 
         order.id === orderId ? { ...order, trackingNumber, status: 'enviado' } : order
       ));
@@ -1439,7 +1353,6 @@ function StockManagement() {
     }
   };
 
-  // Funções de gerenciamento de produtos
   const getProductsBySubcategory = (categoryName, subcategoryName) => {
     return products.filter(
       (product) =>
@@ -1455,7 +1368,6 @@ function StockManagement() {
     }
     
     try {
-      // Verificar se há produtos usando esta categoria
       const productsInCategory = products.filter(p => p.category === categories.find(c => c.id === id)?.name);
       
       if (productsInCategory.length > 0) {
@@ -1465,7 +1377,6 @@ function StockManagement() {
       
       await deleteDoc(doc(db, "categories", id));
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "EXCLUIR_CATEGORIA",
         target: `categories/${id}`,
@@ -1518,7 +1429,6 @@ function StockManagement() {
           categoryData
         );
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "EDITAR_CATEGORIA",
           target: `categories/${editingCategory.id}`,
@@ -1539,7 +1449,6 @@ function StockManagement() {
       } else {
         const docRef = await addDoc(collection(db, "categories"), categoryData);
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "CRIAR_CATEGORIA",
           target: `categories/${docRef.id}`,
@@ -1667,7 +1576,6 @@ function StockManagement() {
       [name]: name === "supplierId" ? value : value,
     }));
     
-    // Limpar erro de validação quando o campo é alterado
     if (validationErrors[name]) {
       setValidationErrors(prev => ({
         ...prev,
@@ -1703,7 +1611,6 @@ function StockManagement() {
     updatedVariations[index][field] = value;
     setNewProduct((prev) => ({ ...prev, variations: updatedVariations }));
     
-    // Limpar erro de validação quando o campo é alterado
     const errorKey = `variation-${index}-${field}`;
     if (validationErrors[errorKey]) {
       setValidationErrors(prev => ({
@@ -1719,7 +1626,6 @@ function StockManagement() {
       return;
     }
     
-    // Validar formulário
     if (!validateProductForm()) {
       addNotification("Erro de validação", "Verifique os campos destacados em vermelho.", "error");
       return;
@@ -1737,6 +1643,17 @@ function StockManagement() {
         0
       );
 
+      const inputSalePrice = parseFloat(newProduct.salePrice) || 0;
+      const discountPercentage = parseFloat(newProduct.discount) || 0;
+
+      const originalSalePrice = newProduct.oldPrice && newProduct.oldPrice > 0 ? newProduct.oldPrice : inputSalePrice;
+
+      const finalSalePrice =
+        discountPercentage > 0
+          ? originalSalePrice * (1 - discountPercentage / 100)
+          : originalSalePrice;
+
+
       const productData = {
         sku: newProduct.sku,
         barcode: newProduct.barcode,
@@ -1752,8 +1669,9 @@ function StockManagement() {
           stock: parseInt(v.stock, 10) || 0,
         })),
         costPrice: parseFloat(newProduct.costPrice) || 0,
-        salePrice: parseFloat(newProduct.salePrice) || 0,
-        discount: parseFloat(newProduct.discount) || 0,
+        oldPrice: originalSalePrice, // Salva o preço original
+        salePrice: finalSalePrice, // Salva o preço com desconto
+        discount: discountPercentage,
         weight: parseFloat(newProduct.weight) || 0,
         dimensions: {
           length: parseFloat(newProduct.dimensions.length) || 0,
@@ -1766,7 +1684,6 @@ function StockManagement() {
         supplierId: newProduct.supplierId,
         enabled: newProduct.enabled && totalStock > 0,
         createdAt: editingProduct ? newProduct.createdAt : new Date(),
-        // Auditoria:
         ...(editingProduct
           ? {
               updatedBy: userInfo,
@@ -1781,7 +1698,6 @@ function StockManagement() {
       if (editingProduct) {
         await updateDoc(doc(db, "products", editingProduct.id), productData);
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "EDITAR_PRODUTO",
           target: `products/${editingProduct.id}`,
@@ -1803,7 +1719,6 @@ function StockManagement() {
       } else {
         const docRef = await addDoc(collection(db, "products"), productData);
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "CRIAR_PRODUTO",
           target: `products/${docRef.id}`,
@@ -1836,7 +1751,6 @@ function StockManagement() {
     try {
       await deleteDoc(doc(db, "products", id));
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "EXCLUIR_PRODUTO",
         target: `products/${id}`,
@@ -1870,6 +1784,7 @@ function StockManagement() {
     setEditingProduct(product);
     setNewProduct({
       ...product,
+      salePrice: product.oldPrice || product.salePrice, // Preenche o campo com o preço original
       variations: product.variations || [],
     });
     setExpandedProductForm(true);
@@ -1920,7 +1835,6 @@ function StockManagement() {
       if (editingSupplier) {
         await updateDoc(doc(db, "suppliers", editingSupplier.id), supplierData);
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "EDITAR_FORNECEDOR",
           target: `suppliers/${editingSupplier.id}`,
@@ -1940,7 +1854,6 @@ function StockManagement() {
       } else {
         const docRef = await addDoc(collection(db, "suppliers"), supplierData);
         
-        // Registrar ação de auditoria
         await addDoc(collection(db, "auditLogs"), {
           action: "CRIAR_FORNECEDOR",
           target: `suppliers/${docRef.id}`,
@@ -1965,7 +1878,6 @@ function StockManagement() {
       return;
     }
     
-    // Verificar se há produtos usando este fornecedor
     const productsWithSupplier = products.filter(p => p.supplierId === id);
     
     if (productsWithSupplier.length > 0) {
@@ -1980,7 +1892,6 @@ function StockManagement() {
     try {
       await deleteDoc(doc(db, "suppliers", id));
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "EXCLUIR_FORNECEDOR",
         target: `suppliers/${id}`,
@@ -2054,7 +1965,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "MARCAR_ENVIADO",
         target: `sales/${saleId}`,
@@ -2094,7 +2004,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "DESMARCAR_ENVIADO",
         target: `sales/${saleId}`,
@@ -2133,7 +2042,6 @@ function StockManagement() {
         updatedAt: new Date(),
       });
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "CONFIRMAR_ENTREGA",
         target: `sales/${saleId}`,
@@ -2179,7 +2087,6 @@ function StockManagement() {
 
       setTotalSales((prevTotal) => prevTotal + confirmedSale.total);
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "CONFIRMAR_SOLICITACAO",
         target: `sales/${saleId}`,
@@ -2207,7 +2114,6 @@ function StockManagement() {
     try {
       await deleteDoc(doc(db, "sales", saleId));
       
-      // Registrar ação de auditoria
       await addDoc(collection(db, "auditLogs"), {
         action: "EXCLUIR_SOLICITACAO",
         target: `sales/${saleId}`,
@@ -2266,7 +2172,6 @@ function StockManagement() {
     }
   }, [newProduct.variations]);
 
-  // Filtrar, buscar e ordenar produtos
   const filteredProducts = products
     .filter(product => {
       const matchesSearch = 
@@ -2314,16 +2219,14 @@ function StockManagement() {
     return true;
   });
 
-  // Componente para o Dashboard
 const Dashboard = () => {
   return (
     <Box sx={{ 
       width: '100%', 
       p: { xs: 1, sm: 2, md: 3 }, 
-      overflowX: 'auto', // Permite rolagem horizontal para acomodar o conteúdo
+      overflowX: 'auto',
       boxSizing: 'border-box'
     }}>
-      {/* Header */}
       <Box sx={{ 
         display: 'flex', 
         flexDirection: { xs: 'column', md: 'row' },
@@ -2367,7 +2270,6 @@ const Dashboard = () => {
         </Box>
       </Box>
 
-      {/* Cartões de Métricas - Agora em uma única linha com scroll horizontal em mobile */}
       <Box sx={{ 
         width: '100%',
         overflowX: 'auto',
@@ -2430,7 +2332,6 @@ const Dashboard = () => {
         </Box>
       </Box>
 
-      {/* Gráficos - Layout de coluna única em mobile, duas colunas em desktop */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12} lg={8}>
           <Card sx={{ height: '100%', minHeight: 300 }}>
@@ -2485,7 +2386,6 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
-      {/* Tabela de Produtos Mais Vendidos e Alertas - Layout responsivo */}
       <Grid container spacing={2}>
         <Grid item xs={12} xl={8}>
           <Card>
@@ -2537,7 +2437,6 @@ const Dashboard = () => {
                 Alertas do Sistema
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* Alertas de estoque baixo */}
                 {products.filter(p => {
                   const totalStock = p.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0);
                   return totalStock > 0 && totalStock <= systemSettings.lowStockThreshold;
@@ -2550,7 +2449,6 @@ const Dashboard = () => {
                   </Alert>
                 )}
                 
-                {/* Alertas de produtos sem estoque */}
                 {products.filter(p => {
                   const totalStock = p.variations.reduce((acc, curr) => acc + (curr.stock || 0), 0);
                   return totalStock <= 0;
@@ -2563,7 +2461,6 @@ const Dashboard = () => {
                   </Alert>
                 )}
                 
-                {/* Alertas de vendas pendentes */}
                 {sales.filter(s => s.status === "Pendente" || s.status === "pending").length > 0 && (
                   <Alert severity="info">
                     {sales.filter(s => s.status === "Pendente" || s.status === "pending").length} venda(s) pendente(s) de processamento.
@@ -2592,7 +2489,6 @@ const Dashboard = () => {
   );
 };
 
-// Componente MetricCard atualizado para ser mais responsivo
 const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }) => {
   const theme = useTheme();
   
@@ -2667,7 +2563,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 };
     
 
-  // Componente para Gestão de Pagamentos
   const PaymentManagement = () => {
     const paymentStatusColors = {
       approved: 'success',
@@ -2745,11 +2640,9 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  // Componente para Meus Pedidos
   const MyOrders = () => {
     const [localFilter, setLocalFilter] = useState('todos');
 
-    // Função para obter status de entrega com base no código de rastreamento
     const getShippingStatus = (order) => {
       if (order.status === 'delivered' || order.status === 'Entregue') return 'Entregue';
       if (order.trackingNumber) return 'Enviado';
@@ -2757,7 +2650,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       return 'Pendente';
     };
 
-    // Função para obter ícone de status
     const getStatusIcon = (status) => {
       switch (status) {
         case 'Entregue': return <CheckCircle color="success" />;
@@ -2767,7 +2659,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       }
     };
 
-    // Filtra os pedidos com base no localFilter
     const filteredOrders = userOrders.filter(order => {
       const status = getShippingStatus(order);
       if (localFilter === 'todos') return true;
@@ -2803,7 +2694,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           />
         </Box>
 
-        {/* Filtros de Pedidos */}
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
@@ -2833,7 +2723,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
             return (
               <Card key={order.id} sx={{ mb: 3, position: 'relative' }}>
-                {/* Header do Pedido */}
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                     <Box>
@@ -2865,7 +2754,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
                   <Divider sx={{ my: 2 }} />
 
-                  {/* Informações do Pedido */}
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" gutterBottom color="primary">
@@ -2920,7 +2808,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                     </Grid>
                   </Grid>
 
-                  {/* Itens do Pedido */}
                   {order.items && order.items.length > 0 && (
                     <>
                       <Divider sx={{ my: 3 }} />
@@ -2967,7 +2854,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                     </>
                   )}
 
-                  {/* Ações do Pedido */}
                   <Divider sx={{ my: 3 }} />
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                     <Box>
@@ -3021,7 +2907,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           })
         )}
 
-        {/* Diálogo para adicionar código de rastreamento */}
         <Dialog open={trackingDialog.open} onClose={() => setTrackingDialog({ open: false, order: null })}>
           <DialogTitle>Adicionar Código de Rastreamento</DialogTitle>
           <DialogContent>
@@ -3060,7 +2945,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  // Componente para Configurações do Sistema
   const SystemSettings = () => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) {
       return (
@@ -3199,7 +3083,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  // Componente para Logs de Auditoria
   const AuditLogs = () => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) {
       return (
@@ -3292,7 +3175,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  // Componente para Gestão de Categorias
   const CategoriesManagement = () => {
     if (!hasPermission(PERMISSIONS.VIEW_CATEGORIES)) {
       return <Alert severity="error">Você não tem permissão para gerenciar categorias.</Alert>;
@@ -3319,7 +3201,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </Box>
 
         <Grid container spacing={4}>
-          {/* Formulário de Categoria */}
           {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
             <Grid item xs={12} md={4}>
               <Card>
@@ -3381,7 +3262,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             </Grid>
           )}
 
-          {/* Lista de Categorias */}
           <Grid item xs={12} md={hasPermission(PERMISSIONS.EDIT_CATEGORIES) ? 8 : 12}>
             <Card>
               <CardContent>
@@ -3421,7 +3301,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  // Renderização condicional baseada em permissões
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -3459,7 +3338,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </Alert>
       </Snackbar>
       
-      {/* Diálogo de Detalhes do Log */}
       <Dialog open={logDetailsOpen} onClose={handleCloseLogDetails} maxWidth="md" fullWidth>
         <DialogTitle>Detalhes da Ação</DialogTitle>
         <DialogContent dividers>
@@ -3472,7 +3350,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de Reembolso */}
       <Dialog open={refundDialog.open} onClose={() => setRefundDialog({ open: false, payment: null })}>
         <DialogTitle>Confirmar Reembolso</DialogTitle>
         <DialogContent>
@@ -3503,7 +3380,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         </DialogActions>
       </Dialog>
 
-      {/* Diálogo de Exportação */}
       <Dialog open={exportDialogOpen} onClose={() => setExportDialogOpen(false)}>
         <DialogTitle>Exportar Dados</DialogTitle>
         <DialogContent>
@@ -3545,16 +3421,13 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
       <NavBar />
       
-      {/* Notificações */}
       {notifications.filter(n => !n.read).length > 0 && (
         <Box sx={{ position: 'fixed', top: 80, right: 20, zIndex: 9999 }}>
           <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
             <Button
               variant="contained"
               startIcon={<Notifications />}
-              onClick={() => {
-                // Abrir drawer de notificações
-              }}
+              onClick={() => {}}
             >
               Notificações
             </Button>
@@ -3570,7 +3443,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           bgcolor: "background.default",
         }}
       >
-        {/* Sidebar */}
         {sidebarOpen && (
           <Paper
             sx={{
@@ -3657,13 +3529,12 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         <Box
           sx={{
             flexGrow: 1,
-            minWidth: 0, // Impede que o conteúdo do dashboard "empurre" o layout
+            minWidth: 0,
             p: 4,
             "& .MuiCard-root": { borderRadius: 4 },
             "& .MuiPaper-root": { borderRadius: 4 },
           }}
         >
-          {/* Breadcrumbs */}
           <Breadcrumbs sx={{ mb: 3 }}>
             <Typography color="text.primary">Sistema</Typography>
             <Typography color="text.primary">
@@ -3681,7 +3552,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             </Typography>
           </Breadcrumbs>
 
-          {/* Speed Dial para ações rápidas */}
           <SpeedDial
             ariaLabel="Ações rápidas"
             sx={{ position: 'fixed', bottom: 16, right: 16 }}
@@ -3722,11 +3592,9 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             )}
           </SpeedDial>
 
-          {/* Conteúdo principal baseado na visualização ativa */}
           {activeView === 'dashboard' && <Dashboard />}
           {activeView === 'products' && (
             <>
-              {/* Products Section */}
               <Box
                 sx={{
                   display: "flex",
@@ -3752,7 +3620,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 </Box>
               </Box>
 
-              {/* Product Form */}
               <Card sx={{ mb: 4 }}>
                 <CardContent>
                   <Accordion 
@@ -3768,7 +3635,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
                     <AccordionDetails>
                       <Grid container spacing={3}>
-                        <Grid item xs={12}>
                           <Box
                             sx={{
                               display: "flex",
@@ -3782,7 +3648,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                               Informações Básicas
                             </Typography>
                           </Box>
-                          <Grid container spacing={2}>
                             {["sku", "name"].map((field) => (
                               <Grid item xs={12} md={6} key={field}>
                                 <TextField
@@ -3885,8 +3750,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                                   )}
                               </TextField>
                             </Grid>
-                          </Grid>
-
                           <Grid item xs={12} md={6}>
                             <TextField
                               select
@@ -3909,7 +3772,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                               ))}
                             </TextField>
                           </Grid>
-                        </Grid>
                         <Grid item xs={12}>
                           <Box
                             sx={{
@@ -4189,8 +4051,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           {activeView === 'productList' && (
             <>
               <Box
-                sx={{
-                  display: "flex",
+                  sx={{display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
                   mb: 4,
@@ -4243,7 +4104,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 </Box>
               </Box>
 
-              {/* Filtros avançados */}
               <Collapse in={filterOpen}>
                 <Card sx={{ mb: 4 }}>
                   <CardContent>
@@ -4350,7 +4210,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                         </FormControl>
                       </Grid>
 
-                      {/* Filtros de checkbox */}
                       <Grid item xs={12} md={6}>
                         <FormGroup row>
                           <FormControlLabel
@@ -4374,7 +4233,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                         </FormGroup>
                       </Grid>
 
-                      {/* Filtro por status */}
                       <Grid item xs={12} md={3}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Status</InputLabel>
@@ -4394,7 +4252,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 </Card>
               </Collapse>
 
-              {/* Barra de pesquisa */}
               <Box sx={{ mb: 4 }}>
                 <TextField
                   variant="outlined"
@@ -4408,7 +4265,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 />
               </Box>
 
-              {/* Contador de resultados */}
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="textSecondary">
                   {filteredProducts.length} produtos encontrados
@@ -4417,7 +4273,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 </Typography>
               </Box>
 
-              {/* Lista de produtos */}
               <Card>
                 <CardContent>
                   <Grid container spacing={3}>
@@ -4553,31 +4408,30 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                               </Box>
 
                               <Box sx={{ mt: 2 }}>
-                                {Number(product.discount || 0) > 0 ? (
+                                {product.oldPrice && product.oldPrice > product.salePrice ? (
                                   <>
                                     <Typography
                                       variant="body2"
                                       color="textSecondary"
                                       sx={{ textDecoration: "line-through", mr: 1 }}
                                     >
-                                      R$ {Number(product.salePrice || 0).toFixed(2)}
+                                      R$ {Number(product.oldPrice).toFixed(2)}
                                     </Typography>
                                     <Typography
                                       variant="h6"
                                       color="primary"
                                       sx={{ fontWeight: "bold", display: "inline" }}
                                     >
-                                      R$ {(Number(product.salePrice || 0) * (1 - Number(product.discount || 0) / 100)).toFixed(2)}
+                                      R$ {Number(product.salePrice).toFixed(2)}
                                     </Typography>
                                   </>
                                 ) : (
                                   <Typography variant="h6" color="primary" sx={{ fontWeight: "bold" }}>
-                                    R$ {Number(product.salePrice || 0).toFixed(2)}
+                                    R$ {Number(product.salePrice).toFixed(2)}
                                   </Typography>
                                 )}
                               </Box>
 
-                              {/* Auditoria */}
                               <Box sx={{ mt: 1 }}>
                                 {product.createdBy && (
                                   <Typography variant="caption" color="textSecondary" display="block">
@@ -4658,7 +4512,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                     })}
                   </Grid>
                   
-                  {/* Paginação e controle de itens por página */}
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 4, flexWrap: 'wrap', gap: 2 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <Typography variant="body2" color="textSecondary">
@@ -4846,7 +4699,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           {activeView === 'reports' && (
             <SalesStockReports
               products={products}
-              sales={completedSales} // Usando completedSales para relatórios precisos
+              sales={completedSales}
               deliveredSales={deliveredSales}
             />
           )}

@@ -49,7 +49,7 @@
 }
 
 .descBox {
-  max-height: 250px;            /* scroll só na descrição */
+  max-height: 200px;            /* scroll só na descrição */
   overflow-y: auto;
   padding-right: 6px;
   margin-bottom: 10px;

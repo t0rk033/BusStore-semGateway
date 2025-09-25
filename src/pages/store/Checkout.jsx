@@ -10,14 +10,13 @@ const Checkout = () => {
   const [step, setStep] = useState(1);
   const { items: cartItems, cartTotal, emptyCart } = useCart();
 
-  // Estados do usuário
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  // Estados para o pagamento
   const [mp, setMp] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
+  const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
     email: '',
@@ -36,13 +35,67 @@ const Checkout = () => {
   });
   const [deliveryOption, setDeliveryOption] = useState('');
 
-  // Cálculos ajustados para o design
-  const subtotal = cartTotal;
-  const discount = 0.00; // Valor ajustado para o design
-  const shipping = deliveryOption === 'rapida' ? 15.00 : 10.00; // Valores ajustados para o design
-  const total = subtotal - discount + shipping;
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+  const [calculatingShipping, setCalculatingShipping] = useState(false);
+  const [shippingError, setShippingError] = useState('');
 
-  // Efeito para buscar dados do usuário logado
+  const isValidCPF = (cpf) => {
+    if (typeof cpf !== 'string') return false;
+    cpf = cpf.replace(/[^\d]+/g, '');
+    if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
+
+    const digits = cpf.split('').map(el => +el);
+
+    const calc = (x) => {
+      const slice = digits.slice(0, x);
+      let factor = x + 1;
+      let sum = slice.reduce((acc, digit) => acc + digit * (factor--), 0);
+      const rest = (sum * 10) % 11;
+      return rest === 10 ? 0 : rest;
+    };
+
+    return calc(9) === digits[9] && calc(10) === digits[10];
+  };
+
+  const isValidPhone = (phone) => /^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$/.test(phone);
+
+  const validateStep = () => {
+    const newErrors = {};
+    if (step === 1) {
+      if (!formData.email) newErrors.email = 'Email é obrigatório';
+      else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Formato de email inválido';
+      if (!formData.firstName) newErrors.firstName = 'Nome é obrigatório';
+      if (!formData.lastName) newErrors.lastName = 'Sobrenome é obrigatório';
+      if (!formData.cpf) newErrors.cpf = 'CPF é obrigatório';
+      else if (!isValidCPF(formData.cpf)) newErrors.cpf = 'CPF inválido';
+      if (!formData.phone) newErrors.phone = 'Telefone é obrigatório';
+      else if (!isValidPhone(formData.phone)) newErrors.phone = 'Formato de telefone inválido';
+    } else if (step === 2) {
+      if (!formData.cep) newErrors.cep = 'CEP é obrigatório';
+      if (!formData.address) newErrors.address = 'Endereço é obrigatório';
+      if (!formData.number) newErrors.number = 'Número é obrigatório';
+      if (!formData.neighborhood) newErrors.neighborhood = 'Bairro é obrigatório';
+      if (!formData.city) newErrors.city = 'Cidade é obrigatória';
+      if (!formData.state) newErrors.state = 'Estado é obrigatório';
+      if (!selectedShipping) newErrors.deliveryOption = 'Escolha uma opção de frete';
+    } else if (step === 3) {
+      if (!formData.paymentMethod) newErrors.paymentMethod = 'Escolha uma forma de pagamento';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const subtotal = cartItems.reduce((total, item) => {
+    const originalPrice = item.oldPrice && item.oldPrice > item.price ? item.oldPrice : item.price;
+    return total + originalPrice * item.quantity;
+  }, 0);
+
+  const discount = subtotal - cartTotal;
+  const shippingCost = selectedShipping ? selectedShipping.valor : 0;
+  const total = cartTotal + shippingCost;
+
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -75,7 +128,114 @@ const Checkout = () => {
     return () => unsubscribe();
   }, []);
 
-  // Funções de pagamento
+  const xmlToJson = (xml) => {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xml, "text/xml");
+      const servicos = xmlDoc.getElementsByTagName("cServico");
+      const results = [];
+
+      for (let i = 0; i < servicos.length; i++) {
+        const servico = servicos[i];
+        const getTagValue = (tag) => servico.getElementsByTagName(tag)[0]?.textContent || '';
+        
+        results.push({
+          Codigo: getTagValue('Codigo'),
+          Valor: parseFloat(getTagValue('Valor').replace(',', '.')) || 0,
+          PrazoEntrega: parseInt(getTagValue('PrazoEntrega')) || 0,
+          Erro: getTagValue('Erro'),
+          MsgErro: getTagValue('MsgErro')
+        });
+      }
+      
+      return results;
+    } catch (error) {
+      console.error('Erro ao converter XML:', error);
+      return [];
+    }
+  };
+
+const handleCalculateShipping = async () => {
+  const cep = formData.cep.replace(/\D/g, '');
+  if (cep.length !== 8) {
+    setShippingError('CEP inválido. Por favor, verifique.');
+    return;
+  }
+
+  setCalculatingShipping(true);
+  setShippingError('');
+  setShippingOptions([]);
+  setSelectedShipping(null);
+
+  try {
+    try {
+      const addressResponse = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+      if (addressResponse.ok) {
+        const addressData = await addressResponse.json();
+        setFormData(prev => ({
+          ...prev,
+          address: addressData.street || '',
+          neighborhood: addressData.neighborhood || '',
+          city: addressData.city || '',
+          state: addressData.state || '',
+        }));
+      }
+    } catch (addressError) {
+      console.warn('Erro ao buscar endereço, continuando...', addressError);
+    }
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    
+    const shippingRequest = {
+      cepDestino: cep,
+      produtos: cartItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        weight: item.weight || 0.3,
+        quantity: item.quantity,
+        width: item.dimensions?.width || 15,
+        height: item.dimensions?.height || 10,
+        length: item.dimensions?.length || 20,
+        insurance_value: item.price * item.quantity
+      }))
+    };
+
+    console.log('📤 Enviando requisição para Melhor Envio:', shippingRequest);
+
+    const shippingResponse = await fetch(`${API_URL}/api/shipping-quote`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(shippingRequest)
+    });
+
+    const result = await shippingResponse.json();
+
+    if (!shippingResponse.ok) {
+      throw new Error(result.message || 'Erro ao calcular frete');
+    }
+
+    if (result.status === 'success') {
+      setShippingOptions(result.data);
+      
+      if (result.data.length > 0 && result.data[0].origem === 'simulado') {
+        setShippingError('Frete calculado automaticamente (serviço temporariamente indisponível)');
+      } else {
+        setShippingError(''); // Limpar erro se tudo estiver ok
+      }
+    } else {
+      setShippingError(result.message || 'Não foi possível calcular o frete');
+    }
+
+  } catch (error) {
+    console.error('Erro no cálculo do frete:', error);
+    setShippingError('Serviço de frete temporariamente indisponível. Por favor, tente novamente.');
+  } finally {
+    setCalculatingShipping(false);
+  }
+};
+
   const updateStockAfterPurchase = async (purchasedItems) => {
     try {
       for (const item of purchasedItems) {
@@ -129,7 +289,12 @@ const Checkout = () => {
           quantity: item.quantity,
           price: item.price,
           imageUrl: item.imageUrls?.[0] || "",
-        }))
+        })),
+        shipping: selectedShipping ? {
+          method: selectedShipping.nome,
+          cost: selectedShipping.valor,
+          deliveryTime: selectedShipping.prazoEntrega
+        } : null
       };
 
       const response = await fetch(`${API_URL}/api/process-payment`, {
@@ -150,6 +315,13 @@ const Checkout = () => {
         const saleData = {
           items: cartItems,
           total: total,
+          subtotal: subtotal,
+          discount: discount,
+          shipping: selectedShipping ? {
+            method: selectedShipping.nome,
+            cost: selectedShipping.valor,
+            deliveryTime: selectedShipping.prazoEntrega
+          } : null,
           status: 'approved',
           paymentId: data.payment_id || data.id,
           paymentMethod: data.payment_method || 'credit_card',
@@ -174,7 +346,6 @@ const Checkout = () => {
     }
   };
 
-  // Carrega o SDK do Mercado Pago
   useEffect(() => {
     if (step === 3 && (formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && !mp) {
       const script = document.createElement('script');
@@ -190,7 +361,6 @@ const Checkout = () => {
     }
   }, [step, formData.paymentMethod, mp]);
 
-  // Inicializa o formulário de pagamento
   useEffect(() => {
     if (step === 3 && mp && (formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard')) {
       const bricksBuilder = mp.bricks();
@@ -230,9 +400,14 @@ const Checkout = () => {
       ...formData,
       [name]: value
     });
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
   };
 
-  const nextStep = () => setStep(step + 1);
+  const nextStep = () => {
+    if (validateStep()) setStep(step + 1);
+  };
   const prevStep = () => setStep(step - 1);
 
   return (
@@ -242,7 +417,6 @@ const Checkout = () => {
         
         <div className={styles.checkoutContent}>
           <div className={styles.formContainer}>
-            {/* Passo 1: Dados Pessoais */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 1 ? styles.active : ''} ${step > 1 ? styles.completed : ''}`} onClick={() => setStep(1)}>
                 <div className={styles.stepNumber}>
@@ -254,29 +428,39 @@ const Checkout = () => {
                 <div className={styles.stepContent}>
                   <div className={styles.formGroup}>
                     <label>Email</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} required />
+                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} required className={errors.email ? styles.errorInput : ''} />
+                    {errors.email && <span className={styles.errorMessage}>{errors.email}</span>}
                   </div>
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                       <label>Primeiro nome</label>
-                      <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} required />
+                      <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} required className={errors.firstName ? styles.errorInput : ''} />
+                      {errors.firstName && <span className={styles.errorMessage}>{errors.firstName}</span>}
                     </div>
                     <div className={styles.formGroup}>
                       <label>CPF</label>
-                      <input type="text" name="cpf" value={formData.cpf} onChange={handleInputChange} required />
+                      <input type="text" name="cpf" value={formData.cpf} onChange={handleInputChange} required className={errors.cpf ? styles.errorInput : ''} />
+                      {errors.cpf && <span className={styles.errorMessage}>{errors.cpf}</span>}
                     </div>
                   </div>
                   <div className={styles.formRow}>
                     <div className={styles.formGroup}>
                       <label>Último nome</label>
-                      <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} required />
+                      <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} required className={errors.lastName ? styles.errorInput : ''} />
+                      {errors.lastName && <span className={styles.errorMessage}>{errors.lastName}</span>}
                     </div>
                     <div className={styles.formGroup}>
                       <label>Telefone</label>
-                      <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} required />
+                      <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} required className={errors.phone ? styles.errorInput : ''} />
+                      {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
                     </div>
                   </div>
-                  <button type="button" className={styles.nextButton} onClick={nextStep}>
+                  <button 
+                    type="button" 
+                    className={styles.nextButton} 
+                    onClick={nextStep}
+                    disabled={Object.values(errors).some(e => e)}
+                  >
                     IR PARA A ENTREGA
                   </button>
                 </div>
@@ -291,7 +475,6 @@ const Checkout = () => {
               )}
             </div>
   
-            {/* Passo 2: Entrega */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 2 ? styles.active : ''} ${step > 2 ? styles.completed : ''}`} onClick={() => setStep(2)}>
                 <div className={styles.stepNumber}>
@@ -304,66 +487,114 @@ const Checkout = () => {
                   <div className={styles.formGroup}>
                     <label>CEP</label>
                     <div className={styles.cepContainer}>
-                      <input type="text" name="cep" value={formData.cep} onChange={handleInputChange} required />
-                      <button type="button" className={styles.cepButton}>CALCULAR</button>
+                      <input 
+                        type="text" 
+                        name="cep" 
+                        value={formData.cep} 
+                        onChange={handleInputChange} 
+                        required 
+                        className={errors.cep ? styles.errorInput : ''} 
+                        placeholder="Apenas números" 
+                        maxLength={9}
+                      />
+                      <button 
+                        type="button" 
+                        className={styles.cepButton} 
+                        onClick={handleCalculateShipping} 
+                        disabled={calculatingShipping || formData.cep.replace(/\D/g, '').length !== 8}
+                      >
+                        {calculatingShipping ? 'Calculando...' : 'CALCULAR FRETE'}
+                      </button>
                     </div>
+                    {errors.cep && <span className={styles.errorMessage}>{errors.cep}</span>}
                   </div>
                   <div className={styles.addressTable}>
                     <div className={styles.tableRow}>
                       <div className={styles.tableCell}>
                         <label>Endereço</label>
-                        <input type="text" name="address" value={formData.address} onChange={handleInputChange} required />
+                        <input type="text" name="address" value={formData.address} onChange={handleInputChange} required className={errors.address ? styles.errorInput : ''} />
+                        {errors.address && <span className={styles.errorMessage}>{errors.address}</span>}
                       </div>
                       <div className={styles.tableCell}>
                         <label>Número</label>
-                        <input type="text" name="number" value={formData.number} onChange={handleInputChange} required />
+                        <input type="text" name="number" value={formData.number} onChange={handleInputChange} required className={errors.number ? styles.errorInput : ''} />
+                        {errors.number && <span className={styles.errorMessage}>{errors.number}</span>}
                       </div>
                       <div className={styles.tableCell}>
                         <label>Complemento</label>
-                        <input type="text" name="complement" value={formData.complement} onChange={handleInputChange} />
+                        <input type="text" name="complement" value={formData.complement} onChange={handleInputChange} className={errors.complement ? styles.errorInput : ''} />
                       </div>
                     </div>
                     <div className={styles.tableRow}>
                       <div className={styles.tableCell}>
                         <label>Bairro</label>
-                        <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} required />
+                        <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} required className={errors.neighborhood ? styles.errorInput : ''} />
+                        {errors.neighborhood && <span className={styles.errorMessage}>{errors.neighborhood}</span>}
                       </div>
                       <div className={styles.tableCell}>
                         <label>Cidade</label>
-                        <input type="text" name="city" value={formData.city} onChange={handleInputChange} required />
+                        <input type="text" name="city" value={formData.city} onChange={handleInputChange} required className={errors.city ? styles.errorInput : ''} />
+                        {errors.city && <span className={styles.errorMessage}>{errors.city}</span>}
                       </div>
                       <div className={styles.tableCell}>
                         <label>Estado</label>
-                        <input type="text" name="state" value={formData.state} onChange={handleInputChange} required />
+                        <input type="text" name="state" value={formData.state} onChange={handleInputChange} required className={errors.state ? styles.errorInput : ''} />
+                        {errors.state && <span className={styles.errorMessage}>{errors.state}</span>}
                       </div>
                     </div>
                   </div>
-                  <h3>Forma de entrega</h3>
-                  <div className={styles.deliveryOptions}>
-                    <label className={styles.deliveryOption}>
-                      <input type="radio" name="deliveryOption" value="rapida" checked={deliveryOption === 'rapida'} onChange={() => setDeliveryOption('rapida')} />
-                      <span>Entrega Rápida - a partir de 6 dias</span>
-                    </label>
-                    <label className={styles.deliveryOption}>
-                      <input type="radio" name="deliveryOption" value="economica" checked={deliveryOption === 'economica'} onChange={() => setDeliveryOption('economica')} />
-                      <span>Entrega Econômica - a partir de 10 dias</span>
-                    </label>
-                  </div>
+                  
+                  <h3>Opções de Frete</h3>
+                  {calculatingShipping && <p className={styles.loadingMessage}>Calculando opções de frete...</p>}
+                  {shippingError && <p className={styles.errorMessage}>{shippingError}</p>}
+                  
+                  {shippingOptions.length > 0 && (
+                    <div className={styles.deliveryOptions}>
+                      {shippingOptions.map(option => (
+                        <label key={option.codigo} className={styles.deliveryOption}>
+                          <input 
+                            type="radio" 
+                            name="deliveryOption" 
+                            value={option.codigo} 
+                            checked={selectedShipping?.codigo === option.codigo} 
+                            onChange={() => setSelectedShipping(option)} 
+                          />
+                          <div className={styles.optionInfo}>
+                            <span className={styles.optionName}>{option.nome}</span>
+                            <span className={styles.optionDetails}>
+                              R$ {option.valor.toFixed(2)} • Prazo: {option.prazoEntrega} dia{option.prazoEntrega > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {errors.deliveryOption && <span className={styles.errorMessage}>{errors.deliveryOption}</span>}
+                  
                   <div className={styles.buttonGroup}>
-                    <button type="button" className={styles.nextButton} onClick={nextStep}>
+                    <button type="button" className={styles.backButton} onClick={prevStep}>
+                      VOLTAR
+                    </button>
+                    <button 
+                      type="button" 
+                      className={styles.nextButton} 
+                      onClick={nextStep}
+                      disabled={!selectedShipping || Object.values(errors).some(e => e)}
+                    >
                       IR PARA O PAGAMENTO
                     </button>
                   </div>
                 </div>
               )}
-              {step > 2 && (
+              {step > 2 && selectedShipping && (
                 <div className={styles.stepSummary}>
                   <p>{formData.address}, {formData.number} - {formData.neighborhood}, {formData.city}/{formData.state}</p>
+                  <p>Frete: {selectedShipping.nome} - R$ {selectedShipping.valor.toFixed(2)}</p>
                 </div>
               )}
             </div>
   
-            {/* Passo 3: Pagamento */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 3 ? styles.active : ''} ${step > 3 ? styles.completed : ''}`} onClick={() => setStep(3)}>
                 <div className={styles.stepNumber}>
@@ -391,13 +622,16 @@ const Checkout = () => {
                       <span>Google Play</span>
                     </label>
                   </div>
+                  {errors.paymentMethod && <span className={styles.errorMessage}>{errors.paymentMethod}</span>}
   
-                  {/* Container para o formulário de pagamento do Mercado Pago */}
                   {(formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && (
                     <div id="payment-form-container" className={styles.paymentFormContainer}></div>
                   )}
   
                   <div className={styles.buttonGroup}>
+                    <button type="button" className={styles.backButton} onClick={prevStep}>
+                      VOLTAR
+                    </button>
                     {!(formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && (
                       <button type="button" className={styles.submitButton} onClick={() => setStep(4)}>
                         FINALIZAR COMPRA
@@ -408,7 +642,6 @@ const Checkout = () => {
               )}
             </div>
 
-            {/* Passo 4: Sucesso */}
             {step === 4 && (
               <div className={styles.stepContent}>
                 <div className={styles.paymentResult}>
@@ -419,6 +652,12 @@ const Checkout = () => {
                   <p className={styles.statusDescription}>
                     Seu pagamento foi aprovado com sucesso! Obrigado pela compra.
                   </p>
+                  {selectedShipping && (
+                    <div className={styles.shippingInfo}>
+                      <p><strong>Previsão de entrega:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
+                      <p><strong>Método de envio:</strong> {selectedShipping.nome}</p>
+                    </div>
+                  )}
                   <div className={styles.paymentActions}>
                     <button 
                       className={styles.continueButton}
@@ -432,7 +671,6 @@ const Checkout = () => {
             )}
           </div>
           
-          {/* Resumo do Pedido */}
           <div className={styles.orderSummary}>
             <h3>Resumo do pedido</h3>
             <div className={styles.returnToCart}>
@@ -466,7 +704,14 @@ const Checkout = () => {
     
               <div className={styles.summaryRow}>
                 <span>Entrega</span>
-                <span>{shipping > 0 ? `R$ ${shipping.toFixed(2)}` : 'A calcular'}</span>
+                <span>
+                  {selectedShipping 
+                    ? `R$ ${shippingCost.toFixed(2)} (${selectedShipping.nome})` 
+                    : calculatingShipping 
+                    ? 'Calculando...' 
+                    : 'A calcular'
+                  }
+                </span>
               </div>
     
               <div className={styles.summaryTotal}>
@@ -474,11 +719,6 @@ const Checkout = () => {
                 <span>R$ {total.toFixed(2)}</span>
               </div>
             </div>
-            {step === 3 && (
-              <button className={styles.finalizeButton}>
-                FINALIZAR COMPRA
-              </button>
-            )}
           </div>
         </div>
       </div>

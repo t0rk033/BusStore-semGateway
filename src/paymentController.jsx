@@ -1,4 +1,4 @@
-const mercadopago = require('./mercadopagoConfig'); // Importa a SDK configurada
+const mercadopago = require('./mercadopagoConfig'); 
 
 async function createPayment(req, res) {
   const { transaction_amount, description, payment_method_id, payer } = req.body;

@@ -21,7 +21,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
     }
   };
 
-  // Links estáticos que você quer manter
   const staticLinks = [
     { name: 'FEMININO', category: 'Vestuário Feminino' },
     { name: 'MASCULINO', category: 'Vestuário Masculino' },
@@ -31,13 +30,11 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
     { name: 'BOLSAS', category: 'Bolsas' },
   ];
 
-  // Cria um mapa para encontrar a categoria do DB com a grafia correta, ignorando o caso.
   const dbCategoryMap = new Map();
   categories.forEach(dbCat => {
     dbCategoryMap.set(dbCat.toLowerCase(), dbCat);
   });
 
-  // Filtra as categorias dinâmicas para não repetir as que já são estáticas
   const staticCategoryNames = staticLinks.map(link => link.category.toLowerCase());
   const dynamicCategories = categories.filter(
     category => !staticCategoryNames.includes(category.toLowerCase())
@@ -45,7 +42,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
 
   return (
     <div className={styles.wrapper}>
-      {/* Parte superior */}
       <div className={styles.navbarTop}>
         <div className={styles.logoSection}>
           <img src={logo} alt="Logo" className={styles.logo} />
@@ -92,13 +88,10 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
         </div>
       </div>
 
-      {/* Linha branca de separação */}
       <div className={styles.separator} />
 
-      {/* Menu inferior */}
       <div className={styles.navbarBottom}>
         <ul className={styles.navLinks}>
-          {/* Renderiza os links estáticos */}
           {staticLinks.map((link) => {
             // Usa a grafia da categoria do banco de dados se encontrada, senão usa a do link estático.
             const categoryForLink = dbCategoryMap.get(link.category.toLowerCase()) || link.category;
@@ -110,7 +103,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
               </li>
             );
           })}
-          {/* Renderiza as categorias dinâmicas do banco de dados */}
           {dynamicCategories.map((category) => (
             <li key={category}>
               <Link to={`/busca?categoria=${encodeURIComponent(category)}`}>

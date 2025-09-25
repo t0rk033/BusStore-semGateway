@@ -142,6 +142,11 @@
   font-weight: bold;
 }
 
+.cepButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 .addressTable {
   margin-bottom: 20px;
 }
@@ -188,12 +193,12 @@
   transition: all 0.3s ease;
 }
 
-.deliveryOption:hover, .paymentOption:hover,
-.deliveryOption input:checked + span,
-.paymentOption input:checked + span {
+.deliveryOption:hover, .paymentOption:hover {
   border-color: #e4910e;
   background-color: #fff9f0;
 }
+
+.deliveryOption input:checked ~ span, .paymentOption input:checked ~ span { font-weight: bold; }
 
 .deliveryOption input[type="radio"], .paymentOption input[type="radio"] {
   width: auto;

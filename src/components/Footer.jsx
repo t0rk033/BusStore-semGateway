@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./Footer.module.css";
 import { FaWhatsapp, FaInstagram, FaPhoneAlt, FaEnvelope } from "react-icons/fa";
-import logo from "../assets/images/logofooter2.png"; // ajuste o caminho da logo
+import logo from "../assets/images/logofooter2.png"; 
 
 function Footer() {
   return (

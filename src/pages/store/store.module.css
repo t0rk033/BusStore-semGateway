@@ -669,6 +669,12 @@ body {
   font-weight: bolder;
 }
 
+.discountRow {
+  color: var(--green);
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
 .shippingContainer {
   display: flex;
   gap: 0.5rem;

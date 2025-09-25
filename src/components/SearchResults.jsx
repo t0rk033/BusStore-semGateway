@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { db } from '../firebase';
+import Fuse from 'fuse.js';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import styles from './SearchResults.module.css';
 import NavBar from './NavBar';
@@ -17,7 +18,6 @@ function SearchResults() {
   const [openProductModal, setOpenProductModal] = useState(false);
   const { addItem } = useCart();
   
-  // Filtros baseados nos dados do seu banco
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -31,23 +31,18 @@ function SearchResults() {
   const searchQuery = queryParams.get('q') || '';
   const categoryQuery = queryParams.get('categoria') || '';
 
-  // Carregar todos os produtos
   useEffect(() => {
     fetchAllProducts();
   }, []);
 
-  // Sincroniza o filtro de categoria da URL com o estado do componente
   useEffect(() => {
     if (categoryQuery) {
-      // Define a categoria do URL como o filtro ativo
       setSelectedCategories([categoryQuery]);
     } else if (searchQuery) {
-      // Limpa o filtro de categoria se for uma nova busca por texto
       setSelectedCategories([]);
     }
-  }, [location.search]); // Reage a qualquer mudança na URL
+  }, [location.search]);
 
-  // Aplicar filtros quando os critérios mudarem
   useEffect(() => {
     applyFilters();
   }, [allProducts, selectedCategories, selectedSubcategories, selectedBrands, 
@@ -79,39 +74,46 @@ function SearchResults() {
   const applyFilters = () => {
     let filtered = [...allProducts];
 
-    // Filtro por termo de busca
     if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(searchLower) ||
-        (product.category && product.category.toLowerCase().includes(searchLower)) ||
-        (product.description && product.description.toLowerCase().includes(searchLower)) ||
-        (product.brand && product.brand.toLowerCase().includes(searchLower))
-      );
+      const fuseOptions = {
+        keys: [
+          { name: 'name', weight: 0.4 },        // Mais peso para o nome
+          { name: 'brand', weight: 0.3 },       // Peso médio para a marca
+          { name: 'category', weight: 0.2 },    // Peso menor para categoria
+          { name: 'variations.color', weight: 0.2 }, // Busca na cor das variações
+          { name: 'description', weight: 0.1 }, // Menor peso para a descrição
+        ],
+        includeScore: true, // Inclui a pontuação de relevância
+        threshold: 0.4,     // Limiar de correspondência (0.0 = exato, 1.0 = qualquer coisa)
+        minMatchCharLength: 2, // Mínimo de caracteres para buscar
+      };
+
+      const fuse = new Fuse(filtered, fuseOptions);
+      const searchResult = fuse.search(searchQuery);
+
+      filtered = searchResult.map(result => result.item);
+
+      // Se a ordenação for por relevância, já está ordenado pelo Fuse.js
     }
 
-    // Filtro por categoria
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(product => 
         product.category && selectedCategories.includes(product.category)
       );
     }
 
-    // Filtro por subcategoria
     if (selectedSubcategories.length > 0) {
       filtered = filtered.filter(product => 
         product.subcategory && selectedSubcategories.includes(product.subcategory)
       );
     }
 
-    // Filtro por marca
     if (selectedBrands.length > 0) {
       filtered = filtered.filter(product => 
         product.brand && selectedBrands.includes(product.brand)
       );
     }
 
-    // Filtro por cor
     if (selectedColors.length > 0) {
       filtered = filtered.filter(product =>
         product.variations && product.variations.some(v => 
@@ -120,7 +122,6 @@ function SearchResults() {
       );
     }
 
-    // Filtro por tamanho
     if (selectedSizes.length > 0) {
       filtered = filtered.filter(product =>
         product.variations && product.variations.some(v => 
@@ -129,12 +130,9 @@ function SearchResults() {
       );
     }
 
-    // Filtro por faixa de preço
     filtered = filtered.filter(product => 
       product.salePrice >= priceRange[0] && product.salePrice <= priceRange[1]
     );
-
-    // Ordenação
     switch(sortBy) {
       case 'price-asc':
         filtered.sort((a, b) => a.salePrice - b.salePrice);
@@ -147,15 +145,15 @@ function SearchResults() {
         break;
       case 'relevance':
       default:
-        // Mantém a ordenação padrão (mais recentes primeiro)
+        // Se não houver busca (searchQuery), mantém a ordenação padrão (mais recentes).
+        // Se houver busca, o Fuse.js já ordenou por relevância.
         break;
     }
 
     setFilteredProducts(filtered);
   };
 
-  // Extrair opções únicas para os filtros
-  const categories = [...new Set(allProducts.map(p => p.category).filter(Boolean))];
+  const categories = ["Vestuário Masculino", "Vestuário Feminino"];
   const subcategories = [...new Set(allProducts.map(p => p.subcategory).filter(Boolean))];
   const brands = [...new Set(allProducts.map(p => p.brand).filter(Boolean))];
   const colors = [...new Set(allProducts.flatMap(p => 
@@ -165,7 +163,6 @@ function SearchResults() {
     p.variations ? p.variations.map(v => v.size).filter(Boolean) : []
   ))];
 
-  // Calcular preço máximo para o range slider
   const maxPrice = allProducts.reduce((max, product) => 
     product.salePrice > max ? product.salePrice : max, 0
   );
@@ -187,7 +184,6 @@ function SearchResults() {
     });
   };
 
-  // Funções para manipular filtros
   const toggleFilter = (filterArray, setFilterArray, value) => {
     if (filterArray.includes(value)) {
       setFilterArray(filterArray.filter(item => item !== value));
@@ -215,7 +211,6 @@ function SearchResults() {
       />
 
       
-
       <div className={styles.mainContent}>
         {/* Sidebar de filtros */}
         <div className={styles.filtersSidebar}>
@@ -227,10 +222,9 @@ function SearchResults() {
           )}
           <h3>Filtrar por</h3>
           
-          {/* Filtro de Categoria */}
           {categories.length > 0 && (
             <div className={styles.filterGroup}>
-              <h4>Categoria</h4>
+              <h4>Gênero</h4>
               {categories.map(category => (
                 <label key={category} className={styles.filterCheckbox}>
                   <input
@@ -244,24 +238,6 @@ function SearchResults() {
             </div>
           )}
           
-          {/* Filtro de Subcategoria */}
-          {subcategories.length > 0 && (
-            <div className={styles.filterGroup}>
-              <h4>Subcategoria</h4>
-              {subcategories.map(subcategory => (
-                <label key={subcategory} className={styles.filterCheckbox}>
-                  <input
-                    type="checkbox"
-                    checked={selectedSubcategories.includes(subcategory)}
-                    onChange={() => toggleFilter(selectedSubcategories, setSelectedSubcategories, subcategory)}
-                  />
-                  <span>{subcategory}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          
-          {/* Filtro de Marca */}
           {brands.length > 0 && (
             <div className={styles.filterGroup}>
               <h4>Marca</h4>
@@ -278,7 +254,6 @@ function SearchResults() {
             </div>
           )}
           
-          {/* Filtro de Cor */}
           {colors.length > 0 && (
             <div className={styles.filterGroup}>
               <h4>Cor</h4>
@@ -295,7 +270,6 @@ function SearchResults() {
             </div>
           )}
           
-          {/* Filtro de Tamanho */}
           {sizes.length > 0 && (
             <div className={styles.filterGroup}>
               <h4>Tamanho</h4>
@@ -312,7 +286,6 @@ function SearchResults() {
             </div>
           )}
           
-          {/* Filtro de Preço */}
           <div className={styles.filterGroup}>
             <h4>Faixa de Preço</h4>
             <div className={styles.priceRange}>
@@ -328,7 +301,6 @@ function SearchResults() {
             </div>
           </div>
           
-          {/* Botão para limpar filtros */}
           <button 
             className={styles.clearFiltersButton}
             onClick={() => {
@@ -369,7 +341,7 @@ function SearchResults() {
               <p>Tente ajustar os filtros ou usar palavras-chave diferentes.</p>
             </div>
           ) : (
-            <div className={styles.productsGrid}>
+            <div className={styles.productsList}>
               {filteredProducts.map(product => (
                 <div
                   key={product.id}

@@ -10,7 +10,6 @@ import Footer from '../../components/Footer';
 import { FiSearch, FiX, FiShoppingCart, FiTag, FiChevronRight, FiTrash, FiHeart, FiStar } from 'react-icons/fi';
 import ProductModal from './ProductModal';
 import raquetesimg from '../../assets/images/raquetesimg.png';
-import conjuntosimg from '../../assets/images/conjuntosimg.jpg';
 import garrafaimg from '../../assets/images/garrafaimg.jpg';
 
 // Importe as imagens das marcas
@@ -40,25 +39,21 @@ function Store() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
   //estados ofertas do dia
   const [dailyDeals, setDailyDeals] = useState([]);
-const [bestSellers, setBestSellers] = useState([]);
-  // Estados para paginação
+  const [bestSellers, setBestSellers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(12);
   const [bermudaShortProducts, setBermudaShortProducts] = useState([]);
-  // Adicione o estado para bermudas
   const [bermudaProducts, setBermudaProducts] = useState([]);
 
   const navigate = useNavigate();
   const { loginOpen, closeLogin } = useModal();
 
-  // Função para obter os produtos da página atual
   const getCurrentProducts = useCallback(() => {
     const indexOfLastProduct = currentPage * productsPerPage;
     const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
     return filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
   }, [currentPage, productsPerPage, filteredProducts]);
 
-  // Função para mudar de página
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   // Efeito para rolar para o topo ao mudar de página
@@ -69,13 +64,11 @@ const [bestSellers, setBestSellers] = useState([]);
     });
   }, [currentPage]);
 
-  // Função para exibir toasts
   const showToast = useCallback((message, type = 'info') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'info' }), 5000);
   }, []);
 
-  // Monitora estado de autenticação e carrega dados do usuário
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -90,7 +83,6 @@ const [bestSellers, setBestSellers] = useState([]);
     return () => unsubscribe();
   }, []);
 
-  // Carrega produtos
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -108,13 +100,11 @@ const [bestSellers, setBestSellers] = useState([]);
         setProducts(productsData);
         setFilteredProducts(productsData);
 
-        // Define os produtos em destaque (pega os 4 primeiros)
         if (productsData.length > 3) {
           setDailyDeals(productsData.slice(0, 1)); // 1 produto para oferta do dia
           setBestSellers(productsData.slice(1, 4)); // 3 produtos para mais vendidos
         }
 
-        // Extrai categorias únicas
         const uniqueCategories = [...new Set(productsData.map(p => p.category).filter(Boolean))];
         setCategories(uniqueCategories);
       } catch (error) {
@@ -124,7 +114,6 @@ const [bestSellers, setBestSellers] = useState([]);
     fetchProducts();
   }, [showToast]);
 
-  // Filtra produtos com base nos critérios e reseta para a primeira página
   useEffect(() => {
     const filtered = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -136,10 +125,9 @@ const [bestSellers, setBestSellers] = useState([]);
       return matchesSearch && matchesCategory && matchesPrice && isEnabled;
     });
     setFilteredProducts(filtered);
-    setCurrentPage(1); // Resetar para a primeira página quando os filtros mudam
+    setCurrentPage(1);
   }, [searchTerm, selectedCategory, minPrice, maxPrice, products]);
 
-  // Limpa filtros
   const clearFilters = () => {
     setSearchTerm('');
     setMinPrice('');
@@ -166,10 +154,8 @@ const [bestSellers, setBestSellers] = useState([]);
       showToast("Seu carrinho está vazio.", "error");
       return;
     }
-    // Redireciona para a página de checkout
     navigate('/checkout');
   };
-
 
   useEffect(() => {
     window.scrollTo({
@@ -178,7 +164,6 @@ const [bestSellers, setBestSellers] = useState([]);
     });
   }, [currentPage]);
 
-  // Filtra os produtos de short e bermuda
   useEffect(() => {
     setBermudaShortProducts(
       products.filter(
@@ -196,7 +181,6 @@ const [bestSellers, setBestSellers] = useState([]);
     );
   }, [products]);
 
-  // Mescla os arrays caso não haja 5 shorts
   const bermudaCarouselProducts =
   bermudaShortProducts.length + bermudaProducts.length >= 5
     ? [...bermudaShortProducts, ...bermudaProducts].slice(0, 5)
@@ -211,6 +195,11 @@ const [bestSellers, setBestSellers] = useState([]);
         )
       ].slice(0, 5);
 
+  const subTotal = items.reduce((total, item) => {
+    const originalPrice = item.oldPrice && item.oldPrice > item.price ? item.oldPrice : item.price;
+    return total + originalPrice * item.quantity;
+  }, 0);
+  const totalDiscount = subTotal - cartTotal;
   return (
     <div className={styles.storeWrapper}>
       <NavBar
@@ -220,7 +209,6 @@ const [bestSellers, setBestSellers] = useState([]);
         categories={categories}
       />
 
-      {/* Hero Section */}
       <div className={styles.heroSection}>
         <div className={styles.heroContent}>
           <h1 className={styles.heroTitle}>
@@ -230,10 +218,7 @@ const [bestSellers, setBestSellers] = useState([]);
         <button className={styles.heroButton}>ver modelos</button>
       </div>
     </div>
-
-{/* Seções de Destaque lado a lado */}
 <div className={styles.featuredSectionsContainer}>
-  {/* Seção de Ofertas do Dia */}
   <div className={styles.featuredSectionCompact}>
     <h2 className={styles.sectionTitleCompact}>Oferta do dia</h2>
     <div className={styles.featuredGridCompact}>
@@ -266,7 +251,6 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
   </div>
 
-  {/* Seção de Mais Vendidos */}
   <div className={styles.featuredSectionCompact}>
     <h2 className={styles.sectionTitleCompact}>Os mais vendidos</h2>
     <div className={styles.featuredGridCompact}>
@@ -299,7 +283,6 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
   </div>
 </div>
-{/* Seção de Categorias */}
 <div className={styles.categoriesSection}>
   <div className={styles.categoriesGrid}>
     <div 
@@ -313,7 +296,7 @@ const [bestSellers, setBestSellers] = useState([]);
 
     <div 
       className={styles.categoryCard} 
-      onClick={() => navigate('/produtos?categoria=conjuntos')}
+      onClick={() => navigate('/busca?categoria=Conjuntos')}
     >
       <h3 className={styles.categoryName}>Conjuntos</h3>
       <img src={conjuntosimg} alt="Conjuntos" className={styles.categoryImage} />
@@ -321,7 +304,7 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
 
     <div 
-      className={styles.categoryCard} 
+      className={styles.categoryCard}
       onClick={() => navigate('/produtos?categoria=garrafas')}
     >
       <h3 className={styles.categoryName}>Garrafas</h3>
@@ -330,7 +313,6 @@ const [bestSellers, setBestSellers] = useState([]);
     </div>
   </div>
 </div>
-{/* Seção de Bermudas */}
     <div className={styles.bermudaSection}>
       <h2 className={styles.bermudaTitle}>Bermudas</h2>
       <div className={styles.bermudaCarousel}>
@@ -379,7 +361,6 @@ const [bestSellers, setBestSellers] = useState([]);
     <button className={styles.carouselArrowRight}>&#62;</button>
   </div>
 </div>
-     {/* Seção de Marcas */}
     <div className={styles.brandsSection}>
       <div className={styles.brandsHeader}>
         <p className={styles.brandsHeaderText}>As maiores marcas com a gente</p>
@@ -393,7 +374,6 @@ const [bestSellers, setBestSellers] = useState([]);
       </div>
     </div>
 
-    {/* Carrossel 1 */}
 <div className={styles.bermudasContainer}>
   
   <div className={styles.bermudasList}>
@@ -416,7 +396,6 @@ const [bestSellers, setBestSellers] = useState([]);
   </div>
 </div>
 
-{/* Carrossel 2 */}
 <div className={styles.bermudaSection}>
   <h2 className={styles.bermudaTitle}>Carrossel 3</h2>
   <div className={styles.bermudaCarousel}>
@@ -466,7 +445,6 @@ const [bestSellers, setBestSellers] = useState([]);
   </div>
 </div>
 
-    {/* Seção Atleta */}
     <div className={styles.athlete}>
       <div className={styles.athleteSection}>
         <div className={styles.athleteContent}>
@@ -485,14 +463,12 @@ const [bestSellers, setBestSellers] = useState([]);
       </div>
     </div>
 
-    {/* Toast Notification */}
     {toast.show && (
       <div className={`${styles.toast} ${styles[toast.type]}`}>
         {toast.message}
       </div>
     )}
 
-    {/* Botão Flutuante do Carrinho */}
     <div 
       className={`${styles.cartIcon} ${items.length > 0 ? styles.pulse : ''}`} 
       onClick={() => setOpenCartModal(true)}
@@ -501,7 +477,6 @@ const [bestSellers, setBestSellers] = useState([]);
       {items.length > 0 && <span className={styles.cartBadge}>{items.length}</span>}
     </div>
 
-    {/* Carrinho Lateral */}
     <div className={`${styles.cartModal} ${openCartModal ? styles.open : ''}`}>
       <div className={styles.cartContent}>
         <div className={styles.cartHeader}>
@@ -564,8 +539,20 @@ const [bestSellers, setBestSellers] = useState([]);
               ))}
             </div>
 
-            {/* Resumo do Carrinho */}
             <div className={styles.cartSummary}>
+              {totalDiscount > 0 && (
+                <div className={styles.totalContainer}>
+                  <div className={styles.totalRow}>
+                    <span className={styles.totalLabel}>Subtotal</span>
+                    <span className={styles.totalPrice}>R$ {subTotal.toFixed(2)}</span>
+                  </div>
+                  <div className={`${styles.totalRow} ${styles.discountRow}`}>
+                    <span className={styles.totalLabel}>Descontos</span>
+                    <span className={styles.totalPrice}>- R$ {totalDiscount.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
               <div className={styles.totalContainer}>
                 <div className={styles.totalRow}>
                   <span className={styles.totalLabel}>Total</span>
@@ -586,13 +573,11 @@ const [bestSellers, setBestSellers] = useState([]);
       </div>
     </div>
 
-    {/* Overlay do Carrinho */}
     <div 
       className={`${styles.overlay} ${openCartModal ? styles.open : ''}`} 
       onClick={() => setOpenCartModal(false)}
     />
 
-    {/* Modal de Produto */}
     <ProductModal
       open={openProductModal}
       onClose={() => {
