@@ -11,7 +11,7 @@ import { FiSearch, FiX, FiShoppingCart, FiTag, FiChevronRight, FiTrash, FiHeart,
 import ProductModal from './ProductModal';
 import raquetesimg from '../../assets/images/raquetesimg.png';
 import garrafaimg from '../../assets/images/garrafaimg.jpg';
-
+import conjuntosimg from '../../assets/images/conjuntosimg.jpg';
 // Importe as imagens das marcas
 import mormaiiLogo from '../../assets/images/marcas/mormai.png';
 import sharkLogo from '../../assets/images/marcas/shark.png';

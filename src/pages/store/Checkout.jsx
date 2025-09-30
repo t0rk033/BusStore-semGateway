@@ -15,6 +15,7 @@ const Checkout = () => {
 
   const [mp, setMp] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [processingPix, setProcessingPix] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
   const [errors, setErrors] = useState({});
 
@@ -33,12 +34,15 @@ const Checkout = () => {
     state: '',
     paymentMethod: '',
   });
-  const [deliveryOption, setDeliveryOption] = useState('');
 
   const [shippingOptions, setShippingOptions] = useState([]);
   const [selectedShipping, setSelectedShipping] = useState(null);
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [shippingError, setShippingError] = useState('');
+
+  // Estados para PIX
+  const [pixData, setPixData] = useState(null);
+  const [pixCopied, setPixCopied] = useState(false);
 
   const isValidCPF = (cpf) => {
     if (typeof cpf !== 'string') return false;
@@ -128,113 +132,90 @@ const Checkout = () => {
     return () => unsubscribe();
   }, []);
 
-  const xmlToJson = (xml) => {
-    try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xml, "text/xml");
-      const servicos = xmlDoc.getElementsByTagName("cServico");
-      const results = [];
+  const handleCalculateShipping = async () => {
+    const cep = formData.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      setShippingError('CEP inválido. Por favor, verifique.');
+      return;
+    }
 
-      for (let i = 0; i < servicos.length; i++) {
-        const servico = servicos[i];
-        const getTagValue = (tag) => servico.getElementsByTagName(tag)[0]?.textContent || '';
-        
-        results.push({
-          Codigo: getTagValue('Codigo'),
-          Valor: parseFloat(getTagValue('Valor').replace(',', '.')) || 0,
-          PrazoEntrega: parseInt(getTagValue('PrazoEntrega')) || 0,
-          Erro: getTagValue('Erro'),
-          MsgErro: getTagValue('MsgErro')
-        });
+    setCalculatingShipping(true);
+    setShippingError('');
+    setShippingOptions([]);
+    setSelectedShipping(null);
+
+    try {
+      // Buscar endereço via BrasilAPI
+      try {
+        const addressResponse = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+        if (addressResponse.ok) {
+          const addressData = await addressResponse.json();
+          setFormData(prev => ({
+            ...prev,
+            address: addressData.street || '',
+            neighborhood: addressData.neighborhood || '',
+            city: addressData.city || '',
+            state: addressData.state || '',
+          }));
+        }
+      } catch (addressError) {
+        console.warn('Erro ao buscar endereço, continuando...', addressError);
       }
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      return results;
+      // Preparar dados para Melhor Envio
+      const shippingRequest = {
+        cepDestino: cep,
+        produtos: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          weight: item.weight || 0.3,
+          quantity: item.quantity,
+          width: item.dimensions?.width || 15,
+          height: item.dimensions?.height || 10,
+          length: item.dimensions?.length || 20,
+          price: item.price,
+          insurance_value: item.price * item.quantity
+        }))
+      };
+
+      console.log('📤 Enviando requisição para Melhor Envio:', shippingRequest);
+
+      const shippingResponse = await fetch(`${API_URL}/api/shipping-quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(shippingRequest)
+      });
+
+      const result = await shippingResponse.json();
+
+      if (!shippingResponse.ok) {
+        throw new Error(result.message || 'Erro ao calcular frete');
+      }
+
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        setShippingOptions(result.data);
+        
+        // Verificar se é cálculo de fallback
+        if (result.data.length > 0 && result.data[0].origem === 'fallback') {
+          setShippingError('Frete calculado com base na região (Melhor Envio temporariamente indisponível).');
+        } else {
+          setShippingError('');
+        }
+      } else {
+        setShippingError(result.message || 'Não foi possível obter as opções de frete.');
+      }
+
     } catch (error) {
-      console.error('Erro ao converter XML:', error);
-      return [];
+      console.error('Erro no cálculo do frete:', error);
+      setShippingError('Serviço de frete temporariamente indisponível. Por favor, tente novamente.');
+    } finally {
+      setCalculatingShipping(false);
     }
   };
-
-const handleCalculateShipping = async () => {
-  const cep = formData.cep.replace(/\D/g, '');
-  if (cep.length !== 8) {
-    setShippingError('CEP inválido. Por favor, verifique.');
-    return;
-  }
-
-  setCalculatingShipping(true);
-  setShippingError('');
-  setShippingOptions([]);
-  setSelectedShipping(null);
-
-  try {
-    try {
-      const addressResponse = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
-      if (addressResponse.ok) {
-        const addressData = await addressResponse.json();
-        setFormData(prev => ({
-          ...prev,
-          address: addressData.street || '',
-          neighborhood: addressData.neighborhood || '',
-          city: addressData.city || '',
-          state: addressData.state || '',
-        }));
-      }
-    } catch (addressError) {
-      console.warn('Erro ao buscar endereço, continuando...', addressError);
-    }
-
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    
-    const shippingRequest = {
-      cepDestino: cep,
-      produtos: cartItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        weight: item.weight || 0.3,
-        quantity: item.quantity,
-        width: item.dimensions?.width || 15,
-        height: item.dimensions?.height || 10,
-        length: item.dimensions?.length || 20,
-        insurance_value: item.price * item.quantity
-      }))
-    };
-
-    console.log('📤 Enviando requisição para Melhor Envio:', shippingRequest);
-
-    const shippingResponse = await fetch(`${API_URL}/api/shipping-quote`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(shippingRequest)
-    });
-
-    const result = await shippingResponse.json();
-
-    if (!shippingResponse.ok) {
-      throw new Error(result.message || 'Erro ao calcular frete');
-    }
-
-    if (result.status === 'success') {
-      setShippingOptions(result.data);
-      
-      if (result.data.length > 0 && result.data[0].origem === 'simulado') {
-        setShippingError('Frete calculado automaticamente (serviço temporariamente indisponível)');
-      } else {
-        setShippingError(''); // Limpar erro se tudo estiver ok
-      }
-    } else {
-      setShippingError(result.message || 'Não foi possível calcular o frete');
-    }
-
-  } catch (error) {
-    console.error('Erro no cálculo do frete:', error);
-    setShippingError('Serviço de frete temporariamente indisponível. Por favor, tente novamente.');
-  } finally {
-    setCalculatingShipping(false);
-  }
-};
 
   const updateStockAfterPurchase = async (purchasedItems) => {
     try {
@@ -267,16 +248,71 @@ const handleCalculateShipping = async () => {
     }
   };
 
+  // Função para finalizar compra (reutilizável)
+  const finalizePurchase = async (paymentData) => {
+    // Estrutura de dados do usuário alinhada com o que StockManagement espera
+    const userDataForSale = {
+      fullName: `${formData.firstName} ${formData.lastName}`,
+      email: formData.email,
+      cpf: formData.cpf,
+      phone: formData.phone,
+      street: formData.address,
+      number: formData.number,
+      complement: formData.complement,
+      neighborhood: formData.neighborhood,
+      city: formData.city,
+      state: formData.state,
+      zipCode: formData.cep,
+    };
+
+    const saleData = {
+      items: cartItems,
+      total: total,
+      subtotal: subtotal,
+      discount: discount,
+      shipping: selectedShipping ? {
+        method: selectedShipping.nome,
+        transportadora: selectedShipping.transportadora,
+        cost: selectedShipping.valor,
+        deliveryTime: selectedShipping.prazoEntrega,
+        serviceCode: selectedShipping.codigo,
+        company: selectedShipping.empresa,
+        origem: selectedShipping.origem
+      } : null,
+      status: paymentData.status === 'approved' ? 'approved' : 'pending',
+      paymentId: paymentData.payment_id || paymentData.id,
+      paymentMethod: formData.paymentMethod,
+      userId: user?.uid || 'guest',
+      userEmail: formData.email,
+      userData: userDataForSale, // Usando a nova estrutura de dados
+      recipientName: `${formData.firstName} ${formData.lastName}`,
+      createdAt: new Date(),
+      shipped: false,
+      pixData: formData.paymentMethod === 'pix' ? pixData : null
+    };
+
+    await addDoc(collection(db, "sales"), saleData);
+    await updateStockAfterPurchase(cartItems);
+    emptyCart();
+    setStep(4);
+  };
+
+  // Função para processar pagamento com cartão (crédito/débito)
   const processPayment = async (cardFormData) => {
     setProcessing(true);
     setPaymentResult(null);
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Determinar o tipo de pagamento baseado na seleção do usuário
+      const paymentType = formData.paymentMethod === 'debitCard' ? 'debit_card' : 'credit_card';
+      
       const requestData = {
         ...cardFormData,
         amount: total,
         email: formData.email,
+        paymentMethod: paymentType,
         identification_type: 'CPF',
         identification_number: formData.cpf.replace(/\D/g, ''),
         description: `Compra na BusStore - ${cartItems.length} item(s)`,
@@ -312,30 +348,12 @@ const handleCalculateShipping = async () => {
       setPaymentResult(data);
       
       if (data.status === 'approved') {
-        const saleData = {
-          items: cartItems,
-          total: total,
-          subtotal: subtotal,
-          discount: discount,
-          shipping: selectedShipping ? {
-            method: selectedShipping.nome,
-            cost: selectedShipping.valor,
-            deliveryTime: selectedShipping.prazoEntrega
-          } : null,
-          status: 'approved',
-          paymentId: data.payment_id || data.id,
-          paymentMethod: data.payment_method || 'credit_card',
-          userId: user?.uid || 'guest',
-          userEmail: formData.email,
-          userData: formData,
-          createdAt: new Date(),
-          shipped: false,
-        };
-        await addDoc(collection(db, "sales"), saleData);
-        await updateStockAfterPurchase(cartItems);
-        emptyCart();
-        setStep(4); // Passo de sucesso
+        await finalizePurchase(data);
+      } else if (data.status === 'pending' && paymentType === 'debit_card') {
+        // Débito pode ser aprovado instantaneamente ou ficar pendente
+        await finalizePurchase(data);
       }
+
     } catch (error) {
       setPaymentResult({
         status: 'error',
@@ -346,6 +364,93 @@ const handleCalculateShipping = async () => {
     }
   };
 
+  // Função para processar pagamento PIX
+  const processPixPayment = async () => {
+    setProcessingPix(true);
+    setPaymentResult(null);
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const requestData = {
+        amount: total,
+        email: formData.email,
+        paymentMethod: 'pix',
+        identification_type: 'CPF',
+        identification_number: formData.cpf.replace(/\D/g, ''),
+        description: `Compra na BusStore - ${cartItems.length} item(s)`,
+        orderId: `order_${Date.now()}`,
+        userId: user?.uid || 'guest',
+        payer: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email
+        },
+        items: cartItems.map(item => ({
+          id: item.id.split('-')[0],
+          name: item.name,
+          variation: item.variation,
+          quantity: item.quantity,
+          price: item.price,
+          imageUrl: item.imageUrls?.[0] || "",
+        })),
+        shipping: selectedShipping ? {
+          method: selectedShipping.nome,
+          cost: selectedShipping.valor,
+          deliveryTime: selectedShipping.prazoEntrega
+        } : null
+      };
+
+      const response = await fetch(`${API_URL}/api/process-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Erro ${response.status}`);
+      }
+
+      setPixData(data);
+      setPaymentResult({
+        status: 'pending',
+        message: 'Aguardando pagamento PIX'
+      });
+
+    } catch (error) {
+      setPaymentResult({
+        status: 'error',
+        message: error.message || 'Erro ao processar PIX',
+      });
+    } finally {
+      setProcessingPix(false);
+    }
+  };
+
+  // Função para copiar código PIX
+  const copyPixCode = async () => {
+    if (pixData?.qr_code) {
+      try {
+        await navigator.clipboard.writeText(pixData.qr_code);
+        setPixCopied(true);
+        setTimeout(() => setPixCopied(false), 2000);
+      } catch (error) {
+        console.error('Erro ao copiar código PIX:', error);
+        // Fallback para método antigo
+        const textArea = document.createElement('textarea');
+        textArea.value = pixData.qr_code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setPixCopied(true);
+        setTimeout(() => setPixCopied(false), 2000);
+      }
+    }
+  };
+
+  // Configuração do Mercado Pago para cartões
   useEffect(() => {
     if (step === 3 && (formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && !mp) {
       const script = document.createElement('script');
@@ -384,9 +489,20 @@ const handleCalculateShipping = async () => {
             },
           },
           callbacks: {
-            onReady: () => {},
-            onSubmit: processPayment,
-            onError: (error) => console.error(error),
+            onReady: () => {
+              console.log('Brick do Mercado Pago carregado');
+            },
+            onSubmit: (formData) => {
+              console.log('Dados do formulário:', formData);
+              processPayment(formData);
+            },
+            onError: (error) => {
+              console.error('Erro no brick:', error);
+              setPaymentResult({
+                status: 'error',
+                message: 'Erro ao processar cartão. Tente novamente.'
+              });
+            },
           },
         });
       };
@@ -417,6 +533,7 @@ const handleCalculateShipping = async () => {
         
         <div className={styles.checkoutContent}>
           <div className={styles.formContainer}>
+            {/* Passo 1: Dados Pessoais */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 1 ? styles.active : ''} ${step > 1 ? styles.completed : ''}`} onClick={() => setStep(1)}>
                 <div className={styles.stepNumber}>
@@ -475,6 +592,7 @@ const handleCalculateShipping = async () => {
               )}
             </div>
   
+            {/* Passo 2: Entrega */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 2 ? styles.active : ''} ${step > 2 ? styles.completed : ''}`} onClick={() => setStep(2)}>
                 <div className={styles.stepNumber}>
@@ -551,19 +669,28 @@ const handleCalculateShipping = async () => {
                   {shippingOptions.length > 0 && (
                     <div className={styles.deliveryOptions}>
                       {shippingOptions.map(option => (
-                        <label key={option.codigo} className={styles.deliveryOption}>
+                        <label key={option.id} className={styles.deliveryOption}>
                           <input 
                             type="radio" 
                             name="deliveryOption" 
-                            value={option.codigo} 
-                            checked={selectedShipping?.codigo === option.codigo} 
+                            value={option.id} 
+                            checked={selectedShipping?.id === option.id} 
                             onChange={() => setSelectedShipping(option)} 
                           />
                           <div className={styles.optionInfo}>
-                            <span className={styles.optionName}>{option.nome}</span>
-                            <span className={styles.optionDetails}>
-                              R$ {option.valor.toFixed(2)} • Prazo: {option.prazoEntrega} dia{option.prazoEntrega > 1 ? 's' : ''}
+                            <span className={styles.optionName}>
+                              {option.nome} {option.transportadora ? `- ${option.transportadora}` : ''}
                             </span>
+                            <span className={styles.optionDetails}>
+                              R$ {option.valor.toFixed(2)} • Prazo: {option.prazoEntrega} dia{option.prazoEntrega > 1 ? 's' : ''} útil{option.prazoEntrega > 1 ? 'eis' : ''}
+                            </span>
+                            {option.detalhes && (
+                              <span className={styles.optionExtra}>
+                                {option.detalhes.entregaDomiciliar && '• Entrega em domicílio '}
+                                {option.detalhes.entregaSabado && '• Entrega aos sábados '}
+                                {option.detalhes.observacao && `• ${option.detalhes.observacao}`}
+                              </span>
+                            )}
                           </div>
                         </label>
                       ))}
@@ -590,11 +717,13 @@ const handleCalculateShipping = async () => {
               {step > 2 && selectedShipping && (
                 <div className={styles.stepSummary}>
                   <p>{formData.address}, {formData.number} - {formData.neighborhood}, {formData.city}/{formData.state}</p>
-                  <p>Frete: {selectedShipping.nome} - R$ {selectedShipping.valor.toFixed(2)}</p>
+                  <p>Frete: {selectedShipping.nome} - R$ {selectedShipping.valor.toFixed(2)} ({selectedShipping.prazoEntrega} dias úteis)</p>
+                  <p>Transportadora: {selectedShipping.transportadora}</p>
                 </div>
               )}
             </div>
   
+            {/* Passo 3: Pagamento */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 3 ? styles.active : ''} ${step > 3 ? styles.completed : ''}`} onClick={() => setStep(3)}>
                 <div className={styles.stepNumber}>
@@ -617,65 +746,169 @@ const handleCalculateShipping = async () => {
                       <input type="radio" name="paymentMethod" value="pix" checked={formData.paymentMethod === 'pix'} onChange={handleInputChange} />
                       <span>Pix</span>
                     </label>
-                    <label className={styles.paymentOption}>
-                      <input type="radio" name="paymentMethod" value="googlePlay" checked={formData.paymentMethod === 'googlePlay'} onChange={handleInputChange} />
-                      <span>Google Play</span>
-                    </label>
                   </div>
                   {errors.paymentMethod && <span className={styles.errorMessage}>{errors.paymentMethod}</span>}
-  
+
+                  {/* Formulário para cartões */}
                   {(formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && (
                     <div id="payment-form-container" className={styles.paymentFormContainer}></div>
                   )}
-  
+
+                  {/* Seção PIX */}
+                  {formData.paymentMethod === 'pix' && (
+                    <div className={styles.pixSection}>
+                      {!pixData ? (
+                        <div className={styles.pixInitial}>
+                          <div className={styles.pixInfo}>
+                            <h4>Pagamento via PIX</h4>
+                            <p>Pagamento instantâneo e seguro. Escaneie o QR Code ou copie o código.</p>
+                            <ul className={styles.pixBenefits}>
+                              <li>✓ Pagamento instantâneo</li>
+                              <li>✓ Sem taxas adicionais</li>
+                              <li>✓ Confirmado em segundos</li>
+                            </ul>
+                          </div>
+                          <button 
+                            className={styles.pixButton}
+                            onClick={processPixPayment}
+                            disabled={processingPix}
+                          >
+                            {processingPix ? 'Gerando QR Code...' : 'GERAR QR CODE PIX'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className={styles.pixGenerated}>
+                          <h4>Pague com PIX</h4>
+                          <p>Escaneie o QR Code abaixo com seu app bancário:</p>
+                          
+                          {pixData.qr_code_base64 && (
+                            <div className={styles.qrCodeContainer}>
+                              <img 
+                                src={`data:image/png;base64,${pixData.qr_code_base64}`} 
+                                alt="QR Code PIX" 
+                                className={styles.qrCode}
+                              />
+                            </div>
+                          )}
+                          
+                          <div className={styles.pixCodeSection}>
+                            <p>Ou copie o código PIX:</p>
+                            <div className={styles.pixCodeContainer}>
+                              <code className={styles.pixCode}>
+                                {pixData.qr_code || 'Código não disponível'}
+                              </code>
+                              <button 
+                                className={styles.copyButton}
+                                onClick={copyPixCode}
+                              >
+                                {pixCopied ? '✓ Copiado!' : 'Copiar Código'}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className={styles.pixInstructions}>
+                            <p><strong>Instruções:</strong></p>
+                            <ol>
+                              <li>Abra seu app bancário</li>
+                              <li>Selecione "Pagar com PIX"</li>
+                              <li>Escaneie o QR Code ou cole o código</li>
+                              <li>Confirme o pagamento</li>
+                            </ol>
+                          </div>
+                          
+                          <div className={styles.pixExpiry}>
+                            <p>⏰ Este QR Code expira em 30 minutos</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className={styles.buttonGroup}>
                     <button type="button" className={styles.backButton} onClick={prevStep}>
                       VOLTAR
                     </button>
-                    {!(formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && (
-                      <button type="button" className={styles.submitButton} onClick={() => setStep(4)}>
-                        FINALIZAR COMPRA
+                    
+                    {/* Botão para PIX após gerar QR Code */}
+                    {formData.paymentMethod === 'pix' && pixData && (
+                      <button 
+                        type="button" 
+                        className={styles.submitButton}
+                        onClick={() => finalizePurchase(pixData)}
+                      >
+                        JÁ PAGUEI COM PIX
                       </button>
                     )}
                   </div>
+
+                  {/* Mensagens de resultado do pagamento */}
+                  {paymentResult && (
+                    <div className={`${styles.paymentResult} ${paymentResult.status === 'error' ? styles.error : styles.success}`}>
+                      <p>{paymentResult.message}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
+            {/* Passo 4: Confirmação */}
             {step === 4 && (
-              <div className={styles.stepContent}>
-                <div className={styles.paymentResult}>
-                  <div className={styles.statusHeader}>
-                    <span className={styles.statusIcon}>✅</span>
-                    <h2>Pagamento Aprovado!</h2>
-                  </div>
-                  <p className={styles.statusDescription}>
-                    Seu pagamento foi aprovado com sucesso! Obrigado pela compra.
-                  </p>
-                  {selectedShipping && (
-                    <div className={styles.shippingInfo}>
-                      <p><strong>Previsão de entrega:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
-                      <p><strong>Método de envio:</strong> {selectedShipping.nome}</p>
+              <div className={styles.stepContainer}>
+                <div className={styles.stepHeader}>
+                  <div className={styles.stepNumber}>✓</div>
+                  <span className={styles.stepTitle}>Confirmação</span>
+                </div>
+                <div className={styles.stepContent}>
+                  <div className={styles.confirmation}>
+                    <div className={styles.statusHeader}>
+                      <span className={styles.statusIcon}>✅</span>
+                      <h2>Compra realizada com sucesso!</h2>
                     </div>
-                  )}
-                  <div className={styles.paymentActions}>
-                    <button 
-                      className={styles.continueButton}
-                      onClick={() => window.location.href = '/'}
-                    >
-                      Continuar Comprando
-                    </button>
+                    
+                    {formData.paymentMethod === 'pix' ? (
+                      <>
+                        <p className={styles.statusDescription}>
+                          Seu pedido foi registrado! Assim que o pagamento PIX for confirmado, enviaremos uma confirmação por e-mail.
+                        </p>
+                        <div className={styles.pixWarning}>
+                          <p><strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.</p>
+                        </div>
+                      </>
+                    ) : (
+                      <p className={styles.statusDescription}>
+                        Seu pagamento foi aprovado com sucesso! Obrigado pela compra.
+                      </p>
+                    )}
+                    
+                    {selectedShipping && (
+                      <div className={styles.shippingInfo}>
+                        <p><strong>Previsão de entrega:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
+                        <p><strong>Método de envio:</strong> {selectedShipping.nome}</p>
+                        <p><strong>Transportadora:</strong> {selectedShipping.transportadora}</p>
+                      </div>
+                    )}
+                    
+                    <div className={styles.paymentActions}>
+                      <button 
+                        className={styles.continueButton}
+                        onClick={() => window.location.href = '/'}
+                      >
+                        Continuar Comprando
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
           
+          {/* Resumo do Pedido */}
           <div className={styles.orderSummary}>
             <h3>Resumo do pedido</h3>
             <div className={styles.returnToCart}>
                 <a href="/carrinho" className={styles.returnLink}>{'<'} Voltar para o carrinho</a>
             </div>
+            
             {cartItems.map(item => (
               <div key={item.id} className={styles.orderItem}>
                 <div className={styles.itemName}>
@@ -723,10 +956,11 @@ const handleCalculateShipping = async () => {
         </div>
       </div>
   
-      {processing && (
+      {/* Overlay de loading */}
+      {(processing || processingPix) && (
         <div className={styles.loadingOverlay}>
           <div className={styles.spinner}></div>
-          <p>Processando seu pagamento...</p>
+          <p>{processingPix ? 'Processando PIX...' : 'Processando pagamento...'}</p>
         </div>
       )}
     </div>

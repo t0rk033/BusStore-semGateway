@@ -191,6 +191,26 @@ const ROLE_PERMISSIONS = {
   ]
 };
 
+const COLOR_MAP = {
+  preto: "#111111",
+  black: "#111111",
+  azul: "#0B3A75",
+  blue: "#0B3A75",
+  vermelho: "#C62828",
+  red: "#C62828",
+  verde: "#1E7E34",
+  green: "#1E7E34",
+  cinza: "#9E9E9E",
+  gray: "#9E9E9E",
+  branco: "#FFFFFF",
+  white: "#FFFFFF",
+};
+
+function getHexFromColorName(name = "") {
+  const key = (name || '').toLowerCase().trim();
+  return COLOR_MAP[key] || (key.startsWith('#') ? key : '#ffffff');
+}
+
 function StockManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -281,7 +301,7 @@ function StockManagement() {
     salesByCategory: [],
     revenueTrend: []
   });
-  const [userOrders, setUserOrders] = useState([]);
+  const [adminSalesOrders, setAdminSalesOrders] = useState([]);
   const formRef = useRef(null);
   const [trackingLinks, setTrackingLinks] = useState({});
   const [editingTracking, setEditingTracking] = useState(null);
@@ -768,55 +788,66 @@ function StockManagement() {
     }
   };
 
-  const fetchUserOrders = async () => {
-    try {
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      
-      if (currentUser) {
-        const salesQuery = query(
-          collection(db, "sales"),
-          where("userId", "==", currentUser.uid)
-        );
-        const salesSnapshot = await getDocs(salesQuery);
+ const fetchAdminSalesOrders = async () => {
+  try {
+    const salesQuery = query(
+      collection(db, "sales"),
+      orderBy("createdAt", "desc")
+    );
+    const salesSnapshot = await getDocs(salesQuery);
 
-        // Mapear e ordenar os pedidos
-        const allOrders = salesSnapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data(),
-            type: 'sale',
-            createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt || new Date())
-          }))
-        .sort((a, b) => {
-          const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
-          const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
-          return dateB - dateA; // Ordenar do mais recente para o mais antigo
-        });
-
-        setUserOrders(allOrders);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar pedidos:", error);
+    const allOrders = salesSnapshot.docs.map(doc => {
+      const saleData = doc.data();
       
-      try {
-        const allSales = await getDocs(collection(db, "sales"));
-        
-        const auth = getAuth();
-        const fallbackOrders = allSales.docs
-          .filter(doc => doc.data().userId === auth.currentUser.uid)
-          .map(doc => ({ id: doc.id, ...doc.data(), type: 'sale' }))
-          .sort((a, b) => {
-            const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
-            const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
-            return dateB - dateA;
-          });
-        
-        setUserOrders(fallbackOrders);
-      } catch (fallbackError) {
-        console.error('Fallback também falhou:', fallbackError);
-      }
-    }
-  };
+      // Acessar userData e seus campos aninhados
+      const userData = saleData.userData || {};
+      
+      // Debug: log para ver a estrutura completa
+      console.log('DEBUG: Estrutura completa do userData:', {
+        id: doc.id,
+        userData: userData,
+        hasFullName: !!userData.fullName,
+        hasAddress: !!userData.address,
+        addressFields: userData.address ? Object.keys(userData.address) : []
+      });
+
+      return {
+        id: doc.id,
+        ...saleData,
+        userData: {
+          // Campos diretos
+          fullName: userData.fullName,
+          birthDate: userData.birthDate,
+          cpf: userData.cpf,
+          phone: userData.phone,
+          role: userData.role,
+          userEmail: userData.userEmail,
+          userId: userData.userId,
+          createdAt: userData.createdAt,
+          // Campos do endereço (aninhados)
+          street: userData.address?.street || userData.street,
+          number: userData.address?.number || userData.number,
+          complement: userData.address?.complement || userData.complement,
+          neighborhood: userData.address?.neighborhood || userData.neighborhood,
+          city: userData.address?.city || userData.city,
+          state: userData.address?.state || userData.state,
+          zipCode: userData.address?.zipCode || userData.zipCode
+        },
+        type: 'sale',
+        createdAt: saleData.createdAt?.toDate?.() || new Date(saleData.createdAt || new Date())
+      };
+    }).sort((a, b) => {
+      const dateA = a.createdAt?.getTime?.() || new Date(a.createdAt || 0).getTime();
+      const dateB = b.createdAt?.getTime?.() || new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    setAdminSalesOrders(allOrders);
+    console.log('DEBUG: Pedidos processados:', allOrders);
+  } catch (error) {
+    console.error("Erro ao buscar pedidos:", error);
+  }
+};
 
   const fetchAuditLogs = async (direction = 'first') => {
     if (!hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) return;
@@ -1105,37 +1136,60 @@ function StockManagement() {
 
   const validateProductForm = () => {
     const errors = {};
-    
+    const { name, sku, category, salePrice, weight, dimensions, variations, imageUrls } = newProduct;
+
     if (!newProduct.name.trim()) {
       errors.name = "Nome do produto é obrigatório";
     }
-    
-    if (!newProduct.sku.trim()) {
+
+    if (!sku.trim()) {
       errors.sku = "SKU é obrigatório";
     }
-    
-    if (!newProduct.category) {
+
+    if (!category) {
       errors.category = "Categoria é obrigatória";
     }
-    
-    if (newProduct.costPrice && parseFloat(newProduct.costPrice) < 0) {
-      errors.costPrice = "Preço de custo não pode ser negativo";
-    }
-    
-    if (!newProduct.salePrice || parseFloat(newProduct.salePrice) <= 0) {
+
+    if (!salePrice || parseFloat(salePrice) <= 0) {
       errors.salePrice = "Preço de venda deve ser maior que zero";
     }
-    
-    if (newProduct.discount && (parseFloat(newProduct.discount) < 0 || parseFloat(newProduct.discount) > 100)) {
-      errors.discount = "Desconto deve estar entre 0 e 100%";
+
+    // Validação para Frete (Peso e Dimensões)
+    if (!weight || parseFloat(weight) <= 0) {
+      errors.weight = "Peso é obrigatório para o frete.";
     }
-    
-    newProduct.variations.forEach((variation, index) => {
-      if (variation.stock && parseInt(variation.stock) < 0) {
-        errors[`variation-${index}-stock`] = "Estoque não pode ser negativo";
+    if (!dimensions.length || parseFloat(dimensions.length) <= 0) {
+      errors.length = "Comprimento é obrigatório.";
+    }
+    if (!dimensions.width || parseFloat(dimensions.width) <= 0) {
+      errors.width = "Largura é obrigatória.";
+    }
+    if (!dimensions.height || parseFloat(dimensions.height) <= 0) {
+      errors.height = "Altura é obrigatória.";
+    }
+
+    // Validação de Imagens
+    if (!imageUrls || imageUrls.length === 0) {
+      errors.imageUrls = "Adicione pelo menos uma imagem ao produto.";
+    }
+
+    // Validação de Variações e Estoque
+    let totalStock = 0;
+    variations.forEach((variation, index) => {
+      const stock = parseInt(variation.stock, 10);
+      if (isNaN(stock) || stock < 0) {
+        errors[`variation-${index}-stock`] = "Estoque inválido";
       }
+      if (!variation.size && !variation.color && !variation.model) {
+        errors[`variation-${index}-attributes`] = "Preencha ao menos um atributo (tamanho, cor ou modelo).";
+      }
+      totalStock += stock;
     });
-    
+
+    if (newProduct.enabled && totalStock <= 0) {
+      errors.stock = "Um produto ativo deve ter estoque maior que zero.";
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -1254,8 +1308,8 @@ function StockManagement() {
     if (hasPermission(PERMISSIONS.SYSTEM_SETTINGS)) {
       fetchAuditLogs('first');
     }
-    fetchSystemSettings();    
-    fetchUserOrders();
+    fetchSystemSettings();
+    fetchAdminSalesOrders(); // Call the new function
 
     return () => {
       unsubscribeProducts();
@@ -1340,7 +1394,7 @@ function StockManagement() {
         updatedAt: new Date(),
       });
   
-      setUserOrders(prev => prev.map(order => 
+      setAdminSalesOrders(prev => prev.map(order => 
         order.id === orderId ? { ...order, trackingNumber, status: 'enviado' } : order
       ));
   
@@ -1532,7 +1586,7 @@ function StockManagement() {
             <p><strong>Nº do Pedido:</strong> ${sale.id.slice(0, 8).toUpperCase()}</p>
             <p><strong>Data:</strong> ${sale.createdAt.toLocaleDateString()} ${sale.createdAt.toLocaleTimeString()}</p>
             <p><strong>Status:</strong> ${sale.status === 'approved' ? 'Aprovado' : sale.status}</p>
-            <p><strong>Cliente:</strong> ${sale.userData?.name || sale.userEmail || 'Cliente'}</p>
+            <p><strong>Cliente:</strong> ${sale.recipientName || sale.userEmail || 'Cliente'}</p>
           </div>
           
           <table class="items-table">
@@ -2640,7 +2694,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  const MyOrders = () => {
+  const MyOrders = () => { // This component will now display all sales for admin
     const [localFilter, setLocalFilter] = useState('todos');
 
     const getShippingStatus = (order) => {
@@ -2659,22 +2713,22 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       }
     };
 
-    const filteredOrders = userOrders.filter(order => {
+    const filteredOrders = adminSalesOrders.filter(order => { // Use adminSalesOrders
       const status = getShippingStatus(order);
       if (localFilter === 'todos') return true;
       return status.toLowerCase() === localFilter.toLowerCase();
     });
 
-    if (userOrders.length === 0) {
+    if (adminSalesOrders.length === 0) { // Check adminSalesOrders
       return (
         <Card>
           <CardContent sx={{ textAlign: 'center', py: 6 }}>
             <LocalShipping sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="textSecondary" gutterBottom>
-              Você ainda não fez nenhum pedido
+              Nenhum pedido encontrado na loja.
             </Typography>
             <Typography variant="body2" color="textSecondary">
-              Quando fizer um pedido, ele aparecerá aqui com todos os detalhes e opções de rastreamento.
+              Todos os pedidos realizados pelos clientes aparecerão aqui.
             </Typography>
           </CardContent>
         </Card>
@@ -2685,7 +2739,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
           <Typography variant="h4" fontWeight="700">
-            Meus Pedidos
+            Gerenciamento de Pedidos
           </Typography>
           <Chip 
             label={`${filteredOrders.length} pedido(s)`} 
@@ -2754,6 +2808,96 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
                   <Divider sx={{ my: 2 }} />
 
+                {/* DADOS DO CLIENTE E ENTREGA */}
+{order.userData && Object.keys(order.userData).length > 0 ? (
+  <Grid container spacing={3} sx={{ mb: 3 }}>
+    <Grid item xs={12} md={6}>
+      <Typography variant="subtitle2" gutterBottom color="primary">
+        👤 Dados do Cliente
+      </Typography>
+      <Box sx={{ pl: 2 }}>
+        <Typography variant="body2">
+          <strong>Nome Completo:</strong> {order.userData.fullName || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Email:</strong> {order.userData.userEmail || order.userEmail || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>CPF:</strong> {order.userData.cpf || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Data de Nascimento:</strong> {order.userData.birthDate ? new Date(order.userData.birthDate).toLocaleDateString('pt-BR') : 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Telefone:</strong> {order.userData.phone || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Tipo de Usuário:</strong> {order.userData.role || 'N/A'}
+        </Typography>
+        {order.userData.createdAt && (
+          <Typography variant="body2">
+            <strong>Usuário desde:</strong> {order.userData.createdAt?.toDate?.() ? 
+              order.userData.createdAt.toDate().toLocaleDateString('pt-BR') : 
+              new Date(order.userData.createdAt).toLocaleDateString('pt-BR')}
+          </Typography>
+        )}
+      </Box>
+    </Grid>
+    <Grid item xs={12} md={6}>
+      <Typography variant="subtitle2" gutterBottom color="primary">
+        🏠 Endereço de Entrega
+      </Typography>
+      <Box sx={{ pl: 2 }}>
+        <Typography variant="body2">
+          <strong>Logradouro:</strong> {order.userData.street || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Número:</strong> {order.userData.number || 'N/A'}
+        </Typography>
+        {order.userData.complement && (
+          <Typography variant="body2">
+            <strong>Complemento:</strong> {order.userData.complement}
+          </Typography>
+        )}
+        <Typography variant="body2">
+          <strong>Bairro:</strong> {order.userData.neighborhood || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Cidade:</strong> {order.userData.city || 'N/A'} - {order.userData.state || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>CEP:</strong> {order.userData.zipCode || 'N/A'}
+        </Typography>
+      </Box>
+    </Grid>
+  </Grid>
+) : (
+  <Grid container spacing={3} sx={{ mb: 3 }}>
+    <Grid item xs={12} md={6}>
+      <Typography variant="subtitle2" gutterBottom color="primary">
+        👤 Dados do Cliente
+      </Typography>
+      <Box sx={{ pl: 2 }}>
+        <Typography variant="body2">
+          <strong>Nome:</strong> {order.recipientName || 'N/A'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Email:</strong> {order.userEmail || 'N/A'}
+        </Typography>
+      </Box>
+    </Grid>
+    <Grid item xs={12} md={6}>
+      <Typography variant="subtitle2" gutterBottom color="primary">
+        🏠 Endereço de Entrega
+      </Typography>
+      <Box sx={{ pl: 2 }}>
+        <Typography variant="body2" color="textSecondary">
+          Dados de endereço não disponíveis
+        </Typography>
+      </Box>
+    </Grid>
+  </Grid>
+)}
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                       <Typography variant="subtitle2" gutterBottom color="primary">
@@ -2880,7 +3024,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                       )}
                       
                       {order.status === 'approved' && !order.trackingNumber && (
-                        <Button
+                        <Button // This button should be for admin only
                           variant="contained"
                           size="small"
                           onClick={() => setTrackingDialog({ open: true, order })}
@@ -2889,7 +3033,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                         </Button>
                       )}
                       
-                      {shippingStatus === 'Enviado' && (
+                      {shippingStatus === 'Enviado' && ( // This button should be for admin only
                         <Button
                           variant="contained"
                           color="success"
@@ -3478,8 +3622,8 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 { id: "products", icon: <Inventory />, label: "Produtos", permission: PERMISSIONS.VIEW_PRODUCTS },
                 { id: "productList", icon: <ListIcon />, label: "Lista de Produtos", permission: PERMISSIONS.VIEW_PRODUCTS },
                 { id: "categories", icon: <CategoryIcon />, label: "Categorias", permission: PERMISSIONS.VIEW_CATEGORIES },
-                { id: "suppliers", icon: <Business />, label: "Fornecedores", permission: PERMISSIONS.VIEW_SUPPLIERS },
-                { id: "myOrders", icon: <LocalShipping />, label: "Meus Pedidos", permission: PERMISSIONS.VIEW_SALES },
+                { id: "suppliers", icon: <Business />, label: "Fornecedores", permission: PERMISSIONS.VIEW_SUPPLIERS }, // No change
+                { id: "myOrders", icon: <LocalShipping />, label: "Pedidos", permission: PERMISSIONS.VIEW_SALES }, // Changed label
                 { id: "payments", icon: <Paid />, label: "Pagamentos", permission: PERMISSIONS.VIEW_FINANCE },
                 { id: "reports", icon: <Assessment />, label: "Relatórios", permission: PERMISSIONS.VIEW_REPORTS },
                 { id: "users", icon: <People />, label: "Usuários", permission: PERMISSIONS.VIEW_USERS },
@@ -3543,7 +3687,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
               {activeView === 'productList' && 'Lista de Produtos'}
               {activeView === 'categories' && 'Categorias'}
               {activeView === 'suppliers' && 'Fornecedores'}
-              {activeView === 'myOrders' && 'Meus Pedidos'}
+              {activeView === 'myOrders' && 'Gerenciamento de Pedidos'} // Changed title
               {activeView === 'payments' && 'Pagamentos'}
               {activeView === 'reports' && 'Relatórios'}
               {activeView === 'users' && 'Usuários'}
@@ -3678,6 +3822,11 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                                 variant="filled"
                               />
                             </Grid>
+
+                            {validationErrors.imageUrls && (
+                              <Grid item xs={12}>
+                                <Alert severity="error">{validationErrors.imageUrls}</Alert>
+                              </Grid>)}
 
                             <Grid item xs={12} md={6}>
                               <TextField
@@ -3879,6 +4028,11 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                               </Grid>
                             ))}
 
+                            {(validationErrors.weight || validationErrors.length || validationErrors.width || validationErrors.height) && (
+                              <Grid item xs={12}>
+                                <Alert severity="error">Verifique os campos de peso e dimensões. Eles são obrigatórios para o cálculo de frete.</Alert>
+                              </Grid>)}
+
                             {["length", "width", "height"].map((dim) => (
                               <Grid item xs={4} key={dim}>
                                 <TextField
@@ -3904,86 +4058,123 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                                   type="number"
                                   size="small"
                                   inputProps={{ min: 0, step: 0.1 }}
+                                  error={!!validationErrors[dim]}
+                                  helperText={validationErrors[dim]}
                                 />
                               </Grid>
                             ))}
                           </Grid>
 
                           <Grid item xs={12}>
-                            <Box
-                              sx={{
-                                border: 1,
-                                borderColor: "divider",
-                                borderRadius: 1,
-                                p: 2,
-                                mt: 2,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  mb: 2,
-                                }}
-                              >
-                                <Typography variant="subtitle1">
-                                  Variações
-                                </Typography>
-                                <Button
-                                  variant="outlined"
-                                  startIcon={<Add />}
-                                  onClick={addVariation}
-                                  size="small"
-                                >
-                                  Adicionar Variação
-                                </Button>
-                              </Box>
-                              {newProduct.variations.map((variation, index) => (
-                                <Paper
-                                  key={index}
-                                  elevation={1}
-                                  sx={{ p: 2, mb: 2 }}
-                                >
-                                  <Grid container spacing={2} alignItems="center">
-                                    {[
-                                      { field: "size", label: "Tamanho", type: "text" },
-                                      { field: "color", label: "Cor", type: "text" },
-                                      { field: "model", label: "Modelo", type: "text" },
-                                      { field: "stock", label: "Estoque", type: "number", min: 0 }
-                                    ].map(({ field, label, type, min }) => (
-                                      <Grid item xs={6} md={3} key={field}>
-                                        <TextField
-                                          label={label}
-                                          value={variation[field]}
-                                          onChange={(e) =>
-                                            handleVariationChange(
-                                              index,
-                                              field,
-                                              e.target.value
-                                            )
-                                          }
-                                          fullWidth
-                                          size="small"
-                                          type={type}
-                                          inputProps={{ min }}
-                                          error={!!validationErrors[`variation-${index}-${field}`]}
-                                          helperText={validationErrors[`variation-${index}-${field}`]}
-                                        />
-                                      </Grid>
-                                    ))}
-                                    <Grid item xs={12} md={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                      <IconButton
-                                        color="error"
-                                        onClick={() => removeVariation(index)}
-                                        disabled={newProduct.variations.length <= 1}
-                                      >
-                                        <Delete />
-                                      </IconButton>
-                                    </Grid>
-                                  </Grid>
-                                </Paper>
-                              ))}
-                            </Box>
+                         <Box
+  sx={{
+    border: 1,
+    borderColor: "divider",
+    borderRadius: 1,
+    p: 2,
+    mt: 2,
+  }}
+>
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "space-between",
+      mb: 2,
+    }}
+  >
+    <Typography variant="subtitle1">
+      Variações
+    </Typography>
+    <Button
+      variant="outlined"
+      startIcon={<Add />}
+      onClick={addVariation}
+      size="small"
+    >
+      Adicionar Variação
+    </Button>
+  </Box>
+  {newProduct.variations.map((variation, index) => (
+    <Paper
+      key={index}
+      elevation={1}
+      sx={{ p: 2, mb: 2 }}
+    >
+      <Grid container spacing={2} alignItems="center">
+        {[
+          { field: "size", label: "Tamanho", type: "text" },
+          { field: "color", label: "Cor", type: "text" },
+          { field: "model", label: "Modelo", type: "text" },
+          { field: "stock", label: "Estoque", type: "number", min: 0 }
+        ].map(({ field, label, type, min }) => {
+          // Para o campo cor, renderizar com seletor de cor
+          if (field === 'color') {
+            return (
+              <Grid item xs={6} md={3} key={field} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TextField
+                  label={label}
+                  value={variation[field] || ''}
+                  onChange={(e) => handleVariationChange(index, field, e.target.value)}
+                  fullWidth
+                  size="small"
+                />
+                <input 
+                  type="color" 
+                  value={variation[field]?.startsWith('#') ? variation[field] : '#ffffff'}
+                  onChange={(e) => handleVariationChange(index, field, e.target.value)}
+                  style={{ 
+                    width: 40, 
+                    height: 40, 
+                    border: '1px solid #ccc', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer'
+                  }}
+                  title="Selecionar cor"
+                />
+              </Grid>
+            );
+          }
+          
+          // Para outros campos
+          return (
+            <Grid item xs={6} md={3} key={field}>
+              <TextField
+                label={label}
+                value={variation[field] || ''}
+                onChange={(e) => handleVariationChange(index, field, e.target.value)}
+                fullWidth
+                size="small"
+                type={type}
+                inputProps={{ min }}
+                error={!!validationErrors[`variation-${index}-${field}`]}
+                helperText={validationErrors[`variation-${index}-${field}`]}
+              />
+              {field === 'stock' && validationErrors[`variation-${index}-attributes`] && (
+                <Typography variant="caption" color="error">
+                  {validationErrors[`variation-${index}-attributes`]}
+                </Typography>
+              )}
+            </Grid>
+          );
+        })}
+        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <IconButton
+            color="error"
+            onClick={() => removeVariation(index)}
+            disabled={newProduct.variations.length <= 1}
+          >
+            <Delete />
+          </IconButton>
+        </Grid>
+      </Grid>
+    </Paper>
+  ))}
+</Box>
+
+                            {validationErrors.stock && (
+                              <Grid item xs={12} sx={{ mt: 2 }}>
+                                <Alert severity="error">{validationErrors.stock}</Alert>
+                              </Grid>)}
                           </Grid>
                         </Grid>
 
@@ -4694,7 +4885,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             </Box>
           )}
           
-          {activeView === 'myOrders' && <MyOrders />}
+          {activeView === 'myOrders' && hasPermission(PERMISSIONS.VIEW_SALES) && <MyOrders />}
           {activeView === 'payments' && <PaymentManagement />}
           {activeView === 'reports' && (
             <SalesStockReports

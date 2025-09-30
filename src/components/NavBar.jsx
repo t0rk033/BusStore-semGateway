@@ -44,7 +44,9 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
     <div className={styles.wrapper}>
       <div className={styles.navbarTop}>
         <div className={styles.logoSection}>
-          <img src={logo} alt="Logo" className={styles.logo} />
+          <Link to="/">
+            <img src={logo} alt="Logo" className={styles.logo} />
+          </Link>
         </div>
 
         <div className={styles.rightSection}>
