@@ -6,10 +6,10 @@ import { auth, googleProvider } from '../../firebase';
 import styles from './login.module.css';
 import NavBar from '../../components/NavBar';
 import Footer from '../../components/Footer';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 // Modal reutilizável exportado para uso global
-export function LoginModal({ open = true, onClose }) {
+export function LoginModal({ open = true, onClose, onSwitchToSignup }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -108,7 +108,7 @@ export function LoginModal({ open = true, onClose }) {
 
             <button type="submit" className={styles.primaryButton}>Entrar</button>
 
-            <Link to="/registro" className={styles.linkCreate}>Criar conta</Link>
+            <button type="button" onClick={onSwitchToSignup} className={styles.linkCreate}>Criar conta</button>
 
             <div className={styles.divider}><span>ou entrar pela conta google</span></div>
 

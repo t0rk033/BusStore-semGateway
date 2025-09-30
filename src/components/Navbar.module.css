@@ -80,6 +80,67 @@
   color: #FFC107;
 }
 
+/* Adicionado para o posicionamento do menu */
+.userIconContainer {
+  position: relative;
+}
+
+/* Estilo para o botão do ícone de usuário */
+.iconLink {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  font-size: 20px; /* Garante o mesmo tamanho do ícone */
+}
+
+.iconLink:hover {
+  color: #ffc107;
+}
+
+/* Estilo para o menu dropdown do usuário */
+.userMenu {
+  position: absolute;
+  top: calc(100% + 15px); /* Posiciona abaixo do ícone com um espaço */
+  right: 0;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.userMenu ul {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.userMenu li a, .userMenu li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 20px;
+  color: #212529; /* Preto */
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.userMenu li a:hover, .userMenu li button:hover {
+  background-color: #f8f9fa; /* Cinza claro para o hover */
+}
+
 /* Linha branca separadora */
 .separator {
   height: 2px;

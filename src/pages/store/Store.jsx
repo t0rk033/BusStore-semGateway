@@ -78,10 +78,13 @@ function Store() {
         if (userDoc.exists()) {
           setUserData(userDoc.data());
         }
+      } else {
+        // Se o usuário deslogou, limpa o carrinho.
+        emptyCart();
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [emptyCart]);
 
   useEffect(() => {
     async function fetchProducts() {

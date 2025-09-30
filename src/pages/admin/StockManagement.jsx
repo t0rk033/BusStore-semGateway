@@ -1389,7 +1389,7 @@ function StockManagement() {
   
       await updateDoc(doc(db, "sales", orderId), {
         trackingNumber: trackingNumber,
-        status: 'enviado', // Atualiza o status para 'enviado'
+        status: 'Enviado', // Atualiza o status para 'Enviado'
         updatedBy: userInfo,
         updatedAt: new Date(),
       });

@@ -51,7 +51,7 @@ function Profile() {
         try {
           const salesQuery = query(
             collection(db, "sales"),
-            where("user.uid", "==", user.uid)
+            where("userId", "==", user.uid)
           );
           const salesSnapshot = await getDocs(salesQuery);
 
@@ -61,6 +61,7 @@ function Profile() {
             total: doc.data().total,
             status: doc.data().status || "Pendente",
             items: doc.data().items || [],
+            trackingNumber: doc.data().trackingNumber || null,
           }));
 
           setSalesHistory(orders.sort((a, b) => new Date(b.date) - new Date(a.date)));
@@ -124,6 +125,22 @@ function Profile() {
       );
     } catch (error) {
       console.error("Erro ao confirmar entrega:", error);
+    }
+  };
+
+  const getOrderStatus = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+      case 'pendente':
+        return { text: 'Pedido em preparação', style: styles.processing };
+      case 'enviado':
+      case 'shipped':
+        return { text: 'Enviado', style: styles.shipped };
+      case 'entregue':
+      case 'delivered':
+        return { text: 'Entregue', style: styles.delivered };
+      default:
+        return { text: status || 'Pendente', style: styles.processing };
     }
   };
 
@@ -344,49 +361,54 @@ function Profile() {
                 </div>
               ) : (
                 <div className={styles.ordersContainer}>
-                  {salesHistory.map((order) => (
-                    <div key={order.id} className={styles.orderCard}>
-                      <div className={styles.orderHeader}>
-                        <div className={styles.orderMeta}>
-                          <span className={styles.orderId}>Pedido #{order.id.slice(0, 8)}</span>
-                          <span className={styles.orderDate}>
-                            <FaCalendarAlt /> {order.date}
-                          </span>
-                        </div>
-                        <div
-                          className={`${styles.status} ${
-                            order.status === "Enviado"
-                              ? styles.shipped
-                              : order.status === "Entregue"
-                              ? styles.delivered
-                              : styles.processing
-                          }`}
-                        >
-                          {order.status}
-                        </div>
-                        {order.status === "Enviado" && (
-                          <button
-                            className={styles.confirmButton}
-                            onClick={() => confirmDelivery(order.id)}
-                          >
-                            Confirmar Entrega
-                          </button>
-                        )}
-                      </div>
-                      <div className={styles.orderItems}>
-                        {order.items.map((item, index) => (
-                          <div key={index} className={styles.orderItem}>
-                            <span>{item.name}</span>
-                            <span>{item.quantity}x</span>
-                            <span>R$ {item.price.toFixed(2)}</span>
+                  {salesHistory.map((order) => {
+                    const { text: statusText, style: statusStyle } = getOrderStatus(order.status);
+                    return (
+                      <div key={order.id} className={styles.orderCard}>
+                        <div className={styles.orderHeader}>
+                          <div className={styles.orderMeta}>
+                            <span className={styles.orderId}>Pedido #{order.id.slice(0, 8)}</span>
+                            <span className={styles.orderDate}>
+                              <FaCalendarAlt /> {order.date}
+                            </span>
                           </div>
-                        ))}
+                          <div className={`${styles.status} ${statusStyle}`}>
+                            {statusText}
+                          </div>
+                        </div>
+                        <div className={styles.orderItems}>
+                          {order.items.map((item, index) => (
+                            <div key={index} className={styles.orderItem}>
+                              <span>{item.name}</span>
+                              <span>{item.quantity}x</span>
+                              <span>R$ {item.price.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className={styles.orderFooter}>
+                          <div className={styles.orderTotal}>
+                            <FaMoneyBillWave /> Total: R$ {order.total.toFixed(2)}
+                          </div>
+                          {order.trackingNumber && (
+                            <div className={styles.trackingInfo}>
+                              <span>Rastreamento:</span>
+                              <a href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
+                                {order.trackingNumber}
+                              </a>
+                            </div>
+                          )}
+                          {order.status?.toLowerCase() === 'enviado' && (
+                            <button
+                              className={styles.confirmButton}
+                              onClick={() => confirmDelivery(order.id)}
+                            >
+                              Confirmar Entrega
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className={styles.orderTotal}>
-                        <FaMoneyBillWave /> Total: R$ {order.total.toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>

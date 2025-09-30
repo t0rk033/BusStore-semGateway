@@ -6,7 +6,7 @@ import Home from './pages/home/Home';
 import StockManagement from './pages/admin/StockManagement';
 import Reservations from './pages/reservations/Reservations';
 import Login, { LoginModal } from './pages/login/Login';
-import Signup from './pages/login/Signup';
+import Signup, { SignupModal } from './pages/login/Signup';
 import AdminHome from './pages/admin/adminHome';
 import { AuthProvider } from './AuthContext';
 import Profile from './pages/users/Profile';
@@ -18,8 +18,22 @@ import { ModalProvider, useModal } from './contexts/ModalContext';
 import Checkout from './pages/store/Checkout';
 
 function ModalLayer() {
-  const { loginOpen, closeLogin } = useModal();
-  return <LoginModal open={loginOpen} onClose={closeLogin} />;
+  const { loginOpen, closeLogin, signupOpen, closeSignup, openSignup, openLogin } = useModal();
+  
+  return (
+    <>
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSwitchToSignup={openSignup} // abre o cadastro a partir do login
+      />
+      <SignupModal
+        open={signupOpen}
+        onClose={closeSignup}
+        onSwitchToLogin={openLogin} // permite voltar ao login
+      />
+    </>
+  );
 }
 
 function RoutesApp() {

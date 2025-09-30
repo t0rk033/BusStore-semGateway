@@ -15,6 +15,7 @@
     width: 100%;
     padding: 0 20px;
     gap: 20px;
+    
 }
 
 /* Barra lateral para os filtros */
@@ -69,6 +70,7 @@
 /* Estilo para a área de produtos */
 .productsArea {
     flex-grow: 1;
+   
 }
 
 /* Cabeçalho da área de produtos */
@@ -110,14 +112,24 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
 }
+.sortSelect{
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    font-size: 0.9em;
+    background-color: white;
+    }
 
 /* Estilo de cada card de produto, agora em formato de linha */
 .productCard {
     display: flex;
     background-color: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: pointer;
 }

@@ -326,7 +326,7 @@ function SearchResults() {
             </h2>
             <div className={styles.sortOptions}>
               <span>Ordenar por:</span>
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={styles.sortSelect}>
                 <option value="relevance">Mais relevantes</option>
                 <option value="price-asc">Menor preço</option>
                 <option value="price-desc">Maior preço</option>

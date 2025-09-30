@@ -3,13 +3,12 @@ import { FaUser, FaLock, FaIdCard, FaPhone, FaMapMarker, FaBirthdayCake } from '
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'; // Adicionado updateProfile
 import { auth, db } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { cpf } from 'cpf-cnpj-validator';
+import { cpf as cpfValidator } from 'cpf-cnpj-validator';
 import validator from 'validator';
 import styles from './signup.module.css';
-import NavBar from '../../components/NavBar';
-import Footer from '../../components/Footer';
+import { useNavigate } from 'react-router-dom';
 
-function Signup() {
+export function SignupModal({ open, onClose, onSwitchToLogin }) {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -31,6 +30,7 @@ function Signup() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
+  const navigate = useNavigate();
 
   // Busca automática do endereço pelo CEP
   useEffect(() => {
@@ -73,7 +73,7 @@ function Signup() {
         if (!validator.isEmail(value)) error = 'Email inválido';
         break;
       case 'cpf':
-        if (!cpf.isValid(value)) error = 'CPF inválido';
+        if (!cpfValidator.isValid(value)) error = 'CPF inválido';
         break;
       case 'phone':
         if (!value.match(/^\(\d{2}\) \d{4,5}-\d{4}$/)) error = 'Telefone inválido';
@@ -184,7 +184,7 @@ function Signup() {
       });
 
       alert('Cadastro realizado com sucesso!');
-      window.location.href = '/perfil';
+      if (onClose) onClose(); else navigate('/perfil');
 
     } catch (error) {
       console.error('Erro no cadastro:', error);
@@ -194,16 +194,21 @@ function Signup() {
     }
   };
 
+  const handleClose = () => {
+    if (onClose) onClose();
+  };
+
+  if (!open) return null;
+
   return (
-    <div className={styles.container}>
-      <NavBar />
-      <div className={styles.signupContainer}>
+    <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
         <div className={styles.signupBox}>
+          <button className={styles.closeButton} onClick={handleClose} aria-label="Fechar">×</button>
           <h1 className={styles.title}>Cadastro Completo</h1>
           <form onSubmit={handleSubmit} className={styles.form}>
             
             {/* Seção de Dados Pessoais */}
-            <fieldset className={styles.fieldset}>
+            <fieldset className={`${styles.fieldset} ${styles.fieldsetGrid}`}>
               <legend className={styles.legend}>Dados Pessoais</legend>
               
               <div className={styles.inputGroup}>
@@ -250,7 +255,7 @@ function Signup() {
             </fieldset>
 
             {/* Seção de Contato */}
-            <fieldset className={styles.fieldset}>
+            <fieldset className={`${styles.fieldset} ${styles.fieldsetGrid}`}>
               <legend className={styles.legend}>Contato</legend>
 
               <div className={styles.inputGroup}>
@@ -463,11 +468,20 @@ function Signup() {
               {submitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
             </button>
           </form>
+          <div className={styles.loginLink}>
+            Já tem uma conta? <button onClick={onSwitchToLogin} className={styles.linkButton}>Faça login</button>
+          </div>
         </div>
       </div>
-      <Footer />
-    </div>
   );
 }
 
-export default Signup;
+export default function SignupPage() {
+  const navigate = useNavigate();
+  return (
+    <SignupModal 
+      open={true} 
+      onClose={() => navigate('/')} 
+    />
+  );
+}

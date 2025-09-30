@@ -1,13 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useModal } from '../contexts/ModalContext';
 import styles from './Navbar.module.css';
 import logo from '../assets/images/logo.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaUser, FaShoppingCart } from 'react-icons/fa';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
 function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) {
   const { openLogin } = useModal();
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleUserIconClick = () => {
+    if (user) {
+      setMenuOpen(!menuOpen);
+    } else {
+      openLogin();
+    }
+  };
 
   const handleSearch = () => {
     if (searchTerm.trim()) {
@@ -20,6 +40,28 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
       handleSearch();
     }
   };
+
+  const handleLogout = () => {
+    const auth = getAuth();
+    signOut(auth).then(() => {
+      setMenuOpen(false);
+      navigate('/');
+    }).catch((error) => {
+      console.error("Erro ao fazer logout:", error);
+    });
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const staticLinks = [
     { name: 'FEMININO', category: 'Vestuário Feminino' },
@@ -67,25 +109,31 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
             </button>
           </div>
           <div className={styles.icons}>
-            <button
-              type="button"
-              onClick={openLogin}
-              aria-label="Abrir login"
-              className={styles.iconLink}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                margin: 0,
-                cursor: 'pointer',
-                color: 'inherit',
-                display: 'inline-flex',
-                alignItems: 'center',
-                textDecoration: 'none'
-              }}
-            >
-              <FaUser />
-            </button>
+            <div className={styles.userIconContainer} ref={menuRef}>
+              <button
+                type="button"
+                onClick={handleUserIconClick}
+                aria-label={user ? "Abrir menu do usuário" : "Abrir login"}
+                className={styles.iconLink}
+              >
+                <FaUser />
+              </button>
+              {menuOpen && user && (
+                <div className={styles.userMenu}>
+                  <ul>
+                    <li>
+                      <Link to="/perfil" onClick={() => setMenuOpen(false)}>Meu Perfil</Link>
+                    </li>
+                    <li>
+                      <Link to="/favoritos" onClick={() => setMenuOpen(false)}>Favoritos</Link>
+                    </li>
+                    <li>
+                      <button onClick={handleLogout}>Sair</button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
