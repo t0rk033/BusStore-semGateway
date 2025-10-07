@@ -3,7 +3,8 @@ import styles from './Checkout.module.css';
 import { useCart } from 'react-use-cart';
 import NavBar from '../../components/NavBar';
 import { db } from "../../firebase";
-import { collection, addDoc, updateDoc, doc, getDoc } from "firebase/firestore";
+import PaymentResultModal from './PaymentResultModal';
+import { collection, addDoc, updateDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const Checkout = () => {
@@ -279,8 +280,9 @@ const Checkout = () => {
         company: selectedShipping.empresa,
         origem: selectedShipping.origem
       } : null,
+      // se não houver status, considerar pending (garante salvar compras cartão sem status imediato)
       status: paymentData.status === 'approved' ? 'approved' : 'pending',
-      paymentId: paymentData.payment_id || paymentData.id,
+      paymentId: paymentData.payment_id || paymentData.id || paymentData.paymentId || paymentData.transactionId || null,
       paymentMethod: formData.paymentMethod,
       userId: user?.uid || 'guest',
       userEmail: formData.email,
@@ -291,10 +293,44 @@ const Checkout = () => {
       pixData: formData.paymentMethod === 'pix' ? pixData : null
     };
 
-    await addDoc(collection(db, "sales"), saleData);
-    await updateStockAfterPurchase(cartItems);
-    emptyCart();
-    setStep(4);
+    try {
+      const orderId = paymentData?.orderId || paymentData?.order_id || null;
+      if (orderId) {
+        const saleRef = doc(db, "sales", orderId);
+        const existing = await getDoc(saleRef);
+        if (existing.exists()) {
+          // Atualizar mesclando campos: adicionar userData / shipping / recipientName sem perder outros campos
+          console.log("finalizePurchase - atualizando venda existente (merge):", orderId, saleData);
+          await updateDoc(saleRef, {
+            ...saleData,
+            updatedAt: new Date()
+          });
+          await updateStockAfterPurchase(cartItems);
+          emptyCart();
+          setStep(4);
+          return;
+        } else {
+          // criar com orderId (mesclando para manter compatibilidade com backend)
+          console.log("finalizePurchase - criando venda com orderId:", orderId, saleData);
+          await setDoc(saleRef, { ...saleData, orderId }, { merge: true });
+          await updateStockAfterPurchase(cartItems);
+          emptyCart();
+          setStep(4);
+          return;
+        }
+      }
+      // Caso não tenha orderId, fallback: criar novo documento com id aleatório
+      console.log("finalizePurchase - salvando venda (sem orderId):", saleData);
+      const docRef = await addDoc(collection(db, "sales"), saleData);
+      console.log("finalizePurchase - venda salva com id:", docRef.id);
+      await updateStockAfterPurchase(cartItems);
+      emptyCart();
+      setStep(4);
+    } catch (err) {
+      console.error("finalizePurchase - erro ao salvar venda:", err);
+      setPaymentResult({ status: 'error', message: 'Erro ao salvar pedido. Contate o suporte.' });
+      throw err;
+    }
   };
 
   // Função para processar pagamento com cartão (crédito/débito)
@@ -308,15 +344,20 @@ const Checkout = () => {
       // Determinar o tipo de pagamento baseado na seleção do usuário
       const paymentType = formData.paymentMethod === 'debitCard' ? 'debit_card' : 'credit_card';
       
+      // gerar orderId antes da chamada para que possamos criar a venda preliminar no Firestore
       const requestData = {
         ...cardFormData,
         amount: total,
         email: formData.email,
         paymentMethod: paymentType,
+        phone: formData.phone,
         identification_type: 'CPF',
         identification_number: formData.cpf.replace(/\D/g, ''),
         description: `Compra na BusStore - ${cartItems.length} item(s)`,
-        orderId: `order_${Date.now()}`,
+        payer: { // Enviando dados do pagador para o backend
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        },
         userId: user?.uid || 'guest',
         items: cartItems.map(item => ({
           id: item.id.split('-')[0],
@@ -327,6 +368,7 @@ const Checkout = () => {
           imageUrl: item.imageUrls?.[0] || "",
         })),
         shipping: selectedShipping ? {
+          ...selectedShipping, // Enviando todos os dados do frete
           method: selectedShipping.nome,
           cost: selectedShipping.valor,
           deliveryTime: selectedShipping.prazoEntrega
@@ -341,17 +383,67 @@ const Checkout = () => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || `Erro ${response.status}`);
+      // Se a resposta não for OK, mas tiver um status de pagamento (ex: in_process),
+      // não lançamos um erro, pois queremos tratar esse status.
+      const hasPaymentStatus = data.status || data.payment?.status;
+      if (!response.ok && !hasPaymentStatus) {
+        // Lança erro apenas se a requisição falhou E não há um status de pagamento para analisar.
+        const errorMessage = data.message || data.details || `Erro ${response.status}`;
+        console.error('Erro do backend sem status de pagamento:', data);
+        throw new Error(errorMessage);
       }
 
-      setPaymentResult(data);
+
+      console.log("processPayment - resposta crua do backend:", data);
+      // Normalizar status e id caso venham em estruturas diferentes
+      const normalizedStatus =
+        data.status ||
+        data.payment?.status ||
+        data.payment_status ||
+        data.transaction?.status ||
+        data.result?.status ||
+        null;
+
+      const normalizedPaymentId =
+        data.payment_id ||
+        data.id ||
+        data.payment?.id ||
+        data.paymentId ||
+        data.transaction?.id ||
+        data.result?.id ||
+        null;
+
+      const normalized = {
+        ...data,
+        status: normalizedStatus,
+        payment_id: normalizedPaymentId,
+        id: normalizedPaymentId,
+        orderId: data.orderId || data.order_id || data.external_reference || null,
+      };
+
+      console.log("processPayment - resposta normalizada:", normalized);
+
+      // atualizar UI com resposta normalizada
+      setPaymentResult(normalized);
       
-      if (data.status === 'approved') {
-        await finalizePurchase(data);
-      } else if (data.status === 'pending' && paymentType === 'debit_card') {
-        // Débito pode ser aprovado instantaneamente ou ficar pendente
-        await finalizePurchase(data);
+      // SALVAR quando:
+      // - houver status diferente de 'rejected' (approved, pending, in_process, etc)
+      // - ou backend retornou um id/payment_id/orderId (criou pagamento) — tratar como pending
+      const isPending = ['pending', 'in_process', 'authorized'].includes(normalized.status);
+      const isApproved = normalized.status === 'approved' || normalized.status === 'in_process';
+      const hasId = !!(normalized.payment_id || normalized.id || normalized.orderId);
+      // Salva e limpa o carrinho se for aprovado, pendente ou tiver um ID de referência
+      const shouldSave = isApproved || isPending;
+      
+      if (shouldSave) {
+        console.log('processPayment: irá salvar compra (shouldSave):', { status: normalized.status, hasId });
+        try {
+          await finalizePurchase(normalized);
+        } catch (err) {
+          console.error("processPayment - erro ao finalizar compra:", err);
+        }
+      } else {
+        console.log('processPayment: não salvando compra (status/id):', { status: normalized.status, hasId });
       }
 
     } catch (error) {
@@ -378,7 +470,7 @@ const Checkout = () => {
         identification_type: 'CPF',
         identification_number: formData.cpf.replace(/\D/g, ''),
         description: `Compra na BusStore - ${cartItems.length} item(s)`,
-        orderId: `order_${Date.now()}`,
+        phone: formData.phone,
         userId: user?.uid || 'guest',
         payer: {
           firstName: formData.firstName,
@@ -395,6 +487,7 @@ const Checkout = () => {
         })),
         shipping: selectedShipping ? {
           method: selectedShipping.nome,
+          ...selectedShipping,
           cost: selectedShipping.valor,
           deliveryTime: selectedShipping.prazoEntrega
         } : null
@@ -414,7 +507,7 @@ const Checkout = () => {
 
       setPixData(data);
       setPaymentResult({
-        status: 'pending',
+        status: data.status || 'pending',
         message: 'Aguardando pagamento PIX'
       });
 
@@ -834,7 +927,11 @@ const Checkout = () => {
                       <button 
                         type="button" 
                         className={styles.submitButton}
-                        onClick={() => finalizePurchase(pixData)}
+                        onClick={async () => {
+                          setPaymentResult({ ...pixData, status: 'pending' });
+                          await finalizePurchase({ ...pixData, status: 'pending' });
+                          setStep(4);
+                        }}
                       >
                         JÁ PAGUEI COM PIX
                       </button>
@@ -842,11 +939,7 @@ const Checkout = () => {
                   </div>
 
                   {/* Mensagens de resultado do pagamento */}
-                  {paymentResult && (
-                    <div className={`${styles.paymentResult} ${paymentResult.status === 'error' ? styles.error : styles.success}`}>
-                      <p>{paymentResult.message}</p>
-                    </div>
-                  )}
+                  {/* O modal de resultado será renderizado fora do fluxo principal */}
                 </div>
               )}
             </div>
@@ -860,41 +953,74 @@ const Checkout = () => {
                 </div>
                 <div className={styles.stepContent}>
                   <div className={styles.confirmation}>
-                    <div className={styles.statusHeader}>
-                      <span className={styles.statusIcon}>✅</span>
-                      <h2>Compra realizada com sucesso!</h2>
-                    </div>
-                    
-                    {formData.paymentMethod === 'pix' ? (
-                      <>
-                        <p className={styles.statusDescription}>
-                          Seu pedido foi registrado! Assim que o pagamento PIX for confirmado, enviaremos uma confirmação por e-mail.
-                        </p>
-                        <div className={styles.pixWarning}>
-                          <p><strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.</p>
+                    <div className={styles.confirmationCard}>
+                      {paymentResult?.status === 'approved' && (
+                        <div className={styles.statusHeader}>
+                          <span className={styles.statusIcon}>✅</span>
+                          <h2>Compra realizada com sucesso!</h2>
+                          <p className={styles.statusDescription}>Obrigado pela sua compra. Enviamos a confirmação para o seu e-mail.</p>
                         </div>
-                      </>
-                    ) : (
-                      <p className={styles.statusDescription}>
-                        Seu pagamento foi aprovado com sucesso! Obrigado pela compra.
-                      </p>
-                    )}
-                    
-                    {selectedShipping && (
-                      <div className={styles.shippingInfo}>
-                        <p><strong>Previsão de entrega:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
-                        <p><strong>Método de envio:</strong> {selectedShipping.nome}</p>
-                        <p><strong>Transportadora:</strong> {selectedShipping.transportadora}</p>
+                      )}
+                      {paymentResult?.status === 'in_process' && (
+                        <div className={styles.statusHeader}>
+                          <span className={styles.statusIcon}>⏳</span>
+                          <h2>Seu pagamento está em análise!</h2>
+                          <p className={styles.statusDescription}>
+                            A operadora do cartão está analisando seu pagamento. Assim que for aprovado, enviaremos uma confirmação por e-mail.
+                          </p>
+                        </div>
+                      )}
+                      {paymentResult?.status === 'pending' && (
+                        <div className={styles.statusHeader}>
+                          <span className={styles.statusIcon}>⏳</span>
+                          <h2>Aguardando confirmação do pagamento!</h2>
+                          <p className={styles.statusDescription}>
+                            Seu pedido foi registrado! Assim que o pagamento for confirmado, enviaremos uma notificação por e-mail.
+                          </p>
+                          {formData.paymentMethod === 'pix' && <p className={styles.pixWarning}><strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.</p>}
+                        </div>
+                      )}
+
+                      <div className={styles.confirmationDetails}>
+                        <h4>Detalhes do Pedido</h4>
+                        <p><strong>Nº do Pedido:</strong> {paymentResult?.orderId || 'Não disponível'}</p>
+                        <p><strong>Data:</strong> {new Date().toLocaleString()}</p>
+                        <p><strong>Total:</strong> R$ {total.toFixed(2)}</p>
+                        <p><strong>Pagamento:</strong> {formData.paymentMethod === 'pix' ? 'PIX' : 'Cartão'}</p>
                       </div>
-                    )}
-                    
-                    <div className={styles.paymentActions}>
-                      <button 
-                        className={styles.continueButton}
-                        onClick={() => window.location.href = '/'}
-                      >
-                        Continuar Comprando
-                      </button>
+
+                      {selectedShipping && (
+                        <div className={styles.confirmationDetails}>
+                          <h4>Detalhes da Entrega</h4>
+                          <p><strong>Endereço:</strong> {formData.address}, {formData.number} - {formData.city}/{formData.state}</p>
+                          <p><strong>Previsão:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
+                          <p><strong>Método:</strong> {selectedShipping.nome}</p>
+                        </div>
+                      )}
+
+                      <div className={styles.confirmationItems}>
+                        <h4>Itens Comprados</h4>
+                        {cartItems.map(item => (
+                          <div key={item.id} className={styles.confirmationItem}>
+                            <img src={item.imageUrls?.[0]} alt={item.name} />
+                            <div className={styles.itemInfo}>
+                              <span>{item.name}</span>
+                              <span>{item.quantity} x R$ {item.price.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className={styles.confirmationActions}>
+                        <button className={styles.primaryButton} onClick={() => window.location.href = '/'}>
+                          Continuar Comprando
+                        </button>
+                        {user && (
+                          <button className={styles.secondaryButton} onClick={() => window.location.href = '/perfil'}>
+                            Ver Meus Pedidos
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -963,6 +1089,18 @@ const Checkout = () => {
           <p>{processingPix ? 'Processando PIX...' : 'Processando pagamento...'}</p>
         </div>
       )}
+
+      {/* Modal de resultado do pagamento */}
+      <PaymentResultModal
+        result={paymentResult}
+        onClose={() => setPaymentResult(null)}
+        onRetry={() => {
+          setPaymentResult(null); // Fecha o modal
+          if (formData.paymentMethod === 'pix') {
+            setPixData(null); // Reseta a tela do PIX
+          }
+        }}
+      />
     </div>
   );
 };

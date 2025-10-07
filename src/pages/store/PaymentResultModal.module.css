@@ -1,0 +1,67 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: white;
+  padding: 30px 40px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.modal h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.5rem;
+}
+
+.modal p {
+  margin-bottom: 24px;
+  color: #666;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
+}
+
+.success .button { background-color: #28a745; }
+.success .button:hover { background-color: #218838; }
+
+.pending .button { background-color: #ffc107; color: #212529; }
+.pending .button:hover { background-color: #e0a800; }
+
+.error .button { background-color: #dc3545; }
+.error .button:hover { background-color: #c82333; }

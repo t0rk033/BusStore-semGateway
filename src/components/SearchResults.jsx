@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { FiShoppingCart } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import { db } from '../firebase';
 import Fuse from 'fuse.js';
@@ -8,6 +9,8 @@ import NavBar from './NavBar';
 import Footer from './Footer';
 import ProductModal from '../pages/store/ProductModal';
 import { useCart } from 'react-use-cart';
+import CartModal from './CartModal';
+import storeStyles from '../pages/store/store.module.css';
 
 function SearchResults() {
   const [allProducts, setAllProducts] = useState([]);
@@ -16,8 +19,12 @@ function SearchResults() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [openProductModal, setOpenProductModal] = useState(false);
-  const { addItem } = useCart();
   
+  // usar o carrinho completo aqui para exibir o modal do carrinho na página de busca
+  const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
+
+  const [openCartModal, setOpenCartModal] = useState(false);
+
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [selectedBrands, setSelectedBrands] = useState([]);
@@ -180,9 +187,13 @@ function SearchResults() {
   const handleAddToCart = (productWithDetails) => {
     addItem({
       ...productWithDetails,
-      id: `${productWithDetails.id}-${productWithDetails.variation.color}-${productWithDetails.variation.size}`,
+      id: `${productWithDetails.id}-${productWithDetails.variation?.color || ''}-${productWithDetails.variation?.size || ''}`,
     });
   };
+  
+  // abrir/fechar modal do carrinho (mesma UX da Store)
+  const handleCloseCart = () => setOpenCartModal(false);
+  const handleOpenCart = () => setOpenCartModal(true);
 
   const toggleFilter = (filterArray, setFilterArray, value) => {
     if (filterArray.includes(value)) {
@@ -212,7 +223,7 @@ function SearchResults() {
 
       
       <div className={styles.mainContent}>
-        {/* Sidebar de filtros */}
+        {/* Barra lateral de filtros */}
         <div className={styles.filtersSidebar}>
           {(categoryQuery || searchQuery) && (
             <div className={styles.activeFilterDisplay}>
@@ -386,14 +397,23 @@ function SearchResults() {
         </div>
       </div>
 
+      {/* Cart icon + shared CartModal (mesma aparência/funcionalidade do Store) */}
+      <div className={`${storeStyles.cartIcon} ${items.length > 0 ? storeStyles.pulse : ''}`} onClick={handleOpenCart} aria-label="Abrir carrinho">
+        <FiShoppingCart size={24} />
+        {items.length > 0 && <span className={storeStyles.cartBadge}>{items.length}</span>}
+      </div>
+
+      <CartModal
+        open={openCartModal}
+        onClose={handleCloseCart}
+        onCheckout={() => { handleCloseCart(); window.location.href = '/checkout'; }}
+      />
+
       <ProductModal
-        open={openProductModal}
-        onClose={() => {
-          setOpenProductModal(false);
-          setSelectedProduct(null);
-        }}
-        product={selectedProduct}
         addToCart={handleAddToCart}
+        open={openProductModal}
+        onClose={() => setOpenProductModal(false)}
+        product={selectedProduct}
       />
 
       <Footer />

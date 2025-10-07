@@ -355,25 +355,56 @@ app.post('/api/process-payment', async (req, res) => {
       issuer_id, 
       email, 
       items = [], 
-      orderId, 
       userId,
       paymentMethod, // 'pix', 'debit_card', 'credit_card'
       payer // Dados adicionais para PIX
     } = req.body;
 
-    if (!amount || !email || !orderId || !userId) {
-      logger.error('Dados de pagamento incompletos:', { 
+    if (!amount || !email || !userId) {
+      logger.error('Dados de pagamento incompletos na requisição:', { 
         amount: !!amount, 
         email: !!email,
-        orderId: !!orderId,
         userId: !!userId
       });
       
       return res.status(400).json({
         status: 'invalid_request',
         message: 'Dados de pagamento incompletos',
-        details: 'Valor, email, orderId e userId são obrigatórios'
+        details: 'Valor, email e userId são obrigatórios'
       });
+    }
+
+    // Gerar um novo orderId no backend para garantir unicidade e segurança
+    const newOrderId = `order_${Date.now()}_${userId.slice(0, 5)}`;
+
+    // Criar o documento de venda preliminar no Firestore
+    try {
+      const saleRef = db.collection('sales').doc(newOrderId);
+      const preliminarySale = {
+        orderId: newOrderId,
+        userId,
+        userEmail: email,
+        items,
+        total: parseFloat(amount),
+        status: 'pending', // Status inicial
+        paymentMethod,
+        userData: {
+          fullName: `${payer.first_name || ''} ${payer.last_name || ''}`.trim(),
+          email: email,
+          cpf: req.body.identification_number,
+          phone: req.body.phone, // Assumindo que o frontend enviará o telefone
+        },
+        shipping: req.body.shipping || null, // Assumindo que o frontend enviará os dados de frete
+        recipientName: `${payer.first_name || ''} ${payer.last_name || ''}`.trim(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        shipped: false,
+      };
+      await saleRef.set(preliminarySale);
+      console.log(`✅ Pedido preliminar ${newOrderId} criado no Firestore.`);
+    } catch (dbError) {
+      console.error('❌ Erro ao criar pedido preliminar no Firestore:', dbError);
+      throw new Error('Falha ao registrar o pedido antes do pagamento.');
     }
 
     const transactionAmount = parseFloat(amount);
@@ -389,6 +420,7 @@ app.post('/api/process-payment', async (req, res) => {
     const paymentData = {
       transaction_amount: transactionAmount,
       description: description || 'Compra na BusStore',
+      external_reference: newOrderId, // Usar nosso orderId como referência externa
       payer: {
         email,
         identification: {
@@ -443,7 +475,7 @@ app.post('/api/process-payment', async (req, res) => {
     // Preparar dados para salvar no Firestore
     const paymentDataToSave = {
       paymentId: paymentResponse.id,
-      orderId,
+      orderId: newOrderId,
       userId,
       status: paymentResponse.status,
       amount: transactionAmount,
@@ -473,9 +505,33 @@ app.post('/api/process-payment', async (req, res) => {
     // Salvar no Firestore
     await savePaymentToFirestore(paymentDataToSave);
 
+    // Se o pagamento for recusado/cancelado, excluímos o pedido preliminar.
+    // Caso contrário, atualizamos com o status final.
+    const finalStatus = paymentResponse.status;
+    const saleRef = db.collection('sales').doc(newOrderId);
+
+    if (finalStatus === 'rejected' || finalStatus === 'cancelled' || finalStatus === 'error') {
+      try {
+        await saleRef.delete();
+        console.log(`🗑️ Pedido preliminar ${newOrderId} excluído devido a pagamento ${finalStatus}.`);
+      } catch (deleteError) {
+        console.error(`❌ Erro ao excluir pedido preliminar ${newOrderId}:`, deleteError);
+      }
+    } else {
+      try {
+        await saleRef.update({
+          paymentId: paymentResponse.id,
+          status: finalStatus
+        });
+        console.log(`✅ Pedido ${newOrderId} atualizado com paymentId: ${paymentResponse.id} e status: ${finalStatus}`);
+      } catch (saleError) {
+        console.error(`❌ Erro ao atualizar o pedido ${newOrderId} na coleção 'sales':`, saleError);
+      }
+    }
+
     // Envio de e-mails se pagamento aprovado
     if (paymentResponse.status === 'approved') {
-      await enviarEmailsConfirmacao(email, orderId, items, transactionAmount, paymentMethod);
+      await enviarEmailsConfirmacao(email, newOrderId, items, transactionAmount, paymentMethod);
     }
 
     // Resposta específica para PIX
@@ -484,6 +540,7 @@ app.post('/api/process-payment', async (req, res) => {
         status: 'pending',
         message: 'Pagamento PIX criado com sucesso',
         payment_id: paymentResponse.id,
+        orderId: newOrderId, // Retornar o orderId gerado
         pix_data: paymentResponse.point_of_interaction?.transaction_data || {},
         qr_code: paymentResponse.point_of_interaction?.transaction_data?.qr_code,
         qr_code_base64: paymentResponse.point_of_interaction?.transaction_data?.qr_code_base64,
@@ -500,22 +557,11 @@ app.post('/api/process-payment', async (req, res) => {
       description: 'O status do pagamento não pôde ser determinado.'
     };
 
+    // Para cartões, vamos aninhar a resposta do MP para manter a consistência
     const response = {
       ...statusResponse,
-      payment_id: paymentResponse.id,
-      date_created: paymentResponse.date_created,
-      date_approved: paymentResponse.date_approved,
-      date_last_updated: paymentResponse.date_last_updated,
-      payment_method: paymentResponse.payment_method_id,
-      payment_type: paymentResponse.payment_type_id,
-      status_detail: paymentResponse.status_detail,
-      currency_id: paymentResponse.currency_id,
-      transaction_amount: paymentResponse.transaction_amount,
-      installments: paymentResponse.installments,
-      taxes_amount: paymentResponse.taxes_amount,
-      shipping_amount: paymentResponse.shipping_amount,
-      collector_id: paymentResponse.collector_id,
-      payer: paymentResponse.payer
+      orderId: newOrderId, // Retornar o orderId gerado
+      payment: paymentResponse // Retorna o objeto de pagamento completo
     };
 
     const httpStatus = paymentResponse.status === 'approved' ? 200 : 
@@ -535,7 +581,20 @@ app.post('/api/process-payment', async (req, res) => {
       
       logger.error('Detalhes do erro Mercado Pago:', error.response.data);
       
-      const mpError = error.response.data;
+      const mpError = error.response.data || {};
+      const isCallForAuthorize = mpError.causes?.some(
+        cause => cause.code === '2007' || cause.description?.includes('call for authorize')
+      ) || mpError.status_detail === 'cc_rejected_call_for_authorize';
+
+      if (isCallForAuthorize) {
+        logger.warn('Pagamento requer autorização do cliente. Tratando como "in_process".');
+        return res.status(202).json({
+          status: 'in_process',
+          message: 'Pagamento em análise. Por favor, autorize a compra com seu banco.',
+          details: 'O pagamento foi recusado e precisa de autorização. Contate o emissor do cartão.'
+        });
+      }
+
       return res.status(error.response.status || 400).json({
         status: 'mp_error',
         message: mpError.message || 'Erro no processamento do pagamento',
@@ -559,10 +618,26 @@ app.post('/api/process-payment', async (req, res) => {
 // Endpoint para webhook de notificações do Mercado Pago
 app.post('/api/payments/webhook', async (req, res) => {
   try {
-    const { type, data } = req.body;
+    logger.info('Webhook recebido:', { body: req.body, query: req.query });
+
+    const { type, data } = req.body; // Notificações via POST body
+    const { topic, id } = req.query; // Notificações via query string
+
+    let paymentId;
+    let notificationType = type || topic;
     
-    if (type === 'payment') {
-      const paymentId = data.id;
+    if (notificationType === 'payment') {
+      if (data && data.id) {
+        paymentId = data.id;
+      } else if (id) {
+        paymentId = id;
+      }
+
+      if (!paymentId) {
+        logger.warn('Não foi possível encontrar o ID do pagamento na notificação do webhook.');
+        return res.status(400).send('ID do pagamento não encontrado.');
+      }
+
       logger.info('Webhook recebido para pagamento:', paymentId);
       
       // Buscar detalhes atualizados do pagamento
@@ -570,17 +645,46 @@ app.post('/api/payments/webhook', async (req, res) => {
       
       // Atualizar no Firestore
       try {
-        await db.collection('payments').doc(paymentId).update({
+        const paymentRef = db.collection('payments').doc(String(paymentId)); // Usar String(paymentId) para garantir tipo
+        
+        // 1. Atualiza a coleção 'payments'
+        await paymentRef.set({
           status: paymentDetails.status,
           gatewayResponse: paymentDetails,
           updatedAt: new Date()
-        });
-        console.log('✅ Status do pagamento atualizado no Firestore:', paymentId);
+        }, { merge: true });
+        logger.info('✅ Status do pagamento atualizado na coleção "payments":', paymentId);
+
+        // 2. Busca o documento de pagamento para obter o orderId
+        const paymentDoc = await paymentRef.get();
+        if (paymentDoc.exists && paymentDoc.data().orderId) {
+          const orderId = paymentDoc.data().orderId;
+          const saleRef = db.collection('sales').doc(orderId);
+          
+          // Obter a mensagem e descrição do status
+          const statusInfo = paymentStatusMessages[paymentDetails.status] || {
+            status: paymentDetails.status,
+            message: 'Status de pagamento desconhecido',
+            description: 'O status do pagamento não pôde ser determinado.'
+          };
+
+          // 3. Atualiza a coleção 'sales'
+          await saleRef.update({
+            status: paymentDetails.status,
+            paymentStatusMessage: statusInfo.message,
+            paymentStatusDescription: statusInfo.description,
+            updatedAt: new Date()
+          });
+          logger.info(`✅ Status do pedido atualizado na coleção "sales": ${orderId}`);
+        } else {
+          logger.warn(`Não foi possível encontrar o orderId para o paymentId: ${paymentId}`);
+        }
+
       } catch (firestoreError) {
         console.error('❌ Erro ao atualizar Firestore:', firestoreError);
+        // Mesmo com erro no Firestore, respondemos OK para o MP não reenviar a notificação.
+        // O erro já foi logado para análise.
       }
-      
-      logger.info(`Status do pagamento ${paymentId} atualizado para: ${paymentDetails.status}`);
     }
     
     res.status(200).send('OK');
@@ -611,6 +715,31 @@ app.get('/api/payments/:id', async (req, res) => {
       message: 'Erro ao consultar pagamento'
     });
   }
+});
+// Adicione estas rotas após as outras definições de rota
+
+// Rota específica para verificar se o ngrok está funcionando
+app.get('/api/ngrok-test', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'Ngrok está funcionando!',
+    timestamp: new Date().toISOString(),
+    webhook_url: `${req.protocol}://${req.get('host')}/api/payments/webhook`,
+    public_url: req.get('host')
+  });
+});
+
+// Rota para debug do webhook
+app.get('/api/webhook-debug', (req, res) => {
+  res.json({
+    webhook_endpoint: '/api/payments/webhook',
+    method: 'POST',
+    expected_format: {
+      type: 'payment',
+      data: { id: 'payment_id' }
+    },
+    current_time: new Date().toISOString()
+  });
 });
 
 // Endpoint para listar pagamentos com filtros

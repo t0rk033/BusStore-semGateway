@@ -164,9 +164,10 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
       console.log('Resposta do backend:', data);
       setPaymentResult(data);
       
-      // SALVAR A COMPRA NO BANCO DE DADOS SE O PAGAMENTO FOI APROVADO
-      if (data.status === 'approved') {
-        try {
+      // SALVAR A COMPRA NO BANCO DE DADOS SE O PAGAMENTO NÃO FOR RECUSADO
+      if (data.status && data.status !== 'rejected') {
+         try {
+          const saleStatus = data.status === 'approved' ? 'approved' : 'pending';
           const saleData = {
             items: items.map(item => ({
               id: item.id,
@@ -177,7 +178,9 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
               imageUrl: item.imageUrls?.[0] || "",
             })),
             total: total,
-            status: 'approved',
+            /*...*/
+            // usa 'approved' quando aprovado, caso contrário grava 'pending'
+            status: saleStatus,
             paymentId: data.payment_id || data.id,
             paymentMethod: data.payment_method || 'credit_card',
             userId: userId || 'guest',

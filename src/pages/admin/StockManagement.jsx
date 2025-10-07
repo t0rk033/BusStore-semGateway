@@ -115,6 +115,7 @@ import SalesStockReports from "./SalesStockReports";
 import styles from "./StockManagement.module.css";
 import ImageUpload from "../../components/ImageUpload";
 import BarcodeScanner from "./BarcodeScanner";
+import HourglassEmpty from '@mui/icons-material/HourglassEmpty';
 
 // Componentes de gráficos
 import {
