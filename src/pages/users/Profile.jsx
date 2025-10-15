@@ -12,6 +12,7 @@ import {
 } from 'react-icons/fa';
 import NavBar from '../../components/NavBar';
 import Footer from '../../components/Footer';
+import OrderDetailModal from './OrderDetailModal';
 
 function Profile() {
   const [user] = useAuthState(auth);
@@ -21,6 +22,8 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('personal'); // 'personal', 'address', 'orders'
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -51,20 +54,25 @@ function Profile() {
         try {
           const salesQuery = query(
             collection(db, "sales"),
-            where("userId", "==", user.uid)
+            where("userId", "==", user.uid),
+            // orderBy("createdAt", "desc") // Descomente se tiver o índice
           );
           const salesSnapshot = await getDocs(salesQuery);
 
           const orders = salesSnapshot.docs.map((doc) => ({
             id: doc.id,
-            date: doc.data().date?.toDate().toLocaleDateString("pt-BR"),
+            ...doc.data(),
+            date: doc.data().createdAt?.toDate().toLocaleDateString("pt-BR"),
             total: doc.data().total,
             status: doc.data().status || "Pendente",
             items: doc.data().items || [],
             trackingNumber: doc.data().trackingNumber || null,
           }));
 
-          setSalesHistory(orders.sort((a, b) => new Date(b.date) - new Date(a.date)));
+          // Ordenar por data de criação, que é mais confiável
+          orders.sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
+
+          setSalesHistory(orders);
         } catch (error) {
           console.error("Erro ao carregar histórico de pedidos:", error);
           setMessage('Erro ao carregar histórico de pedidos');
@@ -128,6 +136,16 @@ function Profile() {
     }
   };
 
+  const handleViewDetails = (order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  };
+
   const getOrderStatus = (status) => {
     switch (status?.toLowerCase()) {
       case 'pending':
@@ -148,6 +166,10 @@ function Profile() {
   if (!userData) return <div className={styles.error}>{message}</div>;
 
   return (
+    <>
+      {isModalOpen && selectedOrder && (
+        <OrderDetailModal order={selectedOrder} onClose={handleCloseModal} />
+      )}
     <div className={styles.pageContainer}>
       <NavBar />
       <div className={styles.profileContainer}>
@@ -376,35 +398,45 @@ function Profile() {
                             {statusText}
                           </div>
                         </div>
-                        <div className={styles.orderItems}>
-                          {order.items.map((item, index) => (
-                            <div key={index} className={styles.orderItem}>
-                              <span>{item.name}</span>
-                              <span>{item.quantity}x</span>
-                              <span>R$ {item.price.toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className={styles.orderFooter}>
-                          <div className={styles.orderTotal}>
-                            <FaMoneyBillWave /> Total: R$ {order.total.toFixed(2)}
+                        <div className={styles.orderBody}>
+                          <div className={styles.orderItems}>
+                            {order.items.slice(0, 3).map((item, index) => (
+                              <div key={index} className={styles.orderItem}>
+                                <img src={item.imageUrls?.[0]} alt={item.name} className={styles.orderItemImage} />
+                                <div className={styles.orderItemInfo}>
+                                  <span className={styles.orderItemName}>{item.name}</span>
+                                  <span className={styles.orderItemQuantity}>{item.quantity}x R$ {item.price.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            ))}
+                            {order.items.length > 3 && (
+                              <span className={styles.moreItems}>+ {order.items.length - 3} itens</span>
+                            )}
                           </div>
-                          {order.trackingNumber && (
-                            <div className={styles.trackingInfo}>
-                              <span>Rastreamento:</span>
-                              <a href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
-                                {order.trackingNumber}
-                              </a>
+                          <div className={styles.orderRightSection}>
+                            <div className={styles.orderTotal}>
+                              Total: <span>R$ {order.total.toFixed(2)}</span>
                             </div>
-                          )}
-                          {order.status?.toLowerCase() === 'enviado' && (
-                            <button
-                              className={styles.confirmButton}
-                              onClick={() => confirmDelivery(order.id)}
-                            >
-                              Confirmar Entrega
-                            </button>
-                          )}
+                            {order.trackingNumber && (
+                              <div className={styles.trackingInfo}>
+                                <span>Rastreamento:</span>
+                                <a href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
+                                  {order.trackingNumber}
+                                </a>
+                              </div>
+                            )}
+                            <div className={styles.orderActionButtons}>
+                              {order.status?.toLowerCase() === 'enviado' && (
+                                <button
+                                  className={styles.confirmButton}
+                                  onClick={() => confirmDelivery(order.id)}
+                                >
+                                  Confirmar Entrega
+                                </button>
+                              )}
+                            <button className={styles.detailsButton} onClick={() => handleViewDetails(order)}>Ver Detalhes</button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -417,6 +449,7 @@ function Profile() {
       </div>
       <Footer />
     </div>
+    </>
   );
 }
 

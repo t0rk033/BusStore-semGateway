@@ -18,6 +18,7 @@ import {
   AccordionDetails,
   Divider,
   Badge,
+  Autocomplete,
   Select,
   MenuItem,
   useMediaQuery,
@@ -40,6 +41,7 @@ import {
   TableHead,
   TableRow,
   InputAdornment,
+  Pagination,
   CircularProgress,
   Switch,
   Breadcrumbs,
@@ -88,7 +90,8 @@ import {
   AccountCircle,
   Pending,
   Remove,
-  TrendingDown
+  TrendingDown,
+  ShoppingCart
 } from "@mui/icons-material";
 import { format, subDays, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import NavBar from "../../components/NavBar";
@@ -108,10 +111,9 @@ import {
   getDoc,
   startAfter,
   limit
-} from "firebase/firestore";
-import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
-import ShippedOrders from "./ShippedOrders";
-import SalesStockReports from "./SalesStockReports";
+} from 'firebase/firestore';
+import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
+import Reports from './Reports'; // Importando o novo componente de relatórios
 import styles from "./StockManagement.module.css";
 import ImageUpload from "../../components/ImageUpload";
 import BarcodeScanner from "./BarcodeScanner";
@@ -166,7 +168,8 @@ const PERMISSIONS = {
   EXPORT_DATA: 'export_data',
   // Sistema
   SYSTEM_SETTINGS: 'system_settings',
-  BACKUP_RESTORE: 'backup_restore'
+  BACKUP_RESTORE: 'backup_restore',
+  CREATE_MANUAL_SALE: 'create_manual_sale'
 };
 
 const ROLE_PERMISSIONS = {
@@ -177,12 +180,14 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_SUPPLIERS, PERMISSIONS.EDIT_SUPPLIERS,
     PERMISSIONS.VIEW_SALES, PERMISSIONS.EDIT_SALES,
     PERMISSIONS.VIEW_FINANCE, PERMISSIONS.VIEW_REPORTS,
-    PERMISSIONS.EXPORT_DATA
+    PERMISSIONS.EXPORT_DATA,
+    PERMISSIONS.CREATE_MANUAL_SALE
   ],
   [ROLES.OPERATOR]: [
     PERMISSIONS.VIEW_PRODUCTS, PERMISSIONS.EDIT_PRODUCTS,
     PERMISSIONS.VIEW_SALES, PERMISSIONS.EDIT_SALES,
-    PERMISSIONS.VIEW_CATEGORIES
+    PERMISSIONS.VIEW_CATEGORIES,
+    PERMISSIONS.CREATE_MANUAL_SALE
   ],
   [ROLES.VIEWER]: [
     PERMISSIONS.VIEW_PRODUCTS,
@@ -205,6 +210,193 @@ const COLOR_MAP = {
   gray: "#9E9E9E",
   branco: "#FFFFFF",
   white: "#FFFFFF",
+};
+
+const ManualSaleForm = ({
+  manualSaleItems,
+  setManualSaleItems,
+  manualSaleCustomerData,
+  setManualSaleCustomerData,
+  manualSalePayment,
+  setManualSalePayment,
+  products,
+  currentUser,
+  addNotification,
+  setAllSales
+}) => {
+  const subtotal = manualSaleItems.reduce(
+    (acc, item) => acc + (item.price || 0) * (item.quantity || 0),
+    0
+  );
+
+  const handleCustomerDataChange = (e) => {
+    const { name, value } = e.target;
+    setManualSaleCustomerData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddressChange = (e) => {
+    const { name, value } = e.target;
+    setManualSaleCustomerData(prev => ({
+      ...prev, address: { ...prev.address, [name]: value }
+    }));
+  };
+
+  const handleAddItem = (product) => {
+    if (!product) return;
+    const existingItem = manualSaleItems.find(item => item.id === product.id);
+    if (existingItem) {
+      handleQuantityChange(product.id, existingItem.quantity + 1);
+    } else {
+      setManualSaleItems([...manualSaleItems, { ...product, price: product.salePrice, quantity: 1 }]);
+    }
+  };
+
+  const handleQuantityChange = (productId, quantity) => {
+    const newQuantity = Math.max(1, quantity);
+    setManualSaleItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === productId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+  };
+
+  const handleRemoveItem = (productId) => {
+    setManualSaleItems(manualSaleItems.filter(item => item.id !== productId));
+  };
+
+  const finalizeSale = async () => {
+    if (manualSaleItems.length === 0) {
+      addNotification("Venda vazia", "Adicione pelo menos um produto para registrar a venda.", "warning");
+      return;
+    }
+
+    const saleData = {
+      items: manualSaleItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        imageUrls: item.imageUrls,
+      })),
+      total: subtotal,
+      subtotal: subtotal,
+      discount: 0,
+      shipping: null,
+      status: 'Entregue', // Venda presencial já é considerada entregue
+      paymentMethod: manualSalePayment,
+      userId: currentUser.uid,
+      userEmail: currentUser.email,
+      userData: manualSaleCustomerData.fullName ? manualSaleCustomerData : null,
+      recipientName: manualSaleCustomerData.fullName || 'Cliente Balcão',
+      createdAt: new Date(),
+      shipped: true,
+      isManualSale: true,
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "sales"), saleData);
+      setAllSales(prevSales => [{ ...saleData, id: docRef.id }, ...prevSales]);
+
+      for (const item of manualSaleItems) {
+        const productRef = doc(db, "products", item.id);
+        const productDoc = await getDoc(productRef);
+        if (productDoc.exists()) {
+          const productData = productDoc.data();
+          if (productData.variations && Array.isArray(productData.variations) && item.variation) {
+            const updatedVariations = productData.variations.map(v => {
+              const isMatchingVariation = v.size === item.variation.size && v.color === item.variation.color && v.model === item.variation.model;
+              if (isMatchingVariation) {
+                const newStock = (v.stock || 0) - item.quantity;
+                return { ...v, stock: Math.max(0, newStock) };
+              }
+              return v;
+            });
+            await updateDoc(productRef, { variations: updatedVariations });
+          } else {
+            const newStock = (productData.stock || 0) - item.quantity;
+            await updateDoc(productRef, { stock: Math.max(0, newStock) });
+          }
+        }
+      }
+
+      addNotification("Venda Registrada", "A venda presencial foi registrada com sucesso.", "success");
+      setManualSaleItems([]);
+      setManualSaleCustomerData({
+        fullName: '',
+        email: '',
+        cpf: '',
+        phone: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      });
+      setManualSalePayment('dinheiro');
+    } catch (error) {
+      console.error("Erro ao registrar venda manual:", error);
+      addNotification("Erro", "Não foi possível registrar a venda.", "error");
+    }
+  };
+
+  return (
+    <Box>
+      <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>Registrar Venda Presencial</Typography>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={7}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Itens da Venda</Typography>
+              <Autocomplete options={products.filter(p => p.enabled)} getOptionLabel={(option) => `${option.name} (SKU: ${option.sku})`} onChange={(event, newValue) => { handleAddItem(newValue); }} renderInput={(params) => <TextField {...params} label="Buscar produto..." />} sx={{ mb: 3 }} />
+              {manualSaleItems.map(item => (
+                <Paper key={item.id} variant="outlined" sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Avatar src={item.imageUrls?.[0]} variant="rounded" />
+                  <Box sx={{ flexGrow: 1 }}><Typography fontWeight="600">{item.name}</Typography><Typography variant="body2" color="text.secondary">R$ {item.price.toFixed(2)}</Typography></Box>
+                  <TextField type="number" value={item.quantity} onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value, 10))} sx={{ width: 80 }} size="small" inputProps={{ min: 1 }} />
+                  <IconButton onClick={() => handleRemoveItem(item.id)} color="error"><Delete /></IconButton>
+                </Paper>
+              ))}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={5}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Cliente e Pagamento</Typography>
+              <Accordion sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider', mb: 3 }}>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography>Dados do Cliente (Opcional)</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}><TextField label="Nome Completo" name="fullName" value={manualSaleCustomerData.fullName} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={6}><TextField label="Email" name="email" type="email" value={manualSaleCustomerData.email} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={6}><TextField label="CPF" name="cpf" value={manualSaleCustomerData.cpf} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={6}><TextField label="Telefone" name="phone" value={manualSaleCustomerData.phone} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={6}><TextField label="CEP" name="zipCode" value={manualSaleCustomerData.zipCode} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={6}><TextField label="Rua" name="street" value={manualSaleCustomerData.street} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={4}><TextField label="Número" name="number" value={manualSaleCustomerData.number} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={8}><TextField label="Complemento" name="complement" value={manualSaleCustomerData.complement} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={4}><TextField label="Bairro" name="neighborhood" value={manualSaleCustomerData.neighborhood} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={4}><TextField label="Cidade" name="city" value={manualSaleCustomerData.city} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={12} sm={4}><TextField label="Estado" name="state" value={manualSaleCustomerData.state} onChange={handleCustomerDataChange} fullWidth size="small" /></Grid>
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+
+              <FormControl fullWidth sx={{ mb: 3 }}><InputLabel>Forma de Pagamento</InputLabel><Select value={manualSalePayment} label="Forma de Pagamento" onChange={(e) => setManualSalePayment(e.target.value)}><MenuItem value="dinheiro">Dinheiro</MenuItem><MenuItem value="cartao_credito">Cartão de Crédito</MenuItem><MenuItem value="cartao_debito">Cartão de Débito</MenuItem><MenuItem value="pix">PIX</MenuItem></Select></FormControl>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}><Typography>Subtotal</Typography><Typography fontWeight="600">R$ {subtotal.toFixed(2)}</Typography></Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}><Typography variant="h6">Total</Typography><Typography variant="h6" color="primary" fontWeight="700">R$ {subtotal.toFixed(2)}</Typography></Box>
+              <Button variant="contained" fullWidth size="large" onClick={finalizeSale} disabled={manualSaleItems.length === 0}>Finalizar Venda</Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
+  );
 };
 
 function getHexFromColorName(name = "") {
@@ -319,14 +511,44 @@ function StockManagement() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
+  const [allAuthUsers, setAllAuthUsers] = useState([]);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('csv');
   const [exportRange, setExportRange] = useState('all');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [restorePoint, setRestorePoint] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
 
+  // O SDK do cliente do Firebase não pode listar todos os usuários de autenticação por motivos de segurança.
+  // Esta função é um placeholder. A atualização real dos dados dos usuários que já estão na
+  // coleção 'users' do Firestore é feita automaticamente pelo listener onSnapshot.
+  // O botão "Atualizar" na UI de usuários agora serve mais como um feedback visual,
+  // já que os dados são atualizados em tempo real.
+  const fetchAllAuthUsers = () => {
+    addNotification("Atualizado", "A lista de usuários é atualizada em tempo real.", "info");
+    return Promise.resolve([]); // Retorna uma promessa vazia, pois a lógica está no onSnapshot.
+  };
+
+  // Estado para a Venda Manual
+  const [manualSaleItems, setManualSaleItems] = useState([]);
+  const [manualSaleCustomerData, setManualSaleCustomerData] = useState({
+    fullName: '',
+    email: '',
+    cpf: '',
+    phone: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zipCode: ''
+  });
+  const [manualSalePayment, setManualSalePayment] = useState('dinheiro');
+
+  const [paymentCurrentPage, setPaymentCurrentPage] = useState(1);
+  const paymentsPerPage = 8;
+  const [refundReason, setRefundReason] = useState("Reembolso solicitado pelo admin");
   const AUDIT_ACTION_META = {
     CRIAR_PRODUTO: { text: 'Criação de Produto', color: 'success', icon: <Add /> },
     EDITAR_PRODUTO: { text: 'Edição de Produto', color: 'info', icon: <Edit /> },
@@ -620,6 +842,7 @@ function StockManagement() {
       if (response.ok) {
         alert('Reembolso processado com sucesso!');
         fetchPayments(); // Atualizar a lista de pagamentos
+        setRefundReason("Reembolso solicitado pelo admin"); // Reseta o motivo
         setRefundDialog({ open: false, payment: null });
         await addDoc(collection(db, "auditLogs"), {
           action: "PROCESSAR_REEMBOLSO",
@@ -1297,12 +1520,21 @@ function StockManagement() {
     
     const unsubscribeUsers = onSnapshot(
       collection(db, "users"),
-      (snapshot) => {
-        const usersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setUsers(usersData);
+      async (snapshot) => {
+        const firestoreUsers = {};
+        snapshot.docs.forEach(doc => {
+          firestoreUsers[doc.id] = { id: doc.id, ...doc.data() };
+        });
+
+        // Garante que a lista de usuários da autenticação já foi carregada
+        const authUsers = allAuthUsers.length > 0 ? allAuthUsers : await fetchAllAuthUsers();
+
+        const combinedUsers = authUsers.map(authUser => {
+          const firestoreData = firestoreUsers[authUser.uid] || {};
+          return { ...firestoreData, ...authUser, id: authUser.uid };
+        });
+
+        setUsers(combinedUsers);
       }
     );
     
@@ -1372,29 +1604,34 @@ function StockManagement() {
   };
 
   const updateTrackingNumber = async (orderId, trackingNumber) => {
-    if (!hasPermission(PERMISSIONS.EDIT_SALES)) {
-      addNotification("Permissão negada", "Você não tem permissão para editar pedidos.", "error");
-      return;
-    }
-    if (!orderId || !trackingNumber) {
-      addNotification("Dados inválidos", "ID do pedido ou código de rastreio ausente.", "warning");
-      return;
-    }
-  
+    if (!hasPermission(PERMISSIONS.EDIT_SALES)) return addNotification("Permissão negada", "Você não tem permissão para editar pedidos.", "error");
+    if (!orderId || !trackingNumber.trim()) return addNotification("Dados inválidos", "ID do pedido ou código de rastreio ausente.", "warning");
+
     try {
       const userInfo = {
         uid: currentUser?.uid || '',
         name: currentUser?.displayName || currentUser?.email || '',
         email: currentUser?.email || '',
       };
-  
+
       await updateDoc(doc(db, "sales", orderId), {
         trackingNumber: trackingNumber,
         status: 'Enviado', // Atualiza o status para 'Enviado'
         updatedBy: userInfo,
         updatedAt: new Date(),
       });
-  
+
+      await addDoc(collection(db, "auditLogs"), {
+        action: "MARCAR_ENVIADO",
+        target: `sales/${orderId}`,
+        user: userInfo,
+        timestamp: new Date(),
+        details: {
+          trackingNumber: trackingNumber,
+          newStatus: 'Enviado'
+        }
+      });
+
       setAdminSalesOrders(prev => prev.map(order => 
         order.id === orderId ? { ...order, trackingNumber, status: 'enviado' } : order
       ));
@@ -2626,6 +2863,16 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       refunded: 'info',
       unknown: 'default'
     };
+    
+    const indexOfLastPayment = paymentCurrentPage * paymentsPerPage;
+    const indexOfFirstPayment = indexOfLastPayment - paymentsPerPage;
+    const currentPayments = payments.slice(indexOfFirstPayment, indexOfLastPayment);
+
+    const totalPages = Math.ceil(payments.length / paymentsPerPage);
+
+    const handlePageChange = (event, value) => {
+      setPaymentCurrentPage(value);
+    };
 
     return (
       <Box>
@@ -2633,6 +2880,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           <Typography variant="h4" fontWeight="700">
             Gestão de Pagamentos
           </Typography>
+          <Chip label={`${payments.length} pagamentos no total`} color="primary" variant="outlined" />
           <Button 
             variant="outlined" 
             startIcon={<Refresh />}
@@ -2645,7 +2893,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
         <Card>
           <CardContent>
             <Grid container spacing={2}>
-              {payments.map((payment) => (
+              {currentPayments.map((payment) => (
                 <Grid item xs={12} key={payment.paymentId}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2690,6 +2938,16 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
               ))}
             </Grid>
           </CardContent>
+          {totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <Pagination
+                count={totalPages}
+                page={paymentCurrentPage}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Box>
+          )}
         </Card>
       </Box>
     );
@@ -2697,6 +2955,9 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
 
   const MyOrders = () => { // This component will now display all sales for admin
     const [localFilter, setLocalFilter] = useState('todos');
+    const [ordersCurrentPage, setOrdersCurrentPage] = useState(1);
+    const ordersPerPage = 5;
+
 
     const getShippingStatus = (order) => {
       if (order.status === 'delivered' || order.status === 'Entregue') return 'Entregue';
@@ -2719,6 +2980,16 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       if (localFilter === 'todos') return true;
       return status.toLowerCase() === localFilter.toLowerCase();
     });
+
+    // Lógica de Paginação
+    const indexOfLastOrder = ordersCurrentPage * ordersPerPage;
+    const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
+    const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
+    const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+
+    const handlePageChange = (event, value) => {
+      setOrdersCurrentPage(value);
+    };
 
     if (adminSalesOrders.length === 0) { // Check adminSalesOrders
       return (
@@ -2747,6 +3018,13 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             color="primary" 
             variant="outlined" 
           />
+          <Button 
+            variant="outlined" 
+            startIcon={<Refresh />}
+            onClick={fetchAdminSalesOrders}
+          >
+            Atualizar
+          </Button>
         </Box>
 
         <Card sx={{ mb: 3 }}>
@@ -2772,8 +3050,8 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', my: 4 }}>
             Nenhum pedido encontrado com o filtro selecionado.
           </Typography>
-        ) : (
-          filteredOrders.map(order => {
+        ) : (<>
+          {currentOrders.map(order => {
             const shippingStatus = getShippingStatus(order);
 
             return (
@@ -3024,7 +3302,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                         </Button>
                       )}
                       
-                      {order.status === 'approved' && !order.trackingNumber && (
+                      {(order.status === 'approved' || order.status === 'Pendente' || order.status === 'pending') && !order.trackingNumber && (
                         <Button // This button should be for admin only
                           variant="contained"
                           size="small"
@@ -3050,7 +3328,18 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
               </Card>
             );
           })
-        )}
+        }
+        {totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Pagination
+                count={totalPages}
+                page={ordersCurrentPage}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Box>
+          )}
+        </>)}
 
         <Dialog open={trackingDialog.open} onClose={() => setTrackingDialog({ open: false, order: null })}>
           <DialogTitle>Adicionar Código de Rastreamento</DialogTitle>
@@ -3508,17 +3797,21 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             label="Motivo do reembolso"
             type="text"
             fullWidth
+            value={refundReason}
+            onChange={(e) => setRefundReason(e.target.value)}
             variant="outlined"
-            defaultValue="Reembolso solicitado pelo admin"
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRefundDialog({ open: false, payment: null })}>
             Cancelar
           </Button>
-          <Button 
-            onClick={() => handleRefund(refundDialog.payment?.paymentId, "Reembolso solicitado pelo admin")}
+          <Button
+            onClick={() => {
+              handleRefund(refundDialog.payment?.paymentId, refundReason);
+            }}
             color="error"
+            disabled={!refundReason.trim()}
           >
             Confirmar Reembolso
           </Button>
@@ -3624,6 +3917,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                 { id: "productList", icon: <ListIcon />, label: "Lista de Produtos", permission: PERMISSIONS.VIEW_PRODUCTS },
                 { id: "categories", icon: <CategoryIcon />, label: "Categorias", permission: PERMISSIONS.VIEW_CATEGORIES },
                 { id: "suppliers", icon: <Business />, label: "Fornecedores", permission: PERMISSIONS.VIEW_SUPPLIERS }, // No change
+                { id: "manualSale", icon: <ShoppingCart />, label: "Registrar Venda", permission: PERMISSIONS.CREATE_MANUAL_SALE },
                 { id: "myOrders", icon: <LocalShipping />, label: "Pedidos", permission: PERMISSIONS.VIEW_SALES }, // Changed label
                 { id: "payments", icon: <Paid />, label: "Pagamentos", permission: PERMISSIONS.VIEW_FINANCE },
                 { id: "reports", icon: <Assessment />, label: "Relatórios", permission: PERMISSIONS.VIEW_REPORTS },
@@ -3683,12 +3977,14 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           <Breadcrumbs sx={{ mb: 3 }}>
             <Typography color="text.primary">Sistema</Typography>
             <Typography color="text.primary">
+              {activeView === 'manualSale' && 'Registrar Venda'}
               {activeView === 'dashboard' && 'Dashboard'}
               {activeView === 'products' && 'Cadastro de Produtos'}
               {activeView === 'productList' && 'Lista de Produtos'}
               {activeView === 'categories' && 'Categorias'}
               {activeView === 'suppliers' && 'Fornecedores'}
               {activeView === 'myOrders' && 'Gerenciamento de Pedidos'} // Changed title
+              {activeView === 'manualSale' && 'Registrar Venda'}
               {activeView === 'payments' && 'Pagamentos'}
               {activeView === 'reports' && 'Relatórios'}
               {activeView === 'users' && 'Usuários'}
@@ -3705,6 +4001,13 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
             onOpen={() => setSpeedDialOpen(true)}
             onClose={() => setSpeedDialOpen(false)}
           >
+            {hasPermission(PERMISSIONS.CREATE_MANUAL_SALE) && (
+              <SpeedDialAction
+                icon={<ShoppingCart />}
+                tooltipTitle="Registrar Venda"
+                onClick={() => { setActiveView('manualSale'); setSpeedDialOpen(false); }}
+              />
+            )}
             {hasPermission(PERMISSIONS.EDIT_PRODUCTS) && (
               <SpeedDialAction
                 icon={<Add />}
@@ -4887,19 +5190,39 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
           )}
           
           {activeView === 'myOrders' && hasPermission(PERMISSIONS.VIEW_SALES) && <MyOrders />}
-          {activeView === 'payments' && <PaymentManagement />}
-          {activeView === 'reports' && (
-            <SalesStockReports
+          {activeView === 'manualSale' && hasPermission(PERMISSIONS.CREATE_MANUAL_SALE) && (
+            <ManualSaleForm
+              manualSaleItems={manualSaleItems} setManualSaleItems={setManualSaleItems} 
+              manualSaleCustomerData={manualSaleCustomerData} setManualSaleCustomerData={setManualSaleCustomerData}
+              manualSalePayment={manualSalePayment} setManualSalePayment={setManualSalePayment}
               products={products}
-              sales={completedSales}
-              deliveredSales={deliveredSales}
+              currentUser={currentUser}
+              addNotification={addNotification}
+              setAllSales={setAllSales}
+            />
+          )}
+          {activeView === 'payments' && hasPermission(PERMISSIONS.VIEW_FINANCE) && <PaymentManagement />}
+          {activeView === 'reports' && (
+            <Reports
+              products={products}
+              sales={allSales}
             />
           )}
           {activeView === 'users' && (
             <Box>
-              <Typography variant="h4" fontWeight="700" sx={{ mb: 4 }}>
-                Gestão de Usuários
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Typography variant="h4" fontWeight="700">
+                  Gestão de Usuários
+                </Typography>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<Refresh />}
+                  onClick={async () => {
+                    const authUsers = await fetchAllAuthUsers(); // Refetch from Auth
+                    // The onSnapshot listener for Firestore users will handle the merge
+                  }}
+                >Atualizar</Button>
+              </Box>
 
               <Card>
                 <CardContent>

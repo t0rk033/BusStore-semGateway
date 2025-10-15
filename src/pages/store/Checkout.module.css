@@ -15,6 +15,7 @@
   font-weight: bold;
 }
 
+
 .checkoutContent {
   display: flex;
   gap: 30px;
@@ -123,29 +124,153 @@
   box-sizing: border-box;
 }
 
-.cepContainer {
-  display: flex;
-  gap: 10px;
+/* delivery options (mantido e ajustado) */
+.deliveryOptions {
+  margin: 20px 0;
 }
 
-.cepContainer input {
+.deliveryOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.deliveryOption:hover {
+  border-color: #e4910e;
+  background-color: #fff9f0;
+}
+
+.deliveryOption input:checked ~ span { font-weight: bold; }
+
+.deliveryOption input[type="radio"] {
+  width: auto;
+}
+
+/* --- ESTILOS MELHORADOS PARA O PASSO 3: PAGAMENTO --- */
+
+.paymentOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.paymentOption {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 10px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  background-color: #fdfdfd;
+}
+
+.paymentOption:hover {
+  border-color: #e4910e;
+  background-color: #fffaf5;
+  transform: translateY(-2px);
+}
+
+.paymentOption input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.paymentOption input[type="radio"]:checked + span {
+  color: #e4910e;
+  font-weight: 600;
+}
+
+.paymentOption input[type="radio"]:checked ~ svg {
+  color: #e4910e;
+}
+
+.paymentOption input[type="radio"]:checked ~ label {
+  border-color: #e4910e;
+  box-shadow: 0 0 0 2px #e4910e40;
+}
+
+.paymentOption svg {
+  font-size: 24px;
+  color: #666;
+  transition: color 0.2s ease-in-out;
+}
+
+.paymentOption span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+  transition: color 0.2s ease-in-out;
+  text-align: center;
+}
+
+.cardForm, .pixSection, .boletoSection {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.pixInitial, .boletoInfo {
+  text-align: center;
+}
+
+.pixButton, .boletoButton {
+  width: 100%;
+  margin-top: 15px;
+}
+
+/* --- ESTILOS PARA SELECT (VALIDADE, PARCELAS) --- */
+
+.formGroup select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  box-sizing: border-box;
+  background-color: white;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 1em;
+  cursor: pointer;
+}
+
+.formGroup select:disabled {
+  background-color: #f1f1f1;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.expiryContainer {
+  display: flex;
+  gap: 15px;
+}
+
+.expiryContainer select {
   flex: 1;
 }
 
-.cepButton {
-  padding: 12px 20px;
-  background-color: #e4910e;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.cepButton:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
+/* --- FIM DOS ESTILOS MELHORADOS --- */
 
 .addressTable {
   margin-bottom: 20px;
@@ -266,23 +391,30 @@
 
 .orderItem {
   display: flex;
-  justify-content: space-between;
+  gap: 15px;
+  align-items: flex-start;
   margin-bottom: 15px;
   padding-bottom: 15px;
   border-bottom: 1px solid #eee;
 }
 
 .orderItemImage {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     object-fit: cover;
     border-radius: 4px;
 }
 
-.itemName {
+.orderItemDetails {
+  flex: 1;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+}
+
+.itemName {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #333;
 }
 
 .itemName input {
@@ -290,8 +422,50 @@
 }
 
 .itemPrice {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.quantityControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantityControls span {
   font-weight: bold;
-  color: #333;
+  min-width: 20px;
+  text-align: center;
+}
+
+.quantityButton, .removeItemButton {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.quantityButton:hover, .removeItemButton:hover {
+  background-color: #f0f0f0;
+  color: #e4910e;
+}
+
+.removeItemButton {
+  border: none;
+  color: #999;
+}
+
+.removeItemButton:hover {
+  color: #d32f2f;
+  background-color: transparent;
 }
 
 .couponSection {
@@ -375,6 +549,34 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+}
+/* ESTILOS PARA PARCELAMENTO */
+.installmentSummary {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 4px solid #ff6b00;
+  font-size: 0.9em;
+}
+
+.interestNote {
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 5px;
+}
+
+.installmentNote {
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 5px;
+  text-align: right;
+  width: 100%;
+}
+
+/* Loading state para parcelas */
+.loadingParcels {
+  opacity: 0.6;
 }
 
 .spinner {

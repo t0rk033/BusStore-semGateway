@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Checkout.module.css';
 import { useCart } from 'react-use-cart';
+import { FaTrash, FaPlus, FaMinus, FaCreditCard, FaBarcode, FaQrcode } from 'react-icons/fa';
 import NavBar from '../../components/NavBar';
 import { db } from "../../firebase";
 import PaymentResultModal from './PaymentResultModal';
@@ -8,13 +9,32 @@ import { collection, addDoc, updateDoc, doc, getDoc, setDoc } from "firebase/fir
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const Checkout = () => {
-  const [step, setStep] = useState(1);
-  const { items: cartItems, cartTotal, emptyCart } = useCart();
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+  const [step, setStep] = useState(1);
+  const {
+    items: cartItems,
+    cartTotal,
+    emptyCart,
+    updateItemQuantity,
+    removeItem
+  } = useCart();
+  
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  const [mp, setMp] = useState(null);
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [selectedShipping, setSelectedShipping] = useState(null);
+
+  // CORREÇÃO: Mover o cálculo do total para antes de seu uso
+  const subtotal = cartItems.reduce((total, item) => total + (item.oldPrice || item.price) * item.quantity, 0);
+  const discount = subtotal - cartTotal;
+  const shippingCost = selectedShipping ? selectedShipping.valor : 0;
+  const total = cartTotal + shippingCost;
+
+  const [installmentOptions, setInstallmentOptions] = useState([]);
+  const [finalTotal, setFinalTotal] = useState(total);
+  const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [processingPix, setProcessingPix] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
@@ -34,10 +54,15 @@ const Checkout = () => {
     city: '',
     state: '',
     paymentMethod: '',
+    // Novos campos para cartão
+    cardNumber: '',
+    cardName: '',
+    expiryMonth: '',
+    expiryYear: '',
+    ccv: '',
+    installments: 1, // Novo campo para parcelas
   });
 
-  const [shippingOptions, setShippingOptions] = useState([]);
-  const [selectedShipping, setSelectedShipping] = useState(null);
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [shippingError, setShippingError] = useState('');
 
@@ -65,8 +90,22 @@ const Checkout = () => {
 
   const isValidPhone = (phone) => /^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$/.test(phone);
 
+  // Validações para cartão
+  const isValidCardNumber = (number) => /^\d{13,19}$/.test(number.replace(/\s/g, ''));
+  const isValidCCV = (ccv) => /^\d{3,4}$/.test(ccv);
+  const isValidExpiry = (month, year) => {
+    const now = new Date();
+    const currentYear = now.getFullYear() % 100;
+    const currentMonth = now.getMonth() + 1;
+    
+    if (year < currentYear) return false;
+    if (year === currentYear && month < currentMonth) return false;
+    return true;
+  };
+
   const validateStep = () => {
     const newErrors = {};
+    
     if (step === 1) {
       if (!formData.email) newErrors.email = 'Email é obrigatório';
       else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Formato de email inválido';
@@ -76,6 +115,7 @@ const Checkout = () => {
       else if (!isValidCPF(formData.cpf)) newErrors.cpf = 'CPF inválido';
       if (!formData.phone) newErrors.phone = 'Telefone é obrigatório';
       else if (!isValidPhone(formData.phone)) newErrors.phone = 'Formato de telefone inválido';
+    
     } else if (step === 2) {
       if (!formData.cep) newErrors.cep = 'CEP é obrigatório';
       if (!formData.address) newErrors.address = 'Endereço é obrigatório';
@@ -84,22 +124,32 @@ const Checkout = () => {
       if (!formData.city) newErrors.city = 'Cidade é obrigatória';
       if (!formData.state) newErrors.state = 'Estado é obrigatório';
       if (!selectedShipping) newErrors.deliveryOption = 'Escolha uma opção de frete';
+    
     } else if (step === 3) {
-      if (!formData.paymentMethod) newErrors.paymentMethod = 'Escolha uma forma de pagamento';
+      if (!formData.paymentMethod) {
+        newErrors.paymentMethod = 'Escolha uma forma de pagamento';
+      } else if (formData.paymentMethod === 'creditCard') {
+        // Validações específicas para cartão
+        if (!formData.cardNumber) newErrors.cardNumber = 'Número do cartão é obrigatório';
+        else if (!isValidCardNumber(formData.cardNumber)) newErrors.cardNumber = 'Número do cartão inválido';
+        
+        if (!formData.cardName) newErrors.cardName = 'Nome no cartão é obrigatório';
+        
+        if (!formData.expiryMonth || !formData.expiryYear) newErrors.expiry = 'Data de validade é obrigatória';
+        else if (!isValidExpiry(parseInt(formData.expiryMonth), parseInt(formData.expiryYear))) newErrors.expiry = 'Cartão expirado';
+        
+        if (!formData.ccv) newErrors.ccv = 'CVV é obrigatório';
+        else if (!isValidCCV(formData.ccv)) newErrors.ccv = 'CVV inválido';
+
+        if (!formData.installments || formData.installments < 1) {
+          newErrors.installments = 'Selecione o número de parcelas';
+        }
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  const subtotal = cartItems.reduce((total, item) => {
-    const originalPrice = item.oldPrice && item.oldPrice > item.price ? item.oldPrice : item.price;
-    return total + originalPrice * item.quantity;
-  }, 0);
-
-  const discount = subtotal - cartTotal;
-  const shippingCost = selectedShipping ? selectedShipping.valor : 0;
-  const total = cartTotal + shippingCost;
 
   useEffect(() => {
     const auth = getAuth();
@@ -133,6 +183,130 @@ const Checkout = () => {
     return () => unsubscribe();
   }, []);
 
+  // Carregar opções de parcelamento quando o total mudar
+  useEffect(() => {
+    const loadInstallments = async () => {
+      if (total > 0) {
+        try {
+          console.log('🔄 Carregando opções de parcelamento para:', total);
+          
+          const response = await fetch(`${API_URL}/api/simulate-installments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: total })
+          });
+          
+          if (!response.ok) {
+            throw new Error('Erro na resposta do servidor');
+          }
+          
+          const data = await response.json();
+          
+          if (data.status === 'success') {
+            setInstallmentOptions(data.installments);
+            // Define a parcela padrão como 1x sem juros
+            const defaultInstallment = data.installments.find(opt => opt.number === 1);
+            setFormData(prev => ({ ...prev, installments: 1 }));
+            setFinalTotal(defaultInstallment ? defaultInstallment.total : total);
+            setSelectedInstallment(defaultInstallment);
+            
+            console.log('✅ Parcelas carregadas:', data.installments.length, 'opções');
+          }
+        } catch (error) {
+          console.error('❌ Erro ao carregar parcelas:', error);
+          // Fallback: cria parcelas simples sem juros
+          const fallbackInstallments = Array.from({ length: 12 }, (_, i) => {
+            const num = i + 1;
+            const value = total / num;
+            return {
+              number: num,
+              value: value,
+              total: total,
+              hasInterest: false,
+              interestRate: 0,
+              display: `${num}x de R$ ${value.toFixed(2)} sem juros`
+            };
+          });
+          setInstallmentOptions(fallbackInstallments);
+          
+          const defaultInstallment = fallbackInstallments.find(opt => opt.number === 1);
+          setFormData(prev => ({ ...prev, installments: 1 }));
+          setFinalTotal(total);
+          setSelectedInstallment(defaultInstallment);
+        }
+      }
+    };
+
+    loadInstallments();
+  }, [total, API_URL]);
+
+  // Função para formatar número do cartão
+  const formatCardNumber = (value) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches ? matches[0] : '';
+    const parts = [];
+    
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    
+    return parts.length ? parts.join(' ') : value;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    let formattedValue = value;
+    
+    // Formatação específica por campo
+    if (name === 'cardNumber') {
+      formattedValue = formatCardNumber(value);
+    } else if (name === 'cpf') {
+      formattedValue = value.replace(/\D/g, '')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else if (name === 'cep') {
+      formattedValue = value.replace(/\D/g, '')
+        .replace(/(\d{5})(\d)/, '$1-$2')
+        .replace(/(-\d{3})\d+?$/, '$1');
+    } else if (name === 'phone') {
+      formattedValue = value.replace(/\D/g, '')
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{5})(\d)/, '$1-$2')
+        .replace(/(-\d{4})\d+?$/, '$1');
+    }
+    
+    setFormData({
+      ...formData,
+      [name]: formattedValue
+    });
+    
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
+  // Função para quando mudar o número de parcelas
+  const handleInstallmentChange = (e) => {
+    const selectedInstallments = parseInt(e.target.value);
+    const installment = installmentOptions.find(opt => opt.number === selectedInstallments);
+    
+    if (installment) {
+      setFormData(prev => ({ ...prev, installments: selectedInstallments }));
+      setFinalTotal(installment.total);
+      setSelectedInstallment(installment);
+      
+      console.log('📊 Parcela selecionada:', {
+        parcelas: selectedInstallments,
+        valorParcela: installment.value,
+        totalComJuros: installment.total,
+        juros: installment.interestRate
+      });
+    }
+  };
+
   const handleCalculateShipping = async () => {
     const cep = formData.cep.replace(/\D/g, '');
     if (cep.length !== 8) {
@@ -163,8 +337,6 @@ const Checkout = () => {
         console.warn('Erro ao buscar endereço, continuando...', addressError);
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
       // Preparar dados para Melhor Envio
       const shippingRequest = {
         cepDestino: cep,
@@ -200,7 +372,6 @@ const Checkout = () => {
       if (result.status === 'success' && Array.isArray(result.data)) {
         setShippingOptions(result.data);
         
-        // Verificar se é cálculo de fallback
         if (result.data.length > 0 && result.data[0].origem === 'fallback') {
           setShippingError('Frete calculado com base na região (Melhor Envio temporariamente indisponível).');
         } else {
@@ -251,19 +422,18 @@ const Checkout = () => {
 
   // Função para finalizar compra (reutilizável)
   const finalizePurchase = async (paymentData) => {
-    // Estrutura de dados do usuário alinhada com o que StockManagement espera
     const userDataForSale = {
       fullName: `${formData.firstName} ${formData.lastName}`,
       email: formData.email,
-      cpf: formData.cpf,
-      phone: formData.phone,
+      cpf: formData.cpf.replace(/\D/g, ''),
+      phone: formData.phone.replace(/\D/g, ''),
       street: formData.address,
       number: formData.number,
       complement: formData.complement,
       neighborhood: formData.neighborhood,
       city: formData.city,
       state: formData.state,
-      zipCode: formData.cep,
+      zipCode: formData.cep.replace(/\D/g, ''),
     };
 
     const saleData = {
@@ -280,13 +450,12 @@ const Checkout = () => {
         company: selectedShipping.empresa,
         origem: selectedShipping.origem
       } : null,
-      // se não houver status, considerar pending (garante salvar compras cartão sem status imediato)
       status: paymentData.status === 'approved' ? 'approved' : 'pending',
-      paymentId: paymentData.payment_id || paymentData.id || paymentData.paymentId || paymentData.transactionId || null,
+      paymentId: paymentData.payment_id || paymentData.id || paymentData.paymentId || null,
       paymentMethod: formData.paymentMethod,
       userId: user?.uid || 'guest',
       userEmail: formData.email,
-      userData: userDataForSale, // Usando a nova estrutura de dados
+      userData: userDataForSale,
       recipientName: `${formData.firstName} ${formData.lastName}`,
       createdAt: new Date(),
       shipped: false,
@@ -299,8 +468,6 @@ const Checkout = () => {
         const saleRef = doc(db, "sales", orderId);
         const existing = await getDoc(saleRef);
         if (existing.exists()) {
-          // Atualizar mesclando campos: adicionar userData / shipping / recipientName sem perder outros campos
-          console.log("finalizePurchase - atualizando venda existente (merge):", orderId, saleData);
           await updateDoc(saleRef, {
             ...saleData,
             updatedAt: new Date()
@@ -310,8 +477,6 @@ const Checkout = () => {
           setStep(4);
           return;
         } else {
-          // criar com orderId (mesclando para manter compatibilidade com backend)
-          console.log("finalizePurchase - criando venda com orderId:", orderId, saleData);
           await setDoc(saleRef, { ...saleData, orderId }, { merge: true });
           await updateStockAfterPurchase(cartItems);
           emptyCart();
@@ -319,8 +484,7 @@ const Checkout = () => {
           return;
         }
       }
-      // Caso não tenha orderId, fallback: criar novo documento com id aleatório
-      console.log("finalizePurchase - salvando venda (sem orderId):", saleData);
+      
       const docRef = await addDoc(collection(db, "sales"), saleData);
       console.log("finalizePurchase - venda salva com id:", docRef.id);
       await updateStockAfterPurchase(cartItems);
@@ -333,123 +497,69 @@ const Checkout = () => {
     }
   };
 
-  // Função para processar pagamento com cartão (crédito/débito)
-  const processPayment = async (cardFormData) => {
+  // =============================================================================
+  // FUNÇÕES DE PAGAMENTO ATUALIZADAS PARA ASAAS
+  // =============================================================================
+
+  const processCardPayment = async () => {
     setProcessing(true);
     setPaymentResult(null);
-
+  
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
-      // Determinar o tipo de pagamento baseado na seleção do usuário
-      const paymentType = formData.paymentMethod === 'debitCard' ? 'debit_card' : 'credit_card';
-      
-      // gerar orderId antes da chamada para que possamos criar a venda preliminar no Firestore
       const requestData = {
-        ...cardFormData,
-        amount: total,
+        amount: finalTotal, // 🔥 Agora envia o valor COM juros
         email: formData.email,
-        paymentMethod: paymentType,
-        phone: formData.phone,
-        identification_type: 'CPF',
+        paymentMethod: 'credit_card',
         identification_number: formData.cpf.replace(/\D/g, ''),
-        description: `Compra na BusStore - ${cartItems.length} item(s)`,
-        payer: { // Enviando dados do pagador para o backend
+        items: cartItems,
+        payer: {
           first_name: formData.firstName,
           last_name: formData.lastName,
         },
-        userId: user?.uid || 'guest',
-        items: cartItems.map(item => ({
-          id: item.id.split('-')[0],
-          name: item.name,
-          variation: item.variation,
-          quantity: item.quantity,
-          price: item.price,
-          imageUrl: item.imageUrls?.[0] || "",
-        })),
-        shipping: selectedShipping ? {
-          ...selectedShipping, // Enviando todos os dados do frete
-          method: selectedShipping.nome,
-          cost: selectedShipping.valor,
-          deliveryTime: selectedShipping.prazoEntrega
-        } : null
+        // Dados do cartão
+        cardName: formData.cardName,
+        cardNumber: formData.cardNumber.replace(/\s/g, ''),
+        expiryMonth: formData.expiryMonth,
+        expiryYear: formData.expiryYear,
+        ccv: formData.ccv,
+        installments: formData.installments,
+        postalCode: formData.cep.replace(/\D/g, ''),
+        addressNumber: formData.number,
+        phone: formData.phone.replace(/\D/g, '')
       };
-
+  
+      console.log('💳 Enviando pagamento parcelado:', {
+        parcelas: formData.installments,
+        valorOriginal: total,
+        valorComJuros: finalTotal,
+        valorParcela: (finalTotal / formData.installments).toFixed(2)
+      });
+  
       const response = await fetch(`${API_URL}/api/process-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
       });
-
+  
       const data = await response.json();
-
-      // Se a resposta não for OK, mas tiver um status de pagamento (ex: in_process),
-      // não lançamos um erro, pois queremos tratar esse status.
-      const hasPaymentStatus = data.status || data.payment?.status;
-      if (!response.ok && !hasPaymentStatus) {
-        // Lança erro apenas se a requisição falhou E não há um status de pagamento para analisar.
-        const errorMessage = data.message || data.details || `Erro ${response.status}`;
-        console.error('Erro do backend sem status de pagamento:', data);
-        throw new Error(errorMessage);
+      console.log('📨 Resposta do Asaas:', data);
+  
+      if (!response.ok) {
+        throw new Error(data.message || `Erro ${response.status}`);
       }
-
-
-      console.log("processPayment - resposta crua do backend:", data);
-      // Normalizar status e id caso venham em estruturas diferentes
-      const normalizedStatus =
-        data.status ||
-        data.payment?.status ||
-        data.payment_status ||
-        data.transaction?.status ||
-        data.result?.status ||
-        null;
-
-      const normalizedPaymentId =
-        data.payment_id ||
-        data.id ||
-        data.payment?.id ||
-        data.paymentId ||
-        data.transaction?.id ||
-        data.result?.id ||
-        null;
-
-      const normalized = {
-        ...data,
-        status: normalizedStatus,
-        payment_id: normalizedPaymentId,
-        id: normalizedPaymentId,
-        orderId: data.orderId || data.order_id || data.external_reference || null,
-      };
-
-      console.log("processPayment - resposta normalizada:", normalized);
-
-      // atualizar UI com resposta normalizada
-      setPaymentResult(normalized);
+  
+      setPaymentResult(data);
       
-      // SALVAR quando:
-      // - houver status diferente de 'rejected' (approved, pending, in_process, etc)
-      // - ou backend retornou um id/payment_id/orderId (criou pagamento) — tratar como pending
-      const isPending = ['pending', 'in_process', 'authorized'].includes(normalized.status);
-      const isApproved = normalized.status === 'approved' || normalized.status === 'in_process';
-      const hasId = !!(normalized.payment_id || normalized.id || normalized.orderId);
-      // Salva e limpa o carrinho se for aprovado, pendente ou tiver um ID de referência
-      const shouldSave = isApproved || isPending;
-      
-      if (shouldSave) {
-        console.log('processPayment: irá salvar compra (shouldSave):', { status: normalized.status, hasId });
-        try {
-          await finalizePurchase(normalized);
-        } catch (err) {
-          console.error("processPayment - erro ao finalizar compra:", err);
-        }
-      } else {
-        console.log('processPayment: não salvando compra (status/id):', { status: normalized.status, hasId });
+      // Salvar compra se o pagamento foi criado
+      if (data.payment_id && data.orderId) {
+        await finalizePurchase(data);
       }
 
     } catch (error) {
+      console.error('💥 Erro no pagamento com cartão:', error);
       setPaymentResult({
         status: 'error',
-        message: error.message || 'Erro ao processar pagamento',
+        message: error.message || 'Erro ao processar pagamento com cartão',
       });
     } finally {
       setProcessing(false);
@@ -462,36 +572,20 @@ const Checkout = () => {
     setPaymentResult(null);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const requestData = {
         amount: total,
         email: formData.email,
         paymentMethod: 'pix',
-        identification_type: 'CPF',
         identification_number: formData.cpf.replace(/\D/g, ''),
-        description: `Compra na BusStore - ${cartItems.length} item(s)`,
-        phone: formData.phone,
-        userId: user?.uid || 'guest',
+        items: cartItems,
         payer: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email
+          first_name: formData.firstName,
+          last_name: formData.lastName,
         },
-        items: cartItems.map(item => ({
-          id: item.id.split('-')[0],
-          name: item.name,
-          variation: item.variation,
-          quantity: item.quantity,
-          price: item.price,
-          imageUrl: item.imageUrls?.[0] || "",
-        })),
-        shipping: selectedShipping ? {
-          method: selectedShipping.nome,
-          ...selectedShipping,
-          cost: selectedShipping.valor,
-          deliveryTime: selectedShipping.prazoEntrega
-        } : null
+        phone: formData.phone.replace(/\D/g, '')
       };
+
+      console.log('🔐 Gerando PIX...');
 
       const response = await fetch(`${API_URL}/api/process-payment`, {
         method: 'POST',
@@ -505,10 +599,12 @@ const Checkout = () => {
         throw new Error(data.message || `Erro ${response.status}`);
       }
 
-      setPixData(data);
+      setPixData(data.pix_data);
       setPaymentResult({
         status: data.status || 'pending',
-        message: 'Aguardando pagamento PIX'
+        message: 'Aguardando pagamento PIX',
+        payment_id: data.payment_id,
+        orderId: data.orderId
       });
 
     } catch (error) {
@@ -521,18 +617,73 @@ const Checkout = () => {
     }
   };
 
+  // Função para processar boleto
+  const processBoletoPayment = async () => {
+    setProcessing(true);
+    setPaymentResult(null);
+
+    try {
+      const requestData = {
+        amount: total,
+        email: formData.email,
+        paymentMethod: 'boleto',
+        identification_number: formData.cpf.replace(/\D/g, ''),
+        items: cartItems,
+        payer: {
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+        },
+        phone: formData.phone.replace(/\D/g, '')
+      };
+
+      console.log('📄 Gerando boleto...');
+
+      const response = await fetch(`${API_URL}/api/process-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Erro ${response.status}`);
+      }
+
+      setPaymentResult({
+        status: data.status || 'pending',
+        message: 'Boleto gerado com sucesso',
+        payment_id: data.payment_id,
+        orderId: data.orderId,
+        boleto_data: data.boleto_data
+      });
+
+      // Salvar compra
+      if (data.payment_id && data.orderId) {
+        await finalizePurchase(data);
+      }
+
+    } catch (error) {
+      setPaymentResult({
+        status: 'error',
+        message: error.message || 'Erro ao gerar boleto',
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Função para copiar código PIX
   const copyPixCode = async () => {
-    if (pixData?.qr_code) {
+    if (pixData?.payload) {
       try {
-        await navigator.clipboard.writeText(pixData.qr_code);
+        await navigator.clipboard.writeText(pixData.payload);
         setPixCopied(true);
         setTimeout(() => setPixCopied(false), 2000);
       } catch (error) {
         console.error('Erro ao copiar código PIX:', error);
-        // Fallback para método antigo
         const textArea = document.createElement('textarea');
-        textArea.value = pixData.qr_code;
+        textArea.value = pixData.payload;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
@@ -543,81 +694,16 @@ const Checkout = () => {
     }
   };
 
-  // Configuração do Mercado Pago para cartões
-  useEffect(() => {
-    if (step === 3 && (formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && !mp) {
-      const script = document.createElement('script');
-      script.src = 'https://sdk.mercadopago.com/js/v2';
-      script.onload = () => {
-        const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY || 'TEST-d4b57614-bf60-4dac-b391-944a48b68160';
-        setMp(new window.MercadoPago(publicKey, { locale: 'pt-BR' }));
-      };
-      document.body.appendChild(script);
-      return () => {
-        document.body.removeChild(script);
-      };
-    }
-  }, [step, formData.paymentMethod, mp]);
-
-  useEffect(() => {
-    if (step === 3 && mp && (formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard')) {
-      const bricksBuilder = mp.bricks();
-      const renderCardPaymentBrick = async () => {
-        const container = document.getElementById('payment-form-container');
-        if (container && container.innerHTML.trim() !== '') {
-          container.innerHTML = '';
-        }
-        
-        await bricksBuilder.create('cardPayment', 'payment-form-container', {
-          initialization: {
-            amount: total,
-            payer: {
-              email: formData.email,
-              firstName: formData.firstName,
-              lastName: formData.lastName,
-              identification: {
-                type: 'CPF',
-                number: formData.cpf.replace(/\D/g, ''),
-              },
-            },
-          },
-          callbacks: {
-            onReady: () => {
-              console.log('Brick do Mercado Pago carregado');
-            },
-            onSubmit: (formData) => {
-              console.log('Dados do formulário:', formData);
-              processPayment(formData);
-            },
-            onError: (error) => {
-              console.error('Erro no brick:', error);
-              setPaymentResult({
-                status: 'error',
-                message: 'Erro ao processar cartão. Tente novamente.'
-              });
-            },
-          },
-        });
-      };
-      renderCardPaymentBrick();
-    }
-  }, [step, mp, formData.paymentMethod, total, formData]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
-  };
-
   const nextStep = () => {
     if (validateStep()) setStep(step + 1);
   };
+  
   const prevStep = () => setStep(step - 1);
+
+  // Geração de meses e anos para expiração do cartão
+  const months = Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0'));
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 10 }, (_, i) => (currentYear + i).toString().slice(-2));
 
   return (
     <div>
@@ -626,7 +712,7 @@ const Checkout = () => {
         
         <div className={styles.checkoutContent}>
           <div className={styles.formContainer}>
-            {/* Passo 1: Dados Pessoais */}
+            {/* Passo 1: Dados Pessoais - MANTIDO IGUAL */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 1 ? styles.active : ''} ${step > 1 ? styles.completed : ''}`} onClick={() => setStep(1)}>
                 <div className={styles.stepNumber}>
@@ -685,7 +771,7 @@ const Checkout = () => {
               )}
             </div>
   
-            {/* Passo 2: Entrega */}
+            {/* Passo 2: Entrega - MANTIDO IGUAL */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 2 ? styles.active : ''} ${step > 2 ? styles.completed : ''}`} onClick={() => setStep(2)}>
                 <div className={styles.stepNumber}>
@@ -816,7 +902,7 @@ const Checkout = () => {
               )}
             </div>
   
-            {/* Passo 3: Pagamento */}
+            {/* Passo 3: Pagamento - MODIFICADO PARA ASAAS */}
             <div className={styles.stepContainer}>
               <div className={`${styles.stepHeader} ${step === 3 ? styles.active : ''} ${step > 3 ? styles.completed : ''}`} onClick={() => setStep(3)}>
                 <div className={styles.stepNumber}>
@@ -829,22 +915,137 @@ const Checkout = () => {
                   <div className={styles.paymentOptions}>
                     <label className={styles.paymentOption}>
                       <input type="radio" name="paymentMethod" value="creditCard" checked={formData.paymentMethod === 'creditCard'} onChange={handleInputChange} />
-                      <span>Cartão de crédito</span>
-                    </label>
-                    <label className={styles.paymentOption}>
-                      <input type="radio" name="paymentMethod" value="debitCard" checked={formData.paymentMethod === 'debitCard'} onChange={handleInputChange} />
-                      <span>Cartão de débito</span>
+                      <span><FaCreditCard /> Cartão de crédito</span>
                     </label>
                     <label className={styles.paymentOption}>
                       <input type="radio" name="paymentMethod" value="pix" checked={formData.paymentMethod === 'pix'} onChange={handleInputChange} />
-                      <span>Pix</span>
+                      <span><FaQrcode /> Pix</span>
+                    </label>
+                    <label className={styles.paymentOption}>
+                      <input type="radio" name="paymentMethod" value="boleto" checked={formData.paymentMethod === 'boleto'} onChange={handleInputChange} />
+                      <span><FaBarcode /> Boleto</span>
                     </label>
                   </div>
                   {errors.paymentMethod && <span className={styles.errorMessage}>{errors.paymentMethod}</span>}
 
-                  {/* Formulário para cartões */}
-                  {(formData.paymentMethod === 'creditCard' || formData.paymentMethod === 'debitCard') && (
-                    <div id="payment-form-container" className={styles.paymentFormContainer}></div>
+                  {/* Formulário para cartão de crédito */}
+                  {formData.paymentMethod === 'creditCard' && (
+                    <div className={styles.cardForm}>
+                      <div className={styles.formGroup}>
+                        <label>Número do cartão</label>
+                        <input 
+                          type="text" 
+                          name="cardNumber" 
+                          value={formData.cardNumber} 
+                          onChange={handleInputChange} 
+                          placeholder="0000 0000 0000 0000"
+                          maxLength={19}
+                          className={errors.cardNumber ? styles.errorInput : ''}
+                        />
+                        {errors.cardNumber && <span className={styles.errorMessage}>{errors.cardNumber}</span>}
+                      </div>
+
+                      <div className={styles.formGroup}>
+                        <label>Nome no cartão</label>
+                        <input 
+                          type="text" 
+                          name="cardName" 
+                          value={formData.cardName} 
+                          onChange={handleInputChange} 
+                          placeholder="Como está no cartão"
+                          className={errors.cardName ? styles.errorInput : ''}
+                        />
+                        {errors.cardName && <span className={styles.errorMessage}>{errors.cardName}</span>}
+                      </div>
+
+                      <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                          <label>Validade</label>
+                          <div className={styles.expiryContainer}>
+                            <select 
+                              name="expiryMonth" 
+                              value={formData.expiryMonth} 
+                              onChange={handleInputChange}
+                              className={errors.expiry ? styles.errorInput : ''}
+                            >
+                              <option value="">Mês</option>
+                              {months.map(month => (
+                                <option key={month} value={month}>{month}</option>
+                              ))}
+                            </select>
+                            <select 
+                              name="expiryYear" 
+                              value={formData.expiryYear} 
+                              onChange={handleInputChange}
+                              className={errors.expiry ? styles.errorInput : ''}
+                            >
+                              <option value="">Ano</option>
+                              {years.map(year => (
+                                <option key={year} value={year}>{year}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {errors.expiry && <span className={styles.errorMessage}>{errors.expiry}</span>}
+                        </div>
+
+                        <div className={styles.formGroup}>
+                          <label>CVV</label>
+                          <input 
+                            type="text" 
+                            name="ccv" 
+                            value={formData.ccv} 
+                            onChange={handleInputChange} 
+                            placeholder="000"
+                            maxLength={4}
+                            className={errors.ccv ? styles.errorInput : ''}
+                          />
+                          {errors.ccv && <span className={styles.errorMessage}>{errors.ccv}</span>}
+                        </div>
+                      </div>
+
+                      <div className={styles.formGroup}>
+                        <label>Parcelas</label>
+                        <select
+                          name="installments"
+                          value={formData.installments}
+                          onChange={handleInstallmentChange}
+                          className={errors.installments ? styles.errorInput : ''}
+                          disabled={installmentOptions.length === 0}
+                        >
+                          {installmentOptions.length === 0 ? (
+                            <option value="">Carregando parcelas...</option>
+                          ) : (
+                            installmentOptions.map(installment => (
+                              <option key={installment.number} value={installment.number}>
+                                {installment.display}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                        {errors.installments && <span className={styles.errorMessage}>{errors.installments}</span>}
+                        
+                        {/* MOSTRA O VALOR FINAL COM JUROS */}
+                        {selectedInstallment && selectedInstallment.number > 1 && (
+                          <div className={styles.installmentSummary}>
+                            <p>
+                              <strong>Valor total com juros: R$ {finalTotal.toFixed(2)}</strong>
+                            </p>
+                            <p className={styles.interestNote}>
+                              {selectedInstallment.interestRate}% de juros aplicados
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        type="button" 
+                        className={styles.submitButton}
+                        onClick={processCardPayment}
+                        disabled={processing || installmentOptions.length === 0}
+                      >
+                        {processing ? 'Processando...' : `PAGAR R$ ${finalTotal.toFixed(2)}`}
+                      </button>
+                    </div>
                   )}
 
                   {/* Seção PIX */}
@@ -853,7 +1054,7 @@ const Checkout = () => {
                       {!pixData ? (
                         <div className={styles.pixInitial}>
                           <div className={styles.pixInfo}>
-                            <h4>Pagamento via PIX</h4>
+                            <h4><FaQrcode /> Pagamento via PIX</h4>
                             <p>Pagamento instantâneo e seguro. Escaneie o QR Code ou copie o código.</p>
                             <ul className={styles.pixBenefits}>
                               <li>✓ Pagamento instantâneo</li>
@@ -866,7 +1067,7 @@ const Checkout = () => {
                             onClick={processPixPayment}
                             disabled={processingPix}
                           >
-                            {processingPix ? 'Gerando QR Code...' : 'GERAR QR CODE PIX'}
+                            {processingPix ? 'Gerando QR Code...' : `PAGAR R$ ${total.toFixed(2)} COM PIX`}
                           </button>
                         </div>
                       ) : (
@@ -874,10 +1075,10 @@ const Checkout = () => {
                           <h4>Pague com PIX</h4>
                           <p>Escaneie o QR Code abaixo com seu app bancário:</p>
                           
-                          {pixData.qr_code_base64 && (
+                          {pixData.qr_code && (
                             <div className={styles.qrCodeContainer}>
                               <img 
-                                src={`data:image/png;base64,${pixData.qr_code_base64}`} 
+                                src={pixData.qr_code} 
                                 alt="QR Code PIX" 
                                 className={styles.qrCode}
                               />
@@ -888,7 +1089,7 @@ const Checkout = () => {
                             <p>Ou copie o código PIX:</p>
                             <div className={styles.pixCodeContainer}>
                               <code className={styles.pixCode}>
-                                {pixData.qr_code || 'Código não disponível'}
+                                {pixData.payload || 'Código não disponível'}
                               </code>
                               <button 
                                 className={styles.copyButton}
@@ -910,8 +1111,59 @@ const Checkout = () => {
                           </div>
                           
                           <div className={styles.pixExpiry}>
-                            <p>⏰ Este QR Code expira em 30 minutos</p>
+                            <p>⏰ Este QR Code expira em 1 hora</p>
                           </div>
+
+                          <button 
+                            type="button" 
+                            className={styles.submitButton}
+                            onClick={async () => {
+                              await finalizePurchase({
+                                ...paymentResult,
+                                status: 'pending'
+                              });
+                              setStep(4);
+                            }}
+                          >
+                            JÁ PAGUEI COM PIX
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Seção Boleto */}
+                  {formData.paymentMethod === 'boleto' && (
+                    <div className={styles.boletoSection}>
+                      <div className={styles.boletoInfo}>
+                        <h4><FaBarcode /> Pagamento via Boleto</h4>
+                        <p>Pague em qualquer agência bancária ou internet banking.</p>
+                        <ul className={styles.boletoBenefits}>
+                          <li>✓ Aceito em todos os bancos</li>
+                          <li>✓ Prazo de pagamento: 3 dias úteis</li>
+                          <li>✓ Sem taxas adicionais</li>
+                        </ul>
+                      </div>
+                      <button 
+                        className={styles.boletoButton}
+                        onClick={processBoletoPayment}
+                        disabled={processing}
+                      >
+                        {processing ? 'Gerando boleto...' : `GERAR BOLETO - R$ ${total.toFixed(2)}`}
+                      </button>
+
+                      {paymentResult?.boleto_data && (
+                        <div className={styles.boletoGenerated}>
+                          <p><strong>Boleto gerado com sucesso!</strong></p>
+                          <p>O boleto foi enviado para seu e-mail e estará disponível em seus pedidos.</p>
+                          <a 
+                            href={paymentResult.boleto_data.bankSlipUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className={styles.boletoLink}
+                          >
+                            📄 Visualizar Boleto
+                          </a>
                         </div>
                       )}
                     </div>
@@ -921,30 +1173,12 @@ const Checkout = () => {
                     <button type="button" className={styles.backButton} onClick={prevStep}>
                       VOLTAR
                     </button>
-                    
-                    {/* Botão para PIX após gerar QR Code */}
-                    {formData.paymentMethod === 'pix' && pixData && (
-                      <button 
-                        type="button" 
-                        className={styles.submitButton}
-                        onClick={async () => {
-                          setPaymentResult({ ...pixData, status: 'pending' });
-                          await finalizePurchase({ ...pixData, status: 'pending' });
-                          setStep(4);
-                        }}
-                      >
-                        JÁ PAGUEI COM PIX
-                      </button>
-                    )}
                   </div>
-
-                  {/* Mensagens de resultado do pagamento */}
-                  {/* O modal de resultado será renderizado fora do fluxo principal */}
                 </div>
               )}
             </div>
 
-            {/* Passo 4: Confirmação */}
+            {/* Passo 4: Confirmação - MANTIDO IGUAL */}
             {step === 4 && (
               <div className={styles.stepContainer}>
                 <div className={styles.stepHeader}>
@@ -961,15 +1195,6 @@ const Checkout = () => {
                           <p className={styles.statusDescription}>Obrigado pela sua compra. Enviamos a confirmação para o seu e-mail.</p>
                         </div>
                       )}
-                      {paymentResult?.status === 'in_process' && (
-                        <div className={styles.statusHeader}>
-                          <span className={styles.statusIcon}>⏳</span>
-                          <h2>Seu pagamento está em análise!</h2>
-                          <p className={styles.statusDescription}>
-                            A operadora do cartão está analisando seu pagamento. Assim que for aprovado, enviaremos uma confirmação por e-mail.
-                          </p>
-                        </div>
-                      )}
                       {paymentResult?.status === 'pending' && (
                         <div className={styles.statusHeader}>
                           <span className={styles.statusIcon}>⏳</span>
@@ -977,7 +1202,16 @@ const Checkout = () => {
                           <p className={styles.statusDescription}>
                             Seu pedido foi registrado! Assim que o pagamento for confirmado, enviaremos uma notificação por e-mail.
                           </p>
-                          {formData.paymentMethod === 'pix' && <p className={styles.pixWarning}><strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.</p>}
+                          {formData.paymentMethod === 'pix' && (
+                            <p className={styles.pixWarning}>
+                              <strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.
+                            </p>
+                          )}
+                          {formData.paymentMethod === 'boleto' && (
+                            <p className={styles.boletoWarning}>
+                              <strong>Importante:</strong> O boleto pode levar até 3 dias úteis para ser confirmado.
+                            </p>
+                          )}
                         </div>
                       )}
 
@@ -986,13 +1220,16 @@ const Checkout = () => {
                         <p><strong>Nº do Pedido:</strong> {paymentResult?.orderId || 'Não disponível'}</p>
                         <p><strong>Data:</strong> {new Date().toLocaleString()}</p>
                         <p><strong>Total:</strong> R$ {total.toFixed(2)}</p>
-                        <p><strong>Pagamento:</strong> {formData.paymentMethod === 'pix' ? 'PIX' : 'Cartão'}</p>
+                        <p><strong>Pagamento:</strong> 
+                          {formData.paymentMethod === 'pix' ? 'PIX' : 
+                           formData.paymentMethod === 'boleto' ? 'Boleto' : 'Cartão de Crédito'}
+                        </p>
                       </div>
 
                       {selectedShipping && (
                         <div className={styles.confirmationDetails}>
                           <h4>Detalhes da Entrega</h4>
-                          <p><strong>Endereço:</strong> {formData.address}, {formData.number} - {formData.city}/{formData.state}</p>
+                          <p><strong>Endereço:</strong> {formData.address}, {formData.number} - {formData.neighborhood}, {formData.city}/{formData.state}</p>
                           <p><strong>Previsão:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
                           <p><strong>Método:</strong> {selectedShipping.nome}</p>
                         </div>
@@ -1028,7 +1265,7 @@ const Checkout = () => {
             )}
           </div>
           
-          {/* Resumo do Pedido */}
+          {/* Resumo do Pedido - MANTIDO IGUAL */}
           <div className={styles.orderSummary}>
             <h3>Resumo do pedido</h3>
             <div className={styles.returnToCart}>
@@ -1036,12 +1273,22 @@ const Checkout = () => {
             </div>
             
             {cartItems.map(item => (
-              <div key={item.id} className={styles.orderItem}>
-                <div className={styles.itemName}>
-                  <img src={item.imageUrls?.[0]} alt={item.name} className={styles.orderItemImage} />
-                  <span>{item.name}</span>
+              <div key={item.id} className={styles.orderItem}>                
+                <img src={item.imageUrls?.[0]} alt={item.name} className={styles.orderItemImage} />
+                <div className={styles.orderItemDetails}>
+                  <span className={styles.itemName}>{item.name}</span>
+                  <div className={styles.itemPrice}>R$ {item.price.toFixed(2)}</div>
+                  <div className={styles.quantityControls}>
+                    <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} className={styles.quantityButton}>
+                      <FaMinus />
+                    </button>
+                    <span>{item.quantity}</span>
+                    <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className={styles.quantityButton}>
+                      <FaPlus />
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.itemPrice}>R$ {item.price.toFixed(2)}</div>
+                <button onClick={() => removeItem(item.id)} className={styles.removeItemButton}><FaTrash /></button>
               </div>
             ))}
     
@@ -1075,7 +1322,12 @@ const Checkout = () => {
     
               <div className={styles.summaryTotal}>
                 <span>Total</span>
-                <span>R$ {total.toFixed(2)}</span>
+                <span>R$ {finalTotal.toFixed(2)}</span>
+                {selectedInstallment && selectedInstallment.number > 1 && (
+                  <div className={styles.installmentNote}>
+                    Em {selectedInstallment.number}x de R$ {selectedInstallment.value.toFixed(2)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1095,9 +1347,9 @@ const Checkout = () => {
         result={paymentResult}
         onClose={() => setPaymentResult(null)}
         onRetry={() => {
-          setPaymentResult(null); // Fecha o modal
+          setPaymentResult(null);
           if (formData.paymentMethod === 'pix') {
-            setPixData(null); // Reseta a tela do PIX
+            setPixData(null);
           }
         }}
       />
