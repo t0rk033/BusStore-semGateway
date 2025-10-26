@@ -40,6 +40,7 @@ function Store() {
   //estados ofertas do dia
   const [dailyDeals, setDailyDeals] = useState([]);
   const [bestSellers, setBestSellers] = useState([]);
+  const [mobileBestSellers, setMobileBestSellers] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [productsPerPage, setProductsPerPage] = useState(12);
   const [bermudaShortProducts, setBermudaShortProducts] = useState([]);
@@ -106,6 +107,7 @@ function Store() {
         if (productsData.length > 3) {
           setDailyDeals(productsData.slice(0, 1)); // 1 produto para oferta do dia
           setBestSellers(productsData.slice(1, 4)); // 3 produtos para mais vendidos
+          setMobileBestSellers(productsData.slice(1, 3)); // 2 produtos para mobile
         }
 
         const uniqueCategories = [...new Set(productsData.map(p => p.category).filter(Boolean))];
@@ -257,7 +259,7 @@ function Store() {
   <div className={styles.featuredSectionCompact}>
     <h2 className={styles.sectionTitleCompact}>Os mais vendidos</h2>
     <div className={styles.featuredGridCompact}>
-      {bestSellers.map(product => (
+      {(window.innerWidth <= 768 ? mobileBestSellers : bestSellers).map(product => (
         <div 
           key={product.id} 
           className={styles.featuredCardCompact}
@@ -316,7 +318,7 @@ function Store() {
     </div>
   </div>
 </div>
-    <div className={styles.bermudaSection}>
+    <div className={`${styles.bermudaSection} ${styles.firstCarousel}`}>
       <h2 className={styles.bermudaTitle}>Bermudas</h2>
       <div className={styles.bermudaCarousel}>
         <button className={styles.carouselArrowLeft}>&#60;</button>

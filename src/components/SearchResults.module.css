@@ -25,8 +25,6 @@
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    position: sticky;
-    top: 20px; /* Mantém a sidebar visível ao rolar a página */
     height: fit-content;
     overflow: auto;
     max-height: 95vh; /* Limita a altura máxima da sidebar */
@@ -83,6 +81,10 @@
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     margin-bottom: 20px;
+    position: sticky; /* Fixa o cabeçalho no topo */
+    top: calc(2.2vh + 2px + 45px); /* Posição exata abaixo da NavBar (topo + separador + menu inferior) */
+    z-index: 10;      /* Garante que fique sobre a lista de produtos */
+    background-color: #f4f4f4; /* Adiciona um fundo para não ficar transparente sobre os produtos */
 }
 
 .productsHeader h2 {
@@ -189,4 +191,109 @@
     font-size: 1.5em;
     font-weight: bold;
     color: #333;
+}
+
+/* Botões de filtro para mobile - escondidos no desktop */
+.filterToggleButton,
+.closeFiltersMobile,
+.applyFiltersMobile {
+    display: none;
+}
+
+
+/* Responsividade para dispositivos móveis */
+@media (max-width: 768px) {
+    .mainContent {
+        flex-direction: column;
+        max-width: 100%;
+        padding: 0;
+        margin: 10px auto;
+    }
+
+    .filtersSidebar {
+        position: fixed; /* Fixo na tela */
+        top: 0;
+        left: 0;
+        width: 85%; /* Ocupa 85% da largura */
+        max-width: 320px;
+        height: 100%;
+        background-color: #fff;
+        z-index: 1002; /* Acima do overlay */
+        transform: translateX(-100%); /* Escondido por padrão */
+        transition: transform 0.3s ease-in-out;
+        overflow-y: auto;
+        box-sizing: border-box;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .filtersSidebar.open {
+        transform: translateX(0); /* Visível quando a classe .open é aplicada */
+    }
+
+    .filterOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1001; /* Abaixo da sidebar, acima do conteúdo */
+    }
+
+    /* Botão para abrir os filtros no mobile */
+    .filterToggleButton {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 0.9em;
+        font-weight: bold;
+        background-color: #08152A;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    /* Botões de fechar e aplicar dentro da sidebar mobile */
+    .closeFiltersMobile, .applyFiltersMobile {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        border-radius: 5px;
+        font-size: 1em;
+        font-weight: bold;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .closeFiltersMobile {
+        background: none;
+        border: none;
+        color: #555;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.1em;
+        padding: 10px 20px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .applyFiltersMobile {
+        background-color: #337ab7;
+        color: white;
+        border: none;
+        margin-top: 20px;
+    }
+
+    .productsHeader {
+        padding: 10px 15px;
+    }
+
+    .sortOptions {
+        /* Esconde o "Ordenar por:" para dar espaço ao botão */
+        & > span {
+            display: none;
+        }
+    }
 }

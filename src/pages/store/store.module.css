@@ -20,7 +20,7 @@ body {
 }
 
 .storeWrapper {
-  overflow-x: hidden;
+  /* overflow-x: hidden; */
 }
 
 
@@ -186,6 +186,7 @@ body {
     padding: 1rem;
     max-width: 98vw;
   }
+  
   .featuredGrid {
     grid-template-columns: repeat(auto-fit, minmax(26vw, 1fr));
     gap: 1rem;
@@ -193,6 +194,60 @@ body {
   .featuredImageContainer {
     height: 10vh;
     min-height: 8rem;
+  }
+
+  /* garante que o cartão use toda a altura disponível no container */
+  .featuredSectionsContainer .featuredCard {
+    display: flex;
+    flex-direction: column;
+    min-height: 14rem;
+    height: 100%;
+    border-radius: 0.625rem;
+    overflow: hidden;
+    box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.08);
+  }
+
+  /* mantém a imagem com altura controlada para permitir que .featuredInfoCompact cresça */
+  .featuredSectionsContainer .featuredImageContainer {
+    width: 100%;
+    flex: 0 0 auto; /* não crescer para ocupar todo o card */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+    padding: 0.6rem;
+    min-height: 7.5rem;
+    max-height: 12rem;
+    box-sizing: border-box;
+  }
+
+  /* faz o bloco de informações expandir e distribuir o conteúdo verticalmente */
+  .featuredSectionsContainer .featuredInfo {
+    flex: 1 1 auto; /* ocupa todo espaço restante do card */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* empurra preço para baixo se necessário */
+    padding: 0.75rem;
+    box-sizing: border-box;
+  }
+
+  /* caso você esteja usando a variante com sufixo Compact */
+  .featuredInfoCompact {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.75rem;
+    box-sizing: border-box;
+  }
+
+  .featuredNameCompact {
+    margin: 0;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 
@@ -291,8 +346,10 @@ body {
   color: var(--white);
   border: none;
   border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .addToCartButton:hover {
@@ -1045,6 +1102,9 @@ body {
     padding: 1rem;
     max-width: 98vw;
   }
+  .heroSection{
+    
+  }
   .filterSection {
     width: 100%;
   }
@@ -1445,6 +1505,78 @@ body {
   margin-bottom: -6rem;
 }
 
+/* Media query para tornar o featuredSectionsContainer responsivo em celulares */
+@media (max-width: 768px) {
+ .featuredSectionsContainer {
+    display: flex;
+    gap: 1rem;
+    padding: 0 1rem;
+    max-width: 100vw;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* rolagem suave no iOS */
+    scroll-snap-type: x mandatory;
+    box-sizing: border-box;
+    bottom: 2rem; /* reduz o offset para mobile */
+    margin-bottom: -2rem;
+    transform: scale(0.9);
+  }
+    .categoriesSection,
+  .athlete,
+  .bermudaSection:not(.firstCarousel) {
+    display: none;
+  }
+    .categoriesGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: minmax(6rem, auto);
+    gap: 0.75rem;
+    padding: 0 1rem;
+    align-items: stretch;
+  }
+    .categoriesGrid .categoryCard:nth-child(1) {
+    grid-row: span 2;
+    min-height: 14rem;
+  }
+    .categoriesGrid .categoryCard .categoryImage {
+    
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    vertical-align: middle;
+  }
+
+  /* Cada seção ocupa ~50% da largura da tela */
+  .featuredSectionCompact {
+    flex: 0 0 calc(60% - 0.5rem); /* Aumenta a largura da seção */
+    max-width: calc(60% - 0.5rem);
+    box-sizing: border-box;
+    scroll-snap-align: start;
+    margin: 0;
+  }
+
+  /* Ajustes na grid interna para usar a largura da seção */
+  .featuredGridCompact {
+    display: flex;
+    gap: 0.75rem;
+    overflow: visible;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 0!important; 
+  }
+
+  /* Cards dentro da seção ocupam a largura disponível (um por "linha" visual) */
+  .featuredCardCompact {
+    min-width: 100%;
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .featuredImageContainerCompact {
+    height: 28vw; /* aumenta a altura das imagens para melhor proporção no mobile */
+    min-height: 8rem;
+  }
+}
+
 /* Estilo para cada seção (oferta do dia e mais vendidos) */
 .featuredSectionCompact {
   flex: 1;
@@ -1526,6 +1658,7 @@ body {
 
 .featuredInfoCompact {
   padding: 0.625rem;
+  width: 100%!important;
 }
 
 .featuredNameCompact {
@@ -1545,4 +1678,157 @@ body {
   font-size: 1rem;
   font-weight: 700;
   color: #27ae60;
+}
+
+/* Layout móvel: primeiro card grande à esquerda e 2 empilhados à direita */
+@media (max-width: 768px) {
+  .categoriesGrid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* esquerda maior */
+    grid-auto-rows: minmax(8rem, 1fr);
+    gap: 0.75rem;
+    padding: 0 1rem;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+  }
+.heroContent{
+  margin: 0;
+}
+
+  /* Faz o primeiro cartão ocupar duas linhas (grande) */
+  .categoriesGrid .categoryCard:nth-child(1) {
+    grid-row: span 2;
+    min-height: 16rem; /* ajuste se quiser maior/menor */
+    border-radius: 1rem;
+  }
+
+  .categoriesGrid .categoryCard {
+    height: 100%;
+    min-height: 0;
+    max-width: none;
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
+  /* Imagem cobre todo o cartão mantendo proporção */
+  .categoryImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    vertical-align: middle;
+  }
+
+  /* Título em pílula no topo esquerdo para melhor leitura sobre a imagem */
+  .categoryName {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    background: rgba(255,255,255,0.95);
+    color: var(--primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    z-index: 3;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  /* Rodapé com gradiente para legibilidade */
+  .categoryFooter {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.9rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    z-index: 2;
+    box-sizing: border-box;
+  }
+}
+@media (max-width: 768px) {
+  /* centraliza o container de categorias na tela */
+  .categoriesSection {
+    padding: 0rem;
+    max-width: 100vw;
+    margin: 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    position: relative;
+    transform: scale(0.9);
+  }
+
+  /* grid centralizado com largura máxima para ficar alinhado no mobile */
+  .categoriesGrid {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* esquerda maior */
+    grid-auto-rows: minmax(8rem, 1fr);
+    gap: 0.75rem;
+    padding: 0;
+    width: 100%;
+    max-width: 720px !important; /* controla o bloco centralizado — ajuste se quiser maior/menor */
+    margin: 0 auto;
+    justify-items: stretch;
+    align-items: stretch;
+    box-sizing: border-box;
+  }
+
+  /* Faz o primeiro cartão ocupar duas linhas (grande) */
+  .categoriesGrid .categoryCard:nth-child(1) {
+    grid-row: span 2;
+    min-height: 16rem;
+    border-radius: 1rem;
+  }
+
+  .categoriesGrid .categoryCard {
+    height: 100%;
+    min-height: 0;
+    max-width: none;
+    border-radius: 1rem;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  /* Imagem cobre todo o cartão mantendo proporção */
+  .categoryImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    vertical-align: middle;
+  }
+
+  /* Título em pílula no topo esquerdo para melhor leitura sobre a imagem */
+  .categoryName {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    background: rgba(255,255,255,0.95);
+    color: var(--primary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    z-index: 3;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+
+  /* Rodapé com gradiente para legibilidade */
+  .categoryFooter {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.9rem;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    z-index: 2;
+    box-sizing: border-box;
+  }
 }

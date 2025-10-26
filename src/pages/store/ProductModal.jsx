@@ -21,15 +21,9 @@ const modalSx = {
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-
-  /* Largura e altura em rem, com responsividade elegante */
-  width: "clamp(49rem, 90vw, 58rem)",       // até 1152px
-  maxHeight: "clamp(36rem, 90vh, 43.875rem)",// até 702px
-
   bgcolor: "background.paper",
   borderRadius: "1.25rem",   // 20px
   boxShadow: 24,
-  padding: "2.5rem",         // ~24px
   outline: "none",
 };
 

@@ -13,13 +13,14 @@
   flex-wrap: nowrap;
   border-bottom: 1px solid #ffffff33;
   padding-bottom: 15px;
-  max-width: 71vw;      /* igual às seções principais */
-  margin: 0 auto;       /* centraliza o conteúdo */
+  max-width: 71vw;
+  margin: 0 auto;
 }
 
 /* Seção esquerda (redes sociais) */
 .footerSectionLeft {
   text-align: left;
+  flex: 1;
 }
 
 .footerSectionLeft h4 {
@@ -43,6 +44,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0 20px;
 }
 
 .footerLogo img {
@@ -53,6 +55,7 @@
 /* Seção direita (contato) */
 .footerSectionRight {
   text-align: right;
+  flex: 1;
 }
 
 .footerSectionRight h4 {
@@ -86,7 +89,72 @@
   margin-top: 10px;
   font-size: 0.75rem;
   color: #ffffffa8;
-  max-width: 71vw;      /* igual às seções principais */
+  max-width: 71vw;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* Media Queries para Mobile - apenas redução de tamanho */
+@media (max-width: 768px) {
+  .footerContent {
+    max-width: 90vw;
+    padding-bottom: 10px;
+  }
+
+  .footerSectionLeft h4,
+  .footerSectionRight h4 {
+    font-size: 0.75rem;
+  }
+
+  .footerSectionLeft p,
+  .footerSectionRight p {
+    font-size: 0.8rem;
+  }
+
+  .footerLogo img {
+    width: 70px;
+  }
+
+  .icon,
+  .iconRight {
+    font-size: 12px;
+  }
+
+  .footerBottom {
+    max-width: 90vw;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer {
+    padding: 15px 0 8px;
+  }
+
+  .footerContent {
+    max-width: 95vw;
+  }
+
+  .footerSectionLeft h4,
+  .footerSectionRight h4 {
+    font-size: 0.7rem;
+  }
+
+  .footerSectionLeft p,
+  .footerSectionRight p {
+    font-size: 0.75rem;
+  }
+
+  .footerLogo img {
+    width: 60px;
+  }
+
+  .footerLogo {
+    margin: 0 15px;
+  }
+
+  .footerBottom {
+    max-width: 95vw;
+    font-size: 0.65rem;
+  }
 }

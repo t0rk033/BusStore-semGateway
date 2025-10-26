@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiShoppingCart } from 'react-icons/fi';
+import { FiShoppingCart, FiFilter, FiX } from 'react-icons/fi';
 import { useLocation } from 'react-router-dom';
 import { db } from '../firebase';
 import Fuse from 'fuse.js';
@@ -19,6 +19,7 @@ function SearchResults() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [openProductModal, setOpenProductModal] = useState(false);
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   
   // usar o carrinho completo aqui para exibir o modal do carrinho na página de busca
   const { addItem, items, removeItem, updateItemQuantity, cartTotal, emptyCart } = useCart();
@@ -220,11 +221,20 @@ function SearchResults() {
         onSearchChange={handleSearchChange}
         categories={categories}
       />
-
+      
+      {isFilterSidebarOpen && (
+        <div 
+          className={styles.filterOverlay} 
+          onClick={() => setIsFilterSidebarOpen(false)}
+        />
+      )}
       
       <div className={styles.mainContent}>
         {/* Barra lateral de filtros */}
-        <div className={styles.filtersSidebar}>
+        <div className={`${styles.filtersSidebar} ${isFilterSidebarOpen ? styles.open : ''}`}>
+          <button className={styles.closeFiltersMobile} onClick={() => setIsFilterSidebarOpen(false)}>
+            <FiX /> Fechar
+          </button>
           {(categoryQuery || searchQuery) && (
             <div className={styles.activeFilterDisplay}>
               <h3>Resultados para:</h3>
@@ -325,6 +335,12 @@ function SearchResults() {
           >
             Limpar Filtros
           </button>
+
+          <button 
+            className={styles.applyFiltersMobile} 
+            onClick={() => setIsFilterSidebarOpen(false)}>
+            Ver Resultados
+          </button>
         </div>
 
         {/* Área de produtos */}
@@ -336,6 +352,9 @@ function SearchResults() {
                 : searchQuery ? `Resultados para "${searchQuery}"` : 'Todos os Produtos'}
             </h2>
             <div className={styles.sortOptions}>
+              <button className={styles.filterToggleButton} onClick={() => setIsFilterSidebarOpen(true)}>
+                <FiFilter /> Filtrar
+              </button>
               <span>Ordenar por:</span>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className={styles.sortSelect}>
                 <option value="relevance">Mais relevantes</option>

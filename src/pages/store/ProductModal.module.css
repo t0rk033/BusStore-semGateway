@@ -1,4 +1,11 @@
 .root {
+  /* Estilos de base para o modal (desktop) */
+  width: clamp(49rem, 90vw, 58rem);
+  max-height: clamp(36rem, 90vh, 43.875rem);
+  padding: 2.5rem;
+  overflow-y: auto;
+
+  /* Posição relativa para os botões flutuantes */
   position: relative;
 }
 
@@ -167,4 +174,59 @@
   background-color: #C2DBFC !important;
   box-shadow: 0 2px 10px rgba(52, 131, 250, .3) !important;
   
+}
+
+/* --- Responsividade para Mobile --- */
+@media (max-width: 900px) { /* Aumentado o breakpoint para tablets */
+  /* O modal ocupa a tela inteira no mobile */
+  .root {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    padding: 1rem !important;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Ajusta a posição dos botões flutuantes */
+  .closeBtn {
+    top: 12px;
+    left: 12px;
+  }
+  .favBtn {
+    top: 12px;
+    right: 12px;
+  }
+
+  /* Ajusta o tamanho da fonte do título */
+  .title {
+    font-size: 1.3rem !important;
+    margin-top: 3rem; /* Espaço para não ficar sob os botões flutuantes */
+  }
+
+  /* Remove a altura máxima da descrição para que ela expanda */
+  .descBox {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0; /* Remove padding que pode causar scroll desnecessário */
+  }
+
+  /* Ajusta o tamanho da fonte do preço */
+  .priceInt {
+    font-size: 1.5rem;
+  }
+
+  /* Empilha os botões de ação */
+  .actions {
+    grid-template-columns: 1fr; /* Uma coluna */
+    gap: 10px;
+    margin-top: auto; /* Empurra os botões para o final do modal */
+    padding-top: 20px;
+  }
+
+  .buyNow, .addToCart {
+    padding: 12px 10px !important; /* Aumenta a área de toque */
+  }
 }

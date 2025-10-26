@@ -38,6 +38,7 @@ const Checkout = () => {
   const [processing, setProcessing] = useState(false);
   const [processingPix, setProcessingPix] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
@@ -711,6 +712,36 @@ const Checkout = () => {
       <div className={styles.container}>
         
         <div className={styles.checkoutContent}>
+          {/* Resumo do Pedido para Mobile */}
+          <div className={styles.mobileOrderSummary}>
+            <div className={styles.summaryToggle} onClick={() => setSummaryOpen(!summaryOpen)}>
+              <span>{summaryOpen ? 'Ocultar resumo do pedido' : 'Ver resumo do pedido'}</span>
+              <div className={styles.summaryTotalMobile}>
+                <strong>Total: R$ {finalTotal.toFixed(2)}</strong>
+                <span className={`${styles.arrow} ${summaryOpen ? styles.arrowUp : ''}`}></span>
+              </div>
+            </div>
+            {summaryOpen && (
+              <div className={styles.summaryContent}>
+                {cartItems.map(item => (
+                  <div key={item.id} className={styles.summaryItem}>
+                    <img src={item.imageUrls?.[0]} alt={item.name} className={styles.summaryItemImage} />
+                    <div className={styles.summaryItemInfo}>
+                      <span className={styles.summaryItemName}>{item.quantity}x {item.name}</span>
+                      <span className={styles.summaryItemVariation}>
+                        {item.variation?.color} {item.variation?.size}
+                      </span>
+                    </div>
+                    <span className={styles.summaryItemPrice}>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className={styles.summaryTotalsMobile}>
+                  <p><span>Subtotal:</span> <span>R$ {subtotal.toFixed(2)}</span></p>
+                  <p><span>Frete:</span> <span>R$ {shippingCost.toFixed(2)}</span></p>
+                </div>
+              </div>
+            )}
+          </div>
           <div className={styles.formContainer}>
             {/* Passo 1: Dados Pessoais - MANTIDO IGUAL */}
             <div className={styles.stepContainer}>

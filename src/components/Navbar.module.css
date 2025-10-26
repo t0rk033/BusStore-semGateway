@@ -35,10 +35,10 @@
 .rightSection {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 30px; /* Aumenta o espaço entre a busca e os ícones */
 }
 
-.searchContainer {
+.desktopSearchContainer {
   display: flex;
   align-items: center;
   border-radius: 5px;
@@ -221,5 +221,209 @@
   .navbarBottom {
     flex-direction: column;
     align-items: center;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .wrapper {
+    position: sticky !important; /* Alterado para ser fixo durante a rolagem */
+    top: 0;           /* Cola no topo da tela */
+    left: 0;
+    right: 0;
+    z-index: 1001;    /* Garante que fique acima de outros conteúdos */
+  }
+
+  .navbarTop {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 70px;
+    max-width: 100%;
+    padding: 0 20px;
+    position: relative;
+  }
+
+  .logo {
+    width: 120px;
+    max-width: 120px;
+  }
+
+  .rightSection {
+    flex-direction: row;
+    gap: 15px;
+    width: auto;
+  }
+
+  .searchContainer {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #08152A;
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: none;
+  }
+
+  .mobileSearchContainer.active {
+    display: flex;
+  }
+
+  .desktopSearchContainer {
+    display: none; /* Esconde a busca de desktop no mobile */
+  }
+
+  .searchInput {
+    width: 100%;
+    font-size: 16px; /* Melhor para mobile */
+  }
+
+  .searchButton {
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  /* Menu Hamburger */
+  .mobileMenuButton {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .mobileMenuButton span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background-color: white;
+    transition: all 0.3s ease;
+  }
+
+  .mobileMenuButton.active span:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+  }
+
+  .mobileMenuButton.active span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .mobileMenuButton.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+  }
+
+  /* Navbar Bottom para Mobile */
+  .navbarBottom {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #08152A;
+    max-width: 100%;
+    padding: 0;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .navbarBottom.active {
+    display: block;
+  }
+
+  .navLinks {
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+  }
+
+  .navLinks li {
+    width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .navLinks li a {
+    display: block;
+    padding: 15px 20px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .navLinks li a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #FFC107;
+  }
+
+  /* Ícones para mobile */
+  .icons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .searchToggle {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+  }
+
+  /* Ajustes no user menu para mobile */
+  .userMenu {
+    position: fixed;
+    top: auto;
+    right: 20px;
+    left: 20px;
+    width: calc(100% - 40px);
+  }
+
+  /* Overlay para quando menus estiverem abertos */
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+  }
+
+  .overlay.active {
+    display: block;
+  }
+
+  /* Novo container de busca para mobile */
+  .mobileSearchContainer {
+    position: absolute;
+    top: 70px; /* Altura do navbarTop */
+    left: 0;
+    width: 100%;
+    background: #08152A;
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Esconder elementos mobile no desktop */
+.mobileMenuButton,
+.searchToggle,
+.mobileSearchContainer {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobileMenuButton,
+  .searchToggle {
+    display: flex;
   }
 }

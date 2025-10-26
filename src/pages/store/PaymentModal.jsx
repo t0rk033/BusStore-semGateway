@@ -9,6 +9,7 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
   const [processing, setProcessing] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Função para testar conexão com o backend
   const testBackendConnection = async () => {
@@ -414,6 +415,31 @@ function PaymentModal({ open, onClose, total, user, userData, orderId, userId, i
         >
           &times;
         </button>
+
+        {/* Resumo do Pedido para Mobile */}
+        <div className={styles.mobileOrderSummary}>
+          <div className={styles.summaryToggle} onClick={() => setSummaryOpen(!summaryOpen)}>
+            <span>{summaryOpen ? 'Ocultar resumo do pedido' : 'Ver resumo do pedido'}</span>
+            <div className={styles.summaryTotalMobile}>
+              <strong>Total: R$ {total.toFixed(2)}</strong>
+              <span className={`${styles.arrow} ${summaryOpen ? styles.arrowUp : ''}`}></span>
+            </div>
+          </div>
+          {summaryOpen && (
+            <div className={styles.summaryContent}>
+              {items.map(item => (
+                <div key={item.id} className={styles.summaryItem}>
+                  <img src={item.imageUrl || item.imageUrls?.[0]} alt={item.name} className={styles.summaryItemImage} />
+                  <div className={styles.summaryItemInfo}>
+                    <span className={styles.summaryItemName}>{item.quantity}x {item.name}</span>
+                    <span className={styles.summaryItemVariation}>{item.variation?.color} {item.variation?.size}</span>
+                  </div>
+                  <span className={styles.summaryItemPrice}>R$ {(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {!paymentResult ? (
           <>

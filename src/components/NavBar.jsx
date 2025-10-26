@@ -3,7 +3,7 @@ import { useModal } from '../contexts/ModalContext';
 import styles from './Navbar.module.css';
 import logo from '../assets/images/logo.png';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaUser, FaShoppingCart } from 'react-icons/fa';
+import { FaUser, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 
 function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) {
@@ -11,7 +11,10 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const menuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   useEffect(() => {
     const auth = getAuth();
@@ -53,8 +56,12 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target) && !mobileMenuRef.current.contains(event.target)) {
         setMenuOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
+        setMobileMenuOpen(false);
+        setSearchOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -62,6 +69,21 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+    setSearchOpen(false);
+  };
+
+  const toggleSearch = () => {
+    setSearchOpen(!searchOpen);
+    setMobileMenuOpen(false);
+  };
+
+  const handleMobileLinkClick = () => {
+    setMobileMenuOpen(false);
+    setSearchOpen(false);
+  };
 
   const staticLinks = [
     { name: 'FEMININO', category: 'Vestuário Feminino' },
@@ -83,19 +105,31 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
   );
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.wrapper} ref={mobileMenuRef}>
+      {/* Overlay para mobile */}
+      {(mobileMenuOpen || searchOpen) && (
+        <div 
+          className={`${styles.overlay} ${(mobileMenuOpen || searchOpen) ? styles.active : ''}`}
+          onClick={() => {
+            setMobileMenuOpen(false);
+            setSearchOpen(false);
+          }}
+        />
+      )}
+
       <div className={styles.navbarTop}>
         <div className={styles.logoSection}>
-          <Link to="/">
+          <Link to="/" onClick={handleMobileLinkClick}>
             <img src={logo} alt="Logo" className={styles.logo} />
           </Link>
         </div>
 
         <div className={styles.rightSection}>
-          <div className={styles.searchContainer}>
+          {/* Barra de busca para DESKTOP */}
+          <div className={styles.desktopSearchContainer}>
             <input
               type="text"
-              placeholder="Buscar"
+              placeholder="Buscar produtos..."
               className={styles.searchInput}
               value={searchTerm}
               onChange={onSearchChange}
@@ -108,6 +142,10 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
               BUSCAR
             </button>
           </div>
+          {/* Botão de busca para mobile */}
+          <button className={styles.searchToggle} onClick={toggleSearch} aria-label="Toggle search">
+            <FaSearch/>
+          </button>
           <div className={styles.icons}>
             <div className={styles.userIconContainer} ref={menuRef}>
               <button
@@ -134,20 +172,56 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
                 </div>
               )}
             </div>
+          
+
+            {/* Menu Hamburger */}
+            <button 
+              className={`${styles.mobileMenuButton} ${mobileMenuOpen ? styles.active : ''}`}
+              onClick={toggleMobileMenu}
+              aria-label="Toggle menu"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Barra de busca para MOBILE (fora do fluxo normal) */}
+      <div className={`${styles.mobileSearchContainer} ${searchOpen ? styles.active : ''}`}>
+        <input
+          type="text"
+          placeholder="Buscar produtos..."
+          className={styles.searchInput}
+          value={searchTerm}
+          onChange={onSearchChange}
+          onKeyPress={handleKeyPress}
+        />
+        <button 
+          className={styles.searchButton}
+          onClick={() => {
+            handleSearch();
+            handleMobileLinkClick(); // Fecha a busca após pesquisar
+          }}
+        >
+          BUSCAR
+        </button>
+      </div>
+
       <div className={styles.separator} />
 
-      <div className={styles.navbarBottom}>
+      <div className={`${styles.navbarBottom} ${mobileMenuOpen ? styles.active : ''}`}>
         <ul className={styles.navLinks}>
           {staticLinks.map((link) => {
             // Usa a grafia da categoria do banco de dados se encontrada, senão usa a do link estático.
             const categoryForLink = dbCategoryMap.get(link.category.toLowerCase()) || link.category;
             return (
               <li key={link.name}>
-                <Link to={`/busca?categoria=${encodeURIComponent(categoryForLink)}`}>
+                <Link 
+                  to={`/busca?categoria=${encodeURIComponent(categoryForLink)}`}
+                  onClick={handleMobileLinkClick}
+                >
                   {link.name}
                 </Link>
               </li>
@@ -155,7 +229,10 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
           })}
           {dynamicCategories.map((category) => (
             <li key={category}>
-              <Link to={`/busca?categoria=${encodeURIComponent(category)}`}>
+              <Link 
+                to={`/busca?categoria=${encodeURIComponent(category)}`}
+                onClick={handleMobileLinkClick}
+              >
                 {category.toUpperCase()}
               </Link>
             </li>
