@@ -227,7 +227,7 @@
 
 @media (max-width: 768px) {
   .wrapper {
-    position: sticky !important; /* Alterado para ser fixo durante a rolagem */
+    position: fixed !important; /* Alterado para ser fixo durante a rolagem */
     top: 0;           /* Cola no topo da tela */
     left: 0;
     right: 0;

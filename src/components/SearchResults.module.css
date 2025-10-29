@@ -80,10 +80,10 @@
     padding: 15px 20px;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
+    margin-bottom: 20px; 
     position: sticky; /* Fixa o cabeçalho no topo */
-    top: calc(2.2vh + 2px + 45px); /* Posição exata abaixo da NavBar (topo + separador + menu inferior) */
-    z-index: 10;      /* Garante que fique sobre a lista de produtos */
+    top: 0; /* Posição padrão para desktop */
+    z-index: 1000;      /* Garante que fique sobre a lista de produtos */
     background-color: #f4f4f4; /* Adiciona um fundo para não ficar transparente sobre os produtos */
 }
 
@@ -203,10 +203,12 @@
 
 /* Responsividade para dispositivos móveis */
 @media (max-width: 768px) {
+   
     .mainContent {
         flex-direction: column;
         max-width: 100%;
-        padding: 0;
+        padding: 0; /* Resetamos o padding para controle total */
+        padding-top: 120px; /* 70px (NavBar) + 50px (Filtros) */
         margin: 10px auto;
     }
 
@@ -288,6 +290,12 @@
 
     .productsHeader {
         padding: 10px 15px;
+        position: fixed; /* Mudar para fixed para garantir o posicionamento */
+        top: 70px;       /* Posição abaixo da NavBar fixa */
+        left: 0;
+        right: 0;
+        border-radius: 0; /* Remover bordas arredondadas para preencher a tela */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); /* Sombra mais pronunciada */
     }
 
     .sortOptions {

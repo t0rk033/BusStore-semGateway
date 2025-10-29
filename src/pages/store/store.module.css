@@ -10,20 +10,6 @@
   --white: #FFFFFF;
 }
 
-/* Reset e Estilos Globais */
-body {
-  margin: 0;
-  font-family: 'Roboto', sans-serif;
-  background: #f3f4f7;
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.storeWrapper {
-  /* overflow-x: hidden; */
-}
-
-
 /* Hero Section */
 .heroSection {
   background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('../../assets/images/lojaFoto.png');
@@ -178,77 +164,6 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-  .featuredSection {
-    padding: 1rem;
-    max-width: 98vw;
-  }
-  
-  .featuredGrid {
-    grid-template-columns: repeat(auto-fit, minmax(26vw, 1fr));
-    gap: 1rem;
-  }
-  .featuredImageContainer {
-    height: 10vh;
-    min-height: 8rem;
-  }
-
-  /* garante que o cartão use toda a altura disponível no container */
-  .featuredSectionsContainer .featuredCard {
-    display: flex;
-    flex-direction: column;
-    min-height: 14rem;
-    height: 100%;
-    border-radius: 0.625rem;
-    overflow: hidden;
-    box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.08);
-  }
-
-  /* mantém a imagem com altura controlada para permitir que .featuredInfoCompact cresça */
-  .featuredSectionsContainer .featuredImageContainer {
-    width: 100%;
-    flex: 0 0 auto; /* não crescer para ocupar todo o card */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fafafa;
-    padding: 0.6rem;
-    min-height: 7.5rem;
-    max-height: 12rem;
-    box-sizing: border-box;
-  }
-
-  /* faz o bloco de informações expandir e distribuir o conteúdo verticalmente */
-  .featuredSectionsContainer .featuredInfo {
-    flex: 1 1 auto; /* ocupa todo espaço restante do card */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* empurra preço para baixo se necessário */
-    padding: 0.75rem;
-    box-sizing: border-box;
-  }
-
-  /* caso você esteja usando a variante com sufixo Compact */
-  .featuredInfoCompact {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 0.75rem;
-    box-sizing: border-box;
-  }
-
-  .featuredNameCompact {
-    margin: 0;
-    line-height: 1.2;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
 }
 
 .searchBar {
@@ -1086,42 +1001,6 @@ body {
   }
 }
 
-/* Estilos gerais da barra de filtros */
-.filtersContainer {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-/* Estilos para dispositivos móveis */
-@media (max-width: 768px) {
-  .filtersContainer {
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    max-width: 98vw;
-  }
-  .heroSection{
-    
-  }
-  .filterSection {
-    width: 100%;
-  }
-  .priceRange {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .priceInput {
-    width: 100%;
-  }
-  .clearFiltersButton {
-    width: 100%;
-    text-align: center;
-  }
-}
-
 /* Seção de Categorias */
 .categoriesSection {
   padding: 2rem;
@@ -1189,25 +1068,6 @@ body {
   font-size: 0.9rem;
 }
 
-/* Responsividade */
-@media (max-width: 768px) {
-  .categoriesGrid {
-    grid-template-columns: repeat(auto-fit, minmax(26vw, 1fr));
-    gap: 1rem;
-  }
-}
-
-/* Responsivo: empilhe os cards no mobile */
-@media (max-width: 768px) {
-  .featuredSection:last-child .featuredGrid {
-    flex-wrap: wrap !important;
-    justify-content: center !important;
-    display: flex !important;
-    gap: 0.9375rem;
-    overflow-x: visible;
-  }
-}
-
 /* Seção Bermuda */
 .bermudaSection {
   background: #fff;
@@ -1272,13 +1132,20 @@ body {
 .bermudaGrid {
   display: flex;
   gap: 1.5rem;
-  padding: 0 0.75rem;
+  padding: 0.5rem 1.5rem; /* Adiciona padding para os cards não colarem nas bordas */
   overflow-x: auto;
-  scrollbar-width: thin;
   justify-content: flex-start;
+  /* Efeito de "snap" para o carrossel */
+  scroll-snap-type: x mandatory;
+  /* Rolagem suave em dispositivos iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 .bermudaCard {
+  /* Garante que os cards não encolham */
+  flex-shrink: 0;
+  /* Define o ponto de alinhamento para o snap */
+  scroll-snap-align: start;
   background: #fff;
   border-radius: 0.75rem;
   width: 10vw;
@@ -1464,19 +1331,8 @@ body {
 }
 
 /* Responsivo */
-@media (max-width: 900px) {
-  .athleteContent {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-  .athleteImage {
-    width: 11vw;
-    min-width: 6rem;
-    height: 11vw;
-    min-height: 6rem;
-  }
-}
+
+
 
 /* Margens inferiores para as seções */
 .bermudaSection,
@@ -1503,78 +1359,6 @@ body {
   position: relative;
   bottom: 6rem;
   margin-bottom: -6rem;
-}
-
-/* Media query para tornar o featuredSectionsContainer responsivo em celulares */
-@media (max-width: 768px) {
- .featuredSectionsContainer {
-    display: flex;
-    gap: 1rem;
-    padding: 0 1rem;
-    max-width: 100vw;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* rolagem suave no iOS */
-    scroll-snap-type: x mandatory;
-    box-sizing: border-box;
-    bottom: 2rem; /* reduz o offset para mobile */
-    margin-bottom: -2rem;
-    transform: scale(0.9);
-  }
-    .categoriesSection,
-  .athlete,
-  .bermudaSection:not(.firstCarousel) {
-    display: none;
-  }
-    .categoriesGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-auto-rows: minmax(6rem, auto);
-    gap: 0.75rem;
-    padding: 0 1rem;
-    align-items: stretch;
-  }
-    .categoriesGrid .categoryCard:nth-child(1) {
-    grid-row: span 2;
-    min-height: 14rem;
-  }
-    .categoriesGrid .categoryCard .categoryImage {
-    
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    vertical-align: middle;
-  }
-
-  /* Cada seção ocupa ~50% da largura da tela */
-  .featuredSectionCompact {
-    flex: 0 0 calc(60% - 0.5rem); /* Aumenta a largura da seção */
-    max-width: calc(60% - 0.5rem);
-    box-sizing: border-box;
-    scroll-snap-align: start;
-    margin: 0;
-  }
-
-  /* Ajustes na grid interna para usar a largura da seção */
-  .featuredGridCompact {
-    display: flex;
-    gap: 0.75rem;
-    overflow: visible;
-    justify-content: flex-start;
-    text-align: left;
-    padding: 0!important; 
-  }
-
-  /* Cards dentro da seção ocupam a largura disponível (um por "linha" visual) */
-  .featuredCardCompact {
-    min-width: 100%;
-    max-width: 100%;
-    flex: 0 0 100%;
-  }
-
-  .featuredImageContainerCompact {
-    height: 28vw; /* aumenta a altura das imagens para melhor proporção no mobile */
-    min-height: 8rem;
-  }
 }
 
 /* Estilo para cada seção (oferta do dia e mais vendidos) */
@@ -1680,155 +1464,370 @@ body {
   color: #27ae60;
 }
 
-/* Layout móvel: primeiro card grande à esquerda e 2 empilhados à direita */
+/* =============================================== */
+/* ============== MEDIA QUERIES ================== */
+/* =============================================== */
 @media (max-width: 768px) {
-  .categoriesGrid {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* esquerda maior */
-    grid-auto-rows: minmax(8rem, 1fr);
-    gap: 0.75rem;
-    padding: 0 1rem;
-    align-items: stretch;
-    width: 100%;
+  /* --- Ajustes Gerais de Largura --- */
+  body, html {
+    overflow-x: hidden;
+  }
+  * {
     box-sizing: border-box;
   }
-.heroContent{
-  margin: 0;
-}
-
-  /* Faz o primeiro cartão ocupar duas linhas (grande) */
-  .categoriesGrid .categoryCard:nth-child(1) {
-    grid-row: span 2;
-    min-height: 16rem; /* ajuste se quiser maior/menor */
-    border-radius: 1rem;
+  .heroSection {
+    justify-content: flex-end;
+    text-align: right;
   }
 
-  .categoriesGrid .categoryCard {
+  .heroContent {
+    align-items: flex-end;
+    margin-right: 0; /* Remove a margem para melhor ajuste */
+    padding: 0 1rem;   /* Um padding para não colar na borda */
+  }
+  /* --- Featured Sections Container - Layout Lado a Lado --- */
+  .featuredSectionsContainer {
+    display: grid;
+    grid-template-columns: 40% 60%;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    max-width: 100vw;
+    overflow-x: hidden;
+    transform: none;
+    margin-bottom: 0;
+    width: 100vw;
+    margin: 0;
+    bottom: 0;
+  }
+
+  .featuredSectionCompact {
+    max-width: 100%;
+    padding: 0;
+    margin: 0 0 0.5rem 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .sectionTitleCompact {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: left;
+    color: #333;
+  }
+
+  /* Grid da direita (Mais Vendidos) */
+  .featuredSectionsContainer > .featuredSectionCompact:last-child .featuredGridCompact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  /* Grid da esquerda (Oferta do dia) */
+  .featuredSectionsContainer > .featuredSectionCompact:first-child .featuredGridCompact {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .featuredCardCompact {
+    min-width: 100%;
+    max-width: 100%;
+    flex: initial;
+    border-radius: 0.625rem;
+    background-color: #fff;
+    min-height: 14rem;
     height: 100%;
-    min-height: 0;
-    max-width: none;
-    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .featuredImageContainerCompact {
+    height: 10vh;
+    min-height: 8rem;
+    width: 100%;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+    padding: 0.6rem;
+    box-sizing: border-box;
     overflow: hidden;
   }
 
-  /* Imagem cobre todo o cartão mantendo proporção */
-  .categoryImage {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    vertical-align: middle;
-  }
-
-  /* Título em pílula no topo esquerdo para melhor leitura sobre a imagem */
-  .categoryName {
-    position: absolute;
-    top: 0.6rem;
-    left: 0.6rem;
-    background: rgba(255,255,255,0.95);
-    color: var(--primary);
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    z-index: 3;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  }
-
-  /* Rodapé com gradiente para legibilidade */
-  .categoryFooter {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 0.9rem;
-    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%);
-    color: #fff;
-    font-size: 0.95rem;
-    z-index: 2;
+  .featuredInfoCompact {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.75rem;
     box-sizing: border-box;
   }
-}
-@media (max-width: 768px) {
-  /* centraliza o container de categorias na tela */
+
+  .featuredNameCompact {
+    margin: 0;
+    line-height: 1.2;
+    font-size: 0.75rem;
+    color: #333;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.2rem;
+  }
+
+  .featuredOldPriceCompact {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 0.65rem;
+    margin-top: 0.25rem;
+  }
+  
+  .featuredPriceCompact {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #008000;
+    margin-top: 0.1rem;
+    white-space: nowrap;
+  }
+
+  /* --- Categories Section - AJUSTADO PARA CABER NA TELA --- */
   .categoriesSection {
-    padding: 0rem;
+    padding: 0 0.75rem 1.5rem 0.75rem; /* Padding lateral reduzido */
     max-width: 100vw;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;
     justify-content: center;
-    margin-top: 1rem;
-    position: relative;
-    transform: scale(0.9);
+    margin-top: 0;
   }
 
-  /* grid centralizado com largura máxima para ficar alinhado no mobile */
   .categoriesGrid {
     display: grid;
-    grid-template-columns: 2fr 1fr; /* esquerda maior */
-    grid-auto-rows: minmax(8rem, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: 2fr 1fr;
+    grid-auto-rows: minmax(6rem, 1fr); /* Altura reduzida */
+    gap: 0.5rem; /* Gap reduzido */
     padding: 0;
     width: 100%;
-    max-width: 720px !important; /* controla o bloco centralizado — ajuste se quiser maior/menor */
-    margin: 0 auto;
-    justify-items: stretch;
-    align-items: stretch;
+    max-width: 100%; /* Garante que não ultrapasse a tela */
+    margin: 0;
     box-sizing: border-box;
   }
 
-  /* Faz o primeiro cartão ocupar duas linhas (grande) */
   .categoriesGrid .categoryCard:nth-child(1) {
+    grid-column: 1;
     grid-row: span 2;
-    min-height: 16rem;
-    border-radius: 1rem;
+    min-height: 13rem; /* Altura reduzida do card grande */
+    border-radius: 0.875rem; /* Border-radius ligeiramente menor */
+  }
+  
+  .categoriesGrid .categoryCard:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 6rem; /* Altura definida para cards menores */
+  }
+  
+  .categoriesGrid .categoryCard:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 6rem; /* Altura definida para cards menores */
   }
 
   .categoriesGrid .categoryCard {
-    height: 100%;
-    min-height: 0;
-    max-width: none;
-    border-radius: 1rem;
+    position: relative;
     overflow: hidden;
+    border-radius: 0.875rem; /* Border-radius reduzido */
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0.75rem; /* Padding interno reduzido */
+    color: #fff;
+    box-shadow: 0 0.2rem 0.5rem rgba(0,0,0,0.15); /* Sombra mais sutil */
+    height: 100%;
+    max-width: none;
+    min-height: 0;
     margin: 0;
+    box-sizing: border-box;
+  }
+  
+  .categoryName {
+    z-index: 10;
+    font-size: 0.9rem; /* Fonte reduzida */
+    margin: 0 0 0.2rem 0; /* Margem reduzida */
+    font-weight: 600;
+    line-height: 1.1;
   }
 
-  /* Imagem cobre todo o cartão mantendo proporção */
+  .categoriesGrid .categoryCard:nth-child(1) .categoryName {
+    font-size: 0; /* Continua escondido */
+  }
+
+  .categoriesGrid .categoryCard:nth-child(1) .categoryFooter {
+    font-size: 1.2rem; /* Fonte reduzida */
+    font-weight: 700;
+    text-shadow: 0 0 4px rgba(0,0,0,0.7);
+    z-index: 10;
+  }
+
+  .categoryFooter {
+    font-size: 0.85rem; /* Fonte reduzida */
+    font-weight: 500;
+    text-shadow: 0 0 4px rgba(0,0,0,0.5);
+    z-index: 10;
+    line-height: 1.1;
+  }
+
   .categoryImage {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
-    vertical-align: middle;
+    z-index: 1;
+    border-radius: 0.875rem; /* Border-radius igual ao card */
   }
 
-  /* Título em pílula no topo esquerdo para melhor leitura sobre a imagem */
-  .categoryName {
+  .categoriesGrid .categoryCard::after {
+    content: '';
     position: absolute;
-    top: 0.6rem;
-    left: 0.6rem;
-    background: rgba(255,255,255,0.95);
-    color: var(--primary);
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    z-index: 3;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  }
-
-  /* Rodapé com gradiente para legibilidade */
-  .categoryFooter {
-    position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
-    padding: 0.9rem;
-    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0.65) 100%);
-    color: #fff;
+    height: 100%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 50%);
+    z-index: 5;
+    border-radius: 0.875rem; /* Border-radius igual ao card */
+  }
+
+  .categoriesSection > h2 {
+    font-size: 1.3rem; /* Fonte do título reduzida */
+    margin: 0.5rem 0 0.5rem 0;
+    padding: 0;
+    width: 100%;
+    text-align: center; /* Centralizado para melhor aparência */
+  }
+  .carouselArrowLeft,
+  .carouselArrowRight {
+      /* As setas são desnecessárias para o deslize por toque */
+      display: none; 
+  }
+
+  .bermudaCarousel {
+      width: 100%;
+      justify-content: flex-start; 
+      padding: 0;
+  }
+
+  .bermudaGrid {
+      flex-wrap: nowrap; 
+      padding: 0 1rem; /* Padding para o primeiro e último card não colarem na borda */
+      gap: 1rem;
+  }
+
+  .bermudaCard {
+      /* Define um tamanho para que ~2.5 cards fiquem visíveis, incentivando o deslize */
+      width: 40vw; 
+      min-width: 40vw; 
+      max-width: 40vw;
+  }
+
+  .bermudaImageContainer {
+      /* Altura proporcional ao novo card */
+      height: 40vw; 
+      min-height: auto;
+  }
+
+  .bermudaName {
+    font-size: 0.8rem;
+  }
+
+  .bermudaPrice {
     font-size: 0.95rem;
-    z-index: 2;
-    box-sizing: border-box;
+  }
+
+  .bermudaInfo {
+    padding: 0.5rem;
+  }
+  
+  /* Outros ajustes */
+    .bermudaSection {
+        max-width: 100vw;
+        margin: 1rem 0;
+        padding: 1.5rem 0; /* Ajuste o padding vertical */
+        box-sizing: border-box;
+    }
+
+    .bermudaTitle {
+        margin-left: 1rem; /* Ajuste o alinhamento do título */
+    }
+
+    /* Oculta todos os carrosséis por padrão no mobile */
+    .bermudaSection {
+        display: none;
+    }
+
+    /* Exibe APENAS o primeiro carrossel (o de bermudas) */
+    .firstCarousel {
+        display: flex; /* Restaura o display original para este elemento */
+    }
+
+    /* Oculta a seção do atleta no mobile */
+    .athlete {
+        display: none;
+    }
+
+    
+}
+
+/* Para telas muito pequenas (menos de 380px) */
+@media (max-width: 380px) {
+  .categoriesSection {
+    padding: 0 0.5rem 1rem 0.5rem; /* Padding ainda menor */
+  }
+  
+  .categoriesGrid {
+    grid-auto-rows: minmax(5rem, 1fr); /* Altura ainda menor */
+    gap: 0.4rem;
+  }
+
+  .categoriesGrid .categoryCard:nth-child(1) {
+    min-height: 11rem;
+  }
+  
+  .categoriesGrid .categoryCard:nth-child(2),
+  .categoriesGrid .categoryCard:nth-child(3) {
+    min-height: 5rem;
+  }
+
+  .categoryName {
+    font-size: 0.8rem;
+  }
+
+  .categoriesGrid .categoryCard:nth-child(1) .categoryFooter {
+    font-size: 1.1rem;
+  }
+
+  .categoryFooter {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .athleteContent {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .athleteImage {
+    width: 11vw;
+    min-width: 6rem;
+    height: 11vw;
+    min-height: 6rem;
   }
 }
