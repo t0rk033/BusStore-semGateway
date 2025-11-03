@@ -37,7 +37,8 @@ const Checkout = () => {
   const [selectedInstallment, setSelectedInstallment] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [processingPix, setProcessingPix] = useState(false);
-  const [paymentResult, setPaymentResult] = useState(null);
+  const [paymentResult, setPaymentResult] = useState(null); // Mantém os dados do pagamento (boleto/pix)
+  const [modalResult, setModalResult] = useState(null); // Controla apenas o modal
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -471,26 +472,29 @@ const Checkout = () => {
         if (existing.exists()) {
           await updateDoc(saleRef, {
             ...saleData,
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            status: paymentData.status, // Garante que o status seja atualizado
           });
-          await updateStockAfterPurchase(cartItems);
-          emptyCart();
-          setStep(4);
-          return;
         } else {
           await setDoc(saleRef, { ...saleData, orderId }, { merge: true });
+        }
+
+        // Apenas atualiza o estoque e limpa o carrinho se o pagamento for aprovado
+        if (paymentData.status === 'approved') {
           await updateStockAfterPurchase(cartItems);
           emptyCart();
-          setStep(4);
-          return;
         }
+
+        return;
       }
       
       const docRef = await addDoc(collection(db, "sales"), saleData);
       console.log("finalizePurchase - venda salva com id:", docRef.id);
-      await updateStockAfterPurchase(cartItems);
-      emptyCart();
-      setStep(4);
+      // Apenas atualiza o estoque e limpa o carrinho se o pagamento for aprovado
+      if (paymentData.status === 'approved') {
+        await updateStockAfterPurchase(cartItems);
+        emptyCart();
+      }
     } catch (err) {
       console.error("finalizePurchase - erro ao salvar venda:", err);
       setPaymentResult({ status: 'error', message: 'Erro ao salvar pedido. Contate o suporte.' });
@@ -549,10 +553,13 @@ const Checkout = () => {
         throw new Error(data.message || `Erro ${response.status}`);
       }
   
-      setPaymentResult(data);
+      // Apenas mostra o modal para pagamentos com cartão, que têm resultado imediato.
+      setModalResult(data);
       
       // Salvar compra se o pagamento foi criado
       if (data.payment_id && data.orderId) {
+        // Define o resultado do pagamento para o cartão, que é final
+        setPaymentResult(data);
         await finalizePurchase(data);
       }
 
@@ -560,18 +567,18 @@ const Checkout = () => {
       console.error('💥 Erro no pagamento com cartão:', error);
       setPaymentResult({
         status: 'error',
-        message: error.message || 'Erro ao processar pagamento com cartão',
+        message: error.message || 'Erro ao processar pagamento',
       });
     } finally {
       setProcessing(false);
     }
   };
 
-  // Função para processar pagamento PIX
+  // Função para processar pagamento PIX - ATUALIZADA
   const processPixPayment = async () => {
     setProcessingPix(true);
     setPaymentResult(null);
-
+  
     try {
       const requestData = {
         amount: total,
@@ -583,33 +590,50 @@ const Checkout = () => {
           first_name: formData.firstName,
           last_name: formData.lastName,
         },
-        phone: formData.phone.replace(/\D/g, '')
+        phone: formData.phone.replace(/\D/g, ''),
+        shipping: selectedShipping ? {
+          method: selectedShipping.nome,
+          cost: selectedShipping.valor,
+          deliveryTime: selectedShipping.prazoEntrega
+        } : null
       };
-
-      console.log('🔐 Gerando PIX...');
-
+  
+      console.log('🔐 Gerando PIX Asaas...');
+  
       const response = await fetch(`${API_URL}/api/process-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
         throw new Error(data.message || `Erro ${response.status}`);
       }
-
+  
+      console.log('✅ PIX gerado:', data);
+  
       setPixData(data.pix_data);
       setPaymentResult({
         status: data.status || 'pending',
-        message: 'Aguardando pagamento PIX',
+        message: 'QR Code PIX gerado com sucesso!',
         payment_id: data.payment_id,
         orderId: data.orderId
       });
-
+      setModalResult({ status: 'pending', message: 'QR Code PIX gerado com sucesso!' });
+  
+      // ✅ NOVO: Salvar compra imediatamente para PIX também
+      if (data.payment_id && data.orderId) {
+        await finalizePurchase({
+          ...data,
+          status: 'pending'
+        });
+      }
+  
     } catch (error) {
-      setPaymentResult({
+      console.error('❌ Erro ao processar PIX:', error);
+      setModalResult({
         status: 'error',
         message: error.message || 'Erro ao processar PIX',
       });
@@ -618,11 +642,11 @@ const Checkout = () => {
     }
   };
 
-  // Função para processar boleto
+  // Função para processar boleto - ATUALIZADA
   const processBoletoPayment = async () => {
     setProcessing(true);
     setPaymentResult(null);
-
+  
     try {
       const requestData = {
         amount: total,
@@ -634,38 +658,51 @@ const Checkout = () => {
           first_name: formData.firstName,
           last_name: formData.lastName,
         },
-        phone: formData.phone.replace(/\D/g, '')
+        phone: formData.phone.replace(/\D/g, ''),
+        shipping: selectedShipping ? {
+          method: selectedShipping.nome,
+          cost: selectedShipping.valor,
+          deliveryTime: selectedShipping.prazoEntrega
+        } : null
       };
-
-      console.log('📄 Gerando boleto...');
-
+  
+      console.log('📄 Gerando boleto Asaas...');
+  
       const response = await fetch(`${API_URL}/api/process-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
       });
-
+  
       const data = await response.json();
-
+  
       if (!response.ok) {
         throw new Error(data.message || `Erro ${response.status}`);
       }
-
+  
+      console.log('✅ Boleto gerado:', data);
+  
+      // ✅ ATUALIZADO: Usar bankSlipUrl para redirecionamento
       setPaymentResult({
         status: data.status || 'pending',
-        message: 'Boleto gerado com sucesso',
+        message: 'Boleto gerado com sucesso!',
         payment_id: data.payment_id,
         orderId: data.orderId,
         boleto_data: data.boleto_data
       });
-
-      // Salvar compra
+      setModalResult({ status: 'pending', message: 'Boleto gerado com sucesso!' });
+  
+      // ✅ NOVO: Salvar compra imediatamente (status pending)
       if (data.payment_id && data.orderId) {
-        await finalizePurchase(data);
+        await finalizePurchase({
+          ...data,
+          status: 'pending'
+        });
       }
-
+  
     } catch (error) {
-      setPaymentResult({
+      console.error('❌ Erro ao gerar boleto:', error);
+      setModalResult({
         status: 'error',
         message: error.message || 'Erro ao gerar boleto',
       });
@@ -1148,13 +1185,6 @@ const Checkout = () => {
                           <button 
                             type="button" 
                             className={styles.submitButton}
-                            onClick={async () => {
-                              await finalizePurchase({
-                                ...paymentResult,
-                                status: 'pending'
-                              });
-                              setStep(4);
-                            }}
                           >
                             JÁ PAGUEI COM PIX
                           </button>
@@ -1163,7 +1193,7 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  {/* Seção Boleto */}
+                  {/* Seção Boleto - ATUALIZADA */}
                   {formData.paymentMethod === 'boleto' && (
                     <div className={styles.boletoSection}>
                       <div className={styles.boletoInfo}>
@@ -1173,8 +1203,10 @@ const Checkout = () => {
                           <li>✓ Aceito em todos os bancos</li>
                           <li>✓ Prazo de pagamento: 3 dias úteis</li>
                           <li>✓ Sem taxas adicionais</li>
+                          <li>✓ Pagamento seguro via Asaas</li>
                         </ul>
                       </div>
+                      
                       <button 
                         className={styles.boletoButton}
                         onClick={processBoletoPayment}
@@ -1182,19 +1214,48 @@ const Checkout = () => {
                       >
                         {processing ? 'Gerando boleto...' : `GERAR BOLETO - R$ ${total.toFixed(2)}`}
                       </button>
-
+  
                       {paymentResult?.boleto_data && (
                         <div className={styles.boletoGenerated}>
-                          <p><strong>Boleto gerado com sucesso!</strong></p>
-                          <p>O boleto foi enviado para seu e-mail e estará disponível em seus pedidos.</p>
+                          <div className={styles.successMessage}>
+                            <span className={styles.successIcon}>✅</span>
+                            <h4>Boleto gerado com sucesso!</h4>
+                          </div>
+                          
+                          <p>Clique no botão abaixo para visualizar e imprimir seu boleto:</p>
+                          
+                          {/* ✅ BOTÃO PRINCIPAL PARA REDIRECIONAR */}
                           <a 
                             href={paymentResult.boleto_data.bankSlipUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className={styles.boletoLink}
                           >
-                            📄 Visualizar Boleto
+                            📄 ABRIR BOLETO PARA PAGAMENTO
                           </a>
+  
+                          <div className={styles.boletoDetails}>
+                            <p><strong>Vencimento:</strong> {new Date(paymentResult.boleto_data.dueDate).toLocaleDateString('pt-BR')}</p>
+                            {paymentResult.boleto_data.linha_digitavel && (
+                              <div className={styles.linhaDigitavel}>
+                                <span>Linha digitável:</span>
+                                <code>{paymentResult.boleto_data.linha_digitavel}</code>
+                              </div>
+                            )}
+                          </div>
+  
+                          <div className={styles.boletoInstructions}>
+                            <p><strong>Instruções:</strong></p>
+                            <ol>
+                              <li>Clique em "ABRIR BOLETO" acima</li>
+                              <li>Imprima o boleto ou pague pelo internet banking</li>
+                              <li>O pagamento será confirmado em até 3 dias úteis</li>
+                            </ol>
+                          </div>
+  
+                          <div className={styles.boletoWarning}>
+                            <p>⚠️ <strong>Importante:</strong> O boleto será enviado para o e-mail <strong>{formData.email}</strong></p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1209,91 +1270,6 @@ const Checkout = () => {
               )}
             </div>
 
-            {/* Passo 4: Confirmação - MANTIDO IGUAL */}
-            {step === 4 && (
-              <div className={styles.stepContainer}>
-                <div className={styles.stepHeader}>
-                  <div className={styles.stepNumber}>✓</div>
-                  <span className={styles.stepTitle}>Confirmação</span>
-                </div>
-                <div className={styles.stepContent}>
-                  <div className={styles.confirmation}>
-                    <div className={styles.confirmationCard}>
-                      {paymentResult?.status === 'approved' && (
-                        <div className={styles.statusHeader}>
-                          <span className={styles.statusIcon}>✅</span>
-                          <h2>Compra realizada com sucesso!</h2>
-                          <p className={styles.statusDescription}>Obrigado pela sua compra. Enviamos a confirmação para o seu e-mail.</p>
-                        </div>
-                      )}
-                      {paymentResult?.status === 'pending' && (
-                        <div className={styles.statusHeader}>
-                          <span className={styles.statusIcon}>⏳</span>
-                          <h2>Aguardando confirmação do pagamento!</h2>
-                          <p className={styles.statusDescription}>
-                            Seu pedido foi registrado! Assim que o pagamento for confirmado, enviaremos uma notificação por e-mail.
-                          </p>
-                          {formData.paymentMethod === 'pix' && (
-                            <p className={styles.pixWarning}>
-                              <strong>Importante:</strong> O pagamento PIX pode levar alguns minutos para ser confirmado.
-                            </p>
-                          )}
-                          {formData.paymentMethod === 'boleto' && (
-                            <p className={styles.boletoWarning}>
-                              <strong>Importante:</strong> O boleto pode levar até 3 dias úteis para ser confirmado.
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <div className={styles.confirmationDetails}>
-                        <h4>Detalhes do Pedido</h4>
-                        <p><strong>Nº do Pedido:</strong> {paymentResult?.orderId || 'Não disponível'}</p>
-                        <p><strong>Data:</strong> {new Date().toLocaleString()}</p>
-                        <p><strong>Total:</strong> R$ {total.toFixed(2)}</p>
-                        <p><strong>Pagamento:</strong> 
-                          {formData.paymentMethod === 'pix' ? 'PIX' : 
-                           formData.paymentMethod === 'boleto' ? 'Boleto' : 'Cartão de Crédito'}
-                        </p>
-                      </div>
-
-                      {selectedShipping && (
-                        <div className={styles.confirmationDetails}>
-                          <h4>Detalhes da Entrega</h4>
-                          <p><strong>Endereço:</strong> {formData.address}, {formData.number} - {formData.neighborhood}, {formData.city}/{formData.state}</p>
-                          <p><strong>Previsão:</strong> {selectedShipping.prazoEntrega} dia{selectedShipping.prazoEntrega > 1 ? 's' : ''} úteis</p>
-                          <p><strong>Método:</strong> {selectedShipping.nome}</p>
-                        </div>
-                      )}
-
-                      <div className={styles.confirmationItems}>
-                        <h4>Itens Comprados</h4>
-                        {cartItems.map(item => (
-                          <div key={item.id} className={styles.confirmationItem}>
-                            <img src={item.imageUrls?.[0]} alt={item.name} />
-                            <div className={styles.itemInfo}>
-                              <span>{item.name}</span>
-                              <span>{item.quantity} x R$ {item.price.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className={styles.confirmationActions}>
-                        <button className={styles.primaryButton} onClick={() => window.location.href = '/'}>
-                          Continuar Comprando
-                        </button>
-                        {user && (
-                          <button className={styles.secondaryButton} onClick={() => window.location.href = '/perfil'}>
-                            Ver Meus Pedidos
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           
           {/* Resumo do Pedido - MANTIDO IGUAL */}
@@ -1375,12 +1351,12 @@ const Checkout = () => {
 
       {/* Modal de resultado do pagamento */}
       <PaymentResultModal
-        result={paymentResult}
-        onClose={() => setPaymentResult(null)}
+        result={modalResult}
+        onClose={() => setModalResult(null)}
         onRetry={() => {
-          setPaymentResult(null);
+          setModalResult(null);
           if (formData.paymentMethod === 'pix') {
-            setPixData(null);
+            setPixData(null); // Limpa o QR Code para gerar um novo
           }
         }}
       />

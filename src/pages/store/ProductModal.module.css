@@ -30,6 +30,7 @@
 
 /* Coluna da imagem */
 .imageWrap {
+  position: relative; /* Essencial para posicionar as setas */
   width: 100%;
   border-radius: 12px;
   background: #f6f7fb;

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Modal,
   Box,
@@ -11,6 +11,8 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import BlockIcon from "@mui/icons-material/Block";
 import styles from "./ProductModal.module.css";
@@ -64,6 +66,7 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
     product.variations?.[0]?.color || null
   );
   const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Agrupa tamanhos por cor e identifica indisponíveis
   const sizesByColor = useMemo(() => {
@@ -86,7 +89,25 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
     return sizesByColor[selectedColor] || [];
   }, [selectedColor, sizesByColor]);
 
+  // Reseta a imagem selecionada quando o produto muda
+  useEffect(() => {
+    setSelectedImageIndex(0);
+    setSelectedColor(product.variations?.[0]?.color || null);
+  }, [product]);
+
   const { int, cents } = formatPriceParts(product.salePrice);
+
+  const handleNextImage = () => {
+    setSelectedImageIndex((prevIndex) =>
+      (prevIndex + 1) % (product.imageUrls?.length || 1)
+    );
+  };
+
+  const handlePrevImage = () => {
+    setSelectedImageIndex((prevIndex) =>
+      (prevIndex - 1 + (product.imageUrls?.length || 1)) % (product.imageUrls?.length || 1)
+    );
+  };
 
   function handleAddToCart() {
     if (!selectedColor || !selectedSize) return;
@@ -131,10 +152,20 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
           <Grid item xs={12} md={5}>
             <div className={styles.imageWrap}>
               <img
-                src={product.imageUrls?.[0]}
+                src={product.imageUrls?.[selectedImageIndex]}
                 alt={product.name}
                 className={styles.image}
               />
+              {product.imageUrls && product.imageUrls.length > 1 && (
+                <>
+                  <IconButton className={`${styles.carouselArrow} ${styles.arrowLeft}`} onClick={handlePrevImage}>
+                    <ArrowBackIosNewIcon />
+                  </IconButton>
+                  <IconButton className={`${styles.carouselArrow} ${styles.arrowRight}`} onClick={handleNextImage}>
+                    <ArrowForwardIosIcon />
+                  </IconButton>
+                </>
+              )}
             </div>
           </Grid>
 

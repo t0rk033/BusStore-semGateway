@@ -688,6 +688,146 @@
   margin-top: 10px;
   font-size: 14px;
 }
+/* Estilos para boleto */
+.boletoGenerated {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  border: 1px solid #e9ecef;
+}
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.successIcon {
+  font-size: 24px;
+}
+
+.boletoLink {
+  display: block;
+  background: #ff6b00;
+  color: white;
+  text-align: center;
+  padding: 15px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: bold;
+  margin: 15px 0;
+  transition: background 0.3s;
+}
+
+.boletoLink:hover {
+  background: #e55a00;
+}
+
+.linhaDigitavel {
+  margin: 15px 0;
+  padding: 10px;
+  background: white;
+  border-radius: 4px;
+  border: 1px dashed #ddd;
+}
+
+.linhaDigitavel code {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.boletoInstructions {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 15px 0;
+}
+
+.boletoInstructions ol {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.boletoInstructions li {
+  margin: 5px 0;
+}
+
+.boletoWarning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+/* Estilos para PIX */
+.pixActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.primaryButton {
+  background: #ff6b00;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.secondaryButton {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.primaryButton:hover {
+  background: #e55a00;
+}
+
+.secondaryButton:hover {
+  background: #5a6268;
+}
+
+/* Loading states */
+.loadingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  color: white;
+}
+
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid white;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 .summaryTotalsMobile p { display: flex; justify-content: space-between; margin: 5px 0; }
 
 @media (max-width: 768px) {
