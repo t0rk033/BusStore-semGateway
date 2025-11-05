@@ -1359,63 +1359,134 @@ function StockManagement() {
   };
 
   const validateProductForm = () => {
-    const errors = {};
-    const { name, sku, category, salePrice, weight, dimensions, variations, imageUrls } = newProduct;
+  const errors = {};
+  const { 
+    name, 
+    sku, 
+    barcode, 
+    description, 
+    category, 
+    subcategory, 
+    costPrice, 
+    salePrice, 
+    weight, 
+    dimensions, 
+    variations, 
+    imageUrls, 
+    minStock, 
+    location, 
+    reservedStock, 
+    supplierId 
+  } = newProduct;
 
-    if (!newProduct.name.trim()) {
-      errors.name = "Nome do produto é obrigatório";
-    }
+  // Validações básicas obrigatórias
+  if (!name || !name.trim()) {
+    errors.name = "Nome do produto é obrigatório";
+  }
 
-    if (!sku.trim()) {
-      errors.sku = "SKU é obrigatório";
-    }
+  if (!sku || !sku.trim()) {
+    errors.sku = "SKU é obrigatório";
+  }
 
-    if (!category) {
-      errors.category = "Categoria é obrigatória";
-    }
+  if (!barcode || !barcode.trim()) {
+    errors.barcode = "Código de barras é obrigatório";
+  }
 
-    if (!salePrice || parseFloat(salePrice) <= 0) {
-      errors.salePrice = "Preço de venda deve ser maior que zero";
-    }
+  if (!description || !description.trim()) {
+    errors.description = "Descrição é obrigatória";
+  }
 
-    // Validação para Frete (Peso e Dimensões)
-    if (!weight || parseFloat(weight) <= 0) {
-      errors.weight = "Peso é obrigatório para o frete.";
-    }
-    if (!dimensions.length || parseFloat(dimensions.length) <= 0) {
-      errors.length = "Comprimento é obrigatório.";
-    }
-    if (!dimensions.width || parseFloat(dimensions.width) <= 0) {
-      errors.width = "Largura é obrigatória.";
-    }
-    if (!dimensions.height || parseFloat(dimensions.height) <= 0) {
-      errors.height = "Altura é obrigatória.";
-    }
+  if (!category) {
+    errors.category = "Categoria é obrigatória";
+  }
 
-    // Validação de Imagens
-    if (!imageUrls || imageUrls.length === 0) {
-      errors.imageUrls = "Adicione pelo menos uma imagem ao produto.";
+  if (!subcategory) {
+    errors.subcategory = "Subcategoria é obrigatória";
+  }
+
+  // Validações de preço
+  if (!costPrice || parseFloat(costPrice) <= 0) {
+    errors.costPrice = "Preço de custo deve ser maior que zero";
+  }
+
+  if (!salePrice || parseFloat(salePrice) <= 0) {
+    errors.salePrice = "Preço de venda deve ser maior que zero";
+  }
+
+  // Validação para Frete (Peso e Dimensões)
+  if (!weight || parseFloat(weight) <= 0) {
+    errors.weight = "Peso é obrigatório para o frete";
+  }
+
+  if (!dimensions.length || parseFloat(dimensions.length) <= 0) {
+    errors.length = "Comprimento é obrigatório";
+  }
+
+  if (!dimensions.width || parseFloat(dimensions.width) <= 0) {
+    errors.width = "Largura é obrigatória";
+  }
+
+  if (!dimensions.height || parseFloat(dimensions.height) <= 0) {
+    errors.height = "Altura é obrigatória";
+  }
+
+  // Validação de Imagens
+  if (!imageUrls || imageUrls.length === 0) {
+    errors.imageUrls = "Adicione pelo menos uma imagem ao produto";
+  }
+
+  // Validação de Variações e Estoque
+  let totalStock = 0;
+  let hasValidVariation = false;
+
+  variations.forEach((variation, index) => {
+    const stock = parseInt(variation.stock, 10);
+    
+    // Valida estoque
+    if (isNaN(stock) || stock < 0) {
+      errors[`variation-${index}-stock`] = "Estoque inválido";
     }
-
-    // Validação de Variações e Estoque
-    let totalStock = 0;
-    variations.forEach((variation, index) => {
-      const stock = parseInt(variation.stock, 10);
-      if (isNaN(stock) || stock < 0) {
-        errors[`variation-${index}-stock`] = "Estoque inválido";
-      }
-      if (!variation.size && !variation.color && !variation.model) {
-        errors[`variation-${index}-attributes`] = "Preencha ao menos um atributo (tamanho, cor ou modelo).";
-      }
-      totalStock += stock;
-    });
-
-    if (newProduct.enabled && totalStock <= 0) {
-      errors.stock = "Um produto ativo deve ter estoque maior que zero.";
+    
+    // Verifica se pelo menos um atributo de variação está preenchido
+    const hasAttributes = variation.size || variation.color || variation.model;
+    if (!hasAttributes) {
+      errors[`variation-${index}-attributes`] = "Preencha ao menos um atributo (tamanho, cor ou modelo)";
+    } else {
+      hasValidVariation = true;
     }
+    
+    totalStock += isNaN(stock) ? 0 : stock;
+  });
 
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+  // Valida se há pelo menos uma variação válida
+  if (!hasValidVariation) {
+    errors.variations = "Pelo menos uma variação deve ser preenchida";
+  }
+
+  // Validação de estoque para produto ativo
+  if (newProduct.enabled && totalStock <= 0) {
+    errors.stock = "Um produto ativo deve ter estoque maior que zero";
+  }
+
+  // Validações adicionais de estoque
+  if (minStock === null || minStock === undefined || minStock < 0) {
+    errors.minStock = "Estoque mínimo é obrigatório e não pode ser negativo";
+  }
+
+  if (!location || !location.trim()) {
+    errors.location = "Localização é obrigatória";
+  }
+
+  if (reservedStock === null || reservedStock === undefined || reservedStock < 0) {
+    errors.reservedStock = "Estoque reservado é obrigatório e não pode ser negativo";
+  }
+
+  if (!supplierId) {
+    errors.supplierId = "Fornecedor é obrigatório";
+  }
+
+  setValidationErrors(errors);
+  return Object.keys(errors).length === 0;
   };
 
   useEffect(() => {
@@ -4108,6 +4179,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                                   variant="filled"
                                   error={!!validationErrors[field]}
                                   helperText={validationErrors[field]}
+
                                   required
                                 />
                               </Grid>
