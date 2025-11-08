@@ -16,7 +16,9 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import BlockIcon from "@mui/icons-material/Block";
 import styles from "./ProductModal.module.css";
+import colorNameToHex from '@uiw/react-color-name';
 
+/** Container do modal */
 /** Container do modal */
 const modalSx = {
   position: "absolute",
@@ -24,9 +26,24 @@ const modalSx = {
   left: "50%",
   transform: "translate(-50%, -50%)",
   bgcolor: "background.paper",
-  borderRadius: "1.25rem",   // 20px
+  borderRadius: "1.25rem", // 20px
   boxShadow: 24,
   outline: "none",
+  // Adiciona responsividade aqui
+  '@media (max-width: 900px)': { // Para mobile/tablet, seguindo o seu breakpoint CSS
+    width: '100vw',
+    height: '100vh',
+    maxHeight: '100vh',
+    transform: 'none', // Remove a centralização
+    top: 0,
+    left: 0,
+    borderRadius: 0,
+    overflowY: 'scroll', // Permite rolagem total no mobile
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+  },
 };
 
 
@@ -46,11 +63,38 @@ const COLOR_MAP = {
   gray: "#9E9E9E",
   branco: "#FFFFFF",
   white: "#FFFFFF",
+  rosa: "#E91E63", // Pink
+  pink: "#E91E63",
+  laranja: "#FF9800", // Orange
+  orange: "#FF9800",
+  amarelo: "#FFEB3B", // Yellow
+  yellow: "#FFEB3B",
+  roxo: "#9C27B0", // Purple
+  purple: "#9C27B0",
+  marrom: "#795548", // Brown
+  brown: "#795548",
+  bege: "#F5F5DC", // Beige
+  beige: "#F5F5DC",
+  vinho: "#800000", // Maroon/Burgundy
+  maroon: "#800000",
+  dourado: "#FFD700", // Gold
+  gold: "#FFD700",
+  prata: "#C0C0C0", // Silver
+  silver: "#C0C0C0",
+  turquesa: "#40E0D0", // Turquoise
+  turquoise: "#40E0D0",
 };
 
 function getHexFromColorName(name = "") {
+  if (!name) return '#ffffff'; // Retorna branco se o nome for inválido
   const key = name.toLowerCase().trim();
-  return COLOR_MAP[key] || key; // se já vier um hex, usamos direto
+
+  // 1. Tenta o mapa de cores customizado primeiro
+  if (COLOR_MAP[key]) {
+    return COLOR_MAP[key];
+  }
+  // 2. Tenta converter o nome da cor (ex: 'pink', 'cyan') para hex
+  return colorNameToHex(key) || key; // Se já for um hex ou inválido, retorna o próprio valor
 }
 
 function formatPriceParts(value) {
@@ -89,6 +133,21 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
     return sizesByColor[selectedColor] || [];
   }, [selectedColor, sizesByColor]);
 
+  // Obtém todos os tamanhos únicos possíveis para o produto, para renderizar os botões
+  const allPossibleSizes = useMemo(() => {
+    const sizes = new Set((product.variations || []).map(v => v.size));
+    const sortedSizes = Array.from(sizes);
+    // Ordena os tamanhos para uma exibição consistente
+    const sizeOrder = ["PP", "P", "M", "G", "GG", "XG", "Tamanho único"];
+    sortedSizes.sort((a, b) => {
+      const indexA = sizeOrder.indexOf(a);
+      const indexB = sizeOrder.indexOf(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+    return sortedSizes;
+  }, [product.variations]);
   // Reseta a imagem selecionada quando o produto muda
   useEffect(() => {
     setSelectedImageIndex(0);
@@ -147,7 +206,10 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
           {favorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
         </IconButton>
 
-        <Grid container columnSpacing={4} rowSpacing={3}>
+        {/* NOVO CONTAINER DE CONTEÚDO PARA ENVOLVER OS GRIDS */}
+        {/* Usamos o estilo `contentContainer` no CSS para o layout mobile */}
+        <div className={styles.contentContainer}>
+          <Grid container columnSpacing={4} rowSpacing={3}>
           {/* Imagem à esquerda */}
           <Grid item xs={12} md={5}>
             <div className={styles.imageWrap}>
@@ -227,8 +289,7 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
               Selecione o tamanho
             </Typography>
             <div className={styles.sizeRow}>
-              {/* Supondo P, M, G, GG como base. Ajuste conforme seu catálogo */}
-              {["PP", "P", "M", "G", "GG"].map((sz) => {
+              {allPossibleSizes.map((sz) => {
                 const enabled = availableSizes.includes(sz);
                 const selected = selectedSize === sz;
                 return (
@@ -271,7 +332,8 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
               </Button>
             </div>
           </Grid>
-        </Grid>
+          </Grid>
+        </div>
       </Box>
     </Modal>
   );

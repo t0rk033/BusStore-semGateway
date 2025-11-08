@@ -68,31 +68,46 @@ import {
   Pending,
   Refresh
 } from "@mui/icons-material";
+import { format, subDays, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
-import { db } from "../../firebase";
+import { db, auth } from "../../firebase";
 import {
   collection,
   addDoc,
   updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  getDoc
-} from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-import ShippedOrders from "./ShippedOrders";
-import SalesStockReports from "./SalesStockReports";
+  List,
+  FilterList,
+  Close,
+  Today,
+  MoneyOff,
+  Pending,
+  Refresh
+} from "@mui/icons-material";
+import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth';
+import Reports from './Reports'; // Importando o novo componente de relatórios
 import styles from "./StockManagement.module.css";
 import ImageUpload from "../../components/ImageUpload";
 import BarcodeScanner from "./BarcodeScanner";
 
 function StockManagement() {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("lg"));
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(ROLES.VIEWER);
+  const [userPermissions, setUserPermissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("products");
+  const [activeView, setActiveView] = useState("dashboard");
+  const [products, setProducts] = useState([]);
+  const [allSales, setAllSales] = useState([]);
+  const [completedSales, setCompletedSales] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [requestedSales, setRequestedSales] = useState([]);
+  const [totalSales, setTotalSales] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [activeTab, setActiveTab] = useState("products");
   const [activeView, setActiveView] = useState("products");
@@ -100,7 +115,6 @@ function StockManagement() {
   const [sales, setSales] = useState([]);
   const [requestedSales, setRequestedSales] = useState([]);
   const [totalSales, setTotalSales] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
   const [newProduct, setNewProduct] = useState({
     sku: "",
     barcode: "",
@@ -146,6 +160,10 @@ function StockManagement() {
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [users, setUsers] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [trackingDialog, setTrackingDialog] = useState({ open: false, order: null });
+  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [users, setUsers] = useState([]);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -162,12 +180,32 @@ function StockManagement() {
   const [payments, setPayments] = useState([]);
   const [paymentNotifications, setPaymentNotifications] = useState([]);
   const [refundDialog, setRefundDialog] = useState({ open: false, payment: null });
+  const [expandedProductForm, setExpandedProductForm] = useState(true);
+  const [payments, setPayments] = useState([]);
+  const [paymentNotifications, setPaymentNotifications] = useState([]);
+  const [refundDialog, setRefundDialog] = useState({ open: false, payment: null });
   const [financialData, setFinancialData] = useState({
     dailyRevenue: 0,
     monthlyRevenue: 0,
     averageTicket: 0,
     conversionRate: 0
   });
+  const [financialData, setFinancialData] = useState({
+    dailyRevenue: 0,
+    monthlyRevenue: 0,
+    averageTicket: 0,
+    conversionRate: 0,
+    topProducts: [],
+    salesByCategory: [],
+    revenueTrend: []
+  });
+  const [adminSalesOrders, setAdminSalesOrders] = useState([]);
+  const formRef = useRef(null);
+  const [trackingLinks, setTrackingLinks] = useState({});
+const [editingTracking, setEditingTracking] = useState(null);
+const handleTrackingLinkSubmit = async (saleId, trackingNumber, carrier) => {
+  try {
+    const auth = getAuth();
   const [userOrders, setUserOrders] = useState([]);
   const formRef = useRef(null);
   const [trackingLinks, setTrackingLinks] = useState({});
@@ -206,6 +244,40 @@ const handleTrackingLinkSubmit = async (saleId, trackingNumber, carrier) => {
     alert('Erro ao adicionar link de rastreio');
   }
 };
+
+  const hasPermission = (permission) => {
+    return userPermissions.includes(permission);
+  };
+
+  const hasAnyPermission = (permissions) => {
+    return permissions.some(permission => userPermissions.includes(permission));
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUser(user);
+        
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserRole(userData.role || ROLES.VIEWER);
+            setUserPermissions(ROLE_PERMISSIONS[userData.role] || []);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar permissões:", error);
+        }
+      } else {
+        setCurrentUser(null);
+        setUserRole(ROLES.VIEWER);
+        setUserPermissions([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // Função para aplicar os filtros
   const applyFilters = (product) => {
@@ -2363,39 +2435,48 @@ const MyOrders = () => {
                                         className={styles.variationCard}
                                       >
                                         <Grid container spacing={2}>
-                                          {["size", "color", "model", "stock"].map(
-                                            (field) => (
-                                              <Grid item xs={3} key={field}>
-                                                <TextField
-                                                  label={
-                                                    field === "size"
-                                                      ? "Tamanho"
-                                                      : field === "color"
-                                                        ? "Cor"
-                                                        : field === "model"
-                                                          ? "Modelo"
-                                                          : "Estoque"
-                                                  }
-                                                  value={variation[field]}
-                                                  onChange={(e) =>
-                                                    handleVariationChange(
-                                                      index,
-                                                      field,
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  fullWidth
-                                                  size="small"
-                                                  type={
-                                                    field === "stock"
-                                                      ? "number"
-                                                      : "text"
-                                                  }
-                                                  inputProps={{ min: 0 }}
-                                                />
-                                              </Grid>
-                                            )
-                                          )}
+                                          <Grid item xs={6} md={3}>
+                                            <Autocomplete
+                                              freeSolo
+                                              options={COMMON_SIZES}
+                                              value={variation.size || ''}
+                                              onChange={(event, newValue) => handleVariationChange(index, 'size', newValue)}
+                                              onInputChange={(event, newInputValue) => handleVariationChange(index, 'size', newInputValue)}
+                                              renderInput={(params) => (
+                                                <TextField {...params} label="Tamanho" size="small" />
+                                              )}
+                                            />
+                                          </Grid>
+                                          <Grid item xs={6} md={3} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Autocomplete
+                                              freeSolo
+                                              options={Object.keys(COLOR_MAP)}
+                                              value={variation.color || ''}
+                                              onChange={(event, newValue) => handleVariationChange(index, 'color', newValue)}
+                                              onInputChange={(event, newInputValue) => handleVariationChange(index, 'color', newInputValue)}
+                                              renderInput={(params) => (
+                                                <TextField {...params} label="Cor" size="small" />
+                                              )}
+                                            />
+                                            <input 
+                                              type="color" 
+                                              value={getHexFromColorName(variation.color)}
+                                              onChange={(e) => handleVariationChange(index, 'color', e.target.value)}
+                                              style={{ width: 40, height: 40, border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
+                                              title="Selecionar cor"
+                                            />
+                                          </Grid>
+                                          <Grid item xs={6} md={3}>
+                                            <TextField label="Modelo" value={variation.model || ''} onChange={(e) => handleVariationChange(index, 'model', e.target.value)} fullWidth size="small" />
+                                          </Grid>
+                                          <Grid item xs={6} md={3}>
+                                            <TextField label="Estoque" value={variation.stock || 0} onChange={(e) => handleVariationChange(index, 'stock', e.target.value)} fullWidth size="small" type="number" inputProps={{ min: 0 }} />
+                                          </Grid>
+                                          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <IconButton color="error" onClick={() => removeVariation(index)} disabled={newProduct.variations.length <= 1}>
+                                              <Delete />
+                                            </IconButton>
+                                          </Grid>
                                         </Grid>
                                       </Paper>
                                 ))}

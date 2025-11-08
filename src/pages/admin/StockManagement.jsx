@@ -118,6 +118,7 @@ import styles from "./StockManagement.module.css";
 import ImageUpload from "../../components/ImageUpload";
 import BarcodeScanner from "./BarcodeScanner";
 import HourglassEmpty from '@mui/icons-material/HourglassEmpty';
+import colorNameToHex from '@uiw/react-color-name';
 
 // Componentes de gráficos
 import {
@@ -137,6 +138,8 @@ import {
 
 // Configuração de cores para gráficos
 const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
+
+const COMMON_SIZES = ["PP", "P", "M", "G", "GG", "XG", "Tamanho único"];
 
 const ROLES = {
   ADMIN: 'admin',
@@ -210,6 +213,26 @@ const COLOR_MAP = {
   gray: "#9E9E9E",
   branco: "#FFFFFF",
   white: "#FFFFFF",
+  rosa: "#E91E63", // Pink
+  pink: "#E91E63",
+  laranja: "#FF9800", // Orange
+  orange: "#FF9800",
+  amarelo: "#FFEB3B", // Yellow
+  yellow: "#FFEB3B",
+  roxo: "#9C27B0", // Purple
+  purple: "#9C27B0",
+  marrom: "#795548", // Brown
+  brown: "#795548",
+  bege: "#F5F5DC", // Beige
+  beige: "#F5F5DC",
+  vinho: "#800000", // Maroon/Burgundy
+  maroon: "#800000",
+  dourado: "#FFD700", // Gold
+  gold: "#FFD700",
+  prata: "#C0C0C0", // Silver
+  silver: "#C0C0C0",
+  turquesa: "#40E0D0", // Turquoise
+  turquoise: "#40E0D0",
 };
 
 const ManualSaleForm = ({
@@ -400,8 +423,15 @@ const ManualSaleForm = ({
 };
 
 function getHexFromColorName(name = "") {
-  const key = (name || '').toLowerCase().trim();
-  return COLOR_MAP[key] || (key.startsWith('#') ? key : '#ffffff');
+  if (!name) return '#ffffff'; // Retorna branco se o nome for inválido
+  const key = name.toLowerCase().trim();
+
+  // 1. Tenta o mapa de cores customizado primeiro
+  if (COLOR_MAP[key]) {
+    return COLOR_MAP[key];
+  }
+  // 2. Tenta converter o nome da cor (ex: 'pink', 'cyan') para hex
+  return colorNameToHex(key) || (key.startsWith('#') ? key : '#ffffff');
 }
 
 function StockManagement() {
@@ -1473,9 +1503,7 @@ function StockManagement() {
     errors.minStock = "Estoque mínimo é obrigatório e não pode ser negativo";
   }
 
-  if (!location || !location.trim()) {
-    errors.location = "Localização é obrigatória";
-  }
+ 
 
   if (reservedStock === null || reservedStock === undefined || reservedStock < 0) {
     errors.reservedStock = "Estoque reservado é obrigatório e não pode ser negativo";
@@ -1486,6 +1514,7 @@ function StockManagement() {
   }
 
   setValidationErrors(errors);
+  if (Object.keys(errors).length > 0) console.error("Validation Errors:", errors); // Adicionado para depuração
   return Object.keys(errors).length === 0;
   };
 
@@ -2016,7 +2045,6 @@ function StockManagement() {
           ? originalSalePrice * (1 - discountPercentage / 100)
           : originalSalePrice;
 
-
       const productData = {
         sku: newProduct.sku,
         barcode: newProduct.barcode,
@@ -2025,11 +2053,11 @@ function StockManagement() {
         imageUrls: newProduct.imageUrls,
         category: newProduct.category,
         subcategory: newProduct.subcategory,
-        variations: newProduct.variations.map((v) => ({
-          size: v.size,
-          color: v.color,
-          model: v.model,
-          stock: parseInt(v.stock, 10) || 0,
+        variations: (newProduct.variations || []).map((v) => ({
+          size: v.size || "",
+          color: v.color || "",
+          model: v.model || "",
+          stock: parseInt(v.stock, 10) || 0
         })),
         costPrice: parseFloat(newProduct.costPrice) || 0,
         oldPrice: originalSalePrice, // Salva o preço original
@@ -2046,16 +2074,16 @@ function StockManagement() {
         reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
         supplierId: newProduct.supplierId,
         enabled: newProduct.enabled && totalStock > 0,
-        createdAt: editingProduct ? newProduct.createdAt : new Date(),
         ...(editingProduct
           ? {
+              createdAt: editingProduct.createdAt, // Mantém a data de criação original
               updatedBy: userInfo,
               updatedAt: new Date(),
             }
           : {
               createdBy: userInfo,
               createdAt: new Date(),
-            }),
+            })
       };
 
       if (editingProduct) {
@@ -4477,12 +4505,23 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       sx={{ p: 2, mb: 2 }}
     >
       <Grid container spacing={2} alignItems="center">
-        {[
-          { field: "size", label: "Tamanho", type: "text" },
-          { field: "color", label: "Cor", type: "text" },
-          { field: "model", label: "Modelo", type: "text" },
-          { field: "stock", label: "Estoque", type: "number", min: 0 }
-        ].map(({ field, label, type, min }) => {
+        {[ { field: "size", label: "Tamanho", type: "text" }, { field: "color", label: "Cor", type: "text" }, { field: "model", label: "Modelo", type: "text" }, { field: "stock", label: "Estoque", type: "number", min: 0 } ].map(({ field, label, type, min }) => {
+          if (field === 'size') {
+            return (
+              <Grid item xs={6} md={3} key={field}>
+                <Autocomplete
+                  freeSolo
+                  options={COMMON_SIZES}
+                  value={variation[field] || ''}
+                  onChange={(event, newValue) => handleVariationChange(index, field, newValue)}
+                  onInputChange={(event, newInputValue) => handleVariationChange(index, field, newInputValue)}
+                  renderInput={(params) => (
+                    <TextField {...params} label={label} size="small" />
+                  )}
+                />
+              </Grid>
+            );
+          }
           // Para o campo cor, renderizar com seletor de cor
           if (field === 'color') {
             return (
@@ -4510,7 +4549,6 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
               </Grid>
             );
           }
-          
           // Para outros campos
           return (
             <Grid item xs={6} md={3} key={field}>

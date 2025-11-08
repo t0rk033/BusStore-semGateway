@@ -3,10 +3,22 @@
   width: clamp(49rem, 90vw, 58rem);
   max-height: clamp(36rem, 90vh, 43.875rem);
   padding: 2.5rem;
-  overflow-y: auto;
+  overflow-y: auto; /* A rolagem no desktop é para o próprio modal */
 
   /* Posição relativa para os botões flutuantes */
   position: relative;
+}
+
+/* ... (Botões flutuantes mantidos) */
+/* ... (Seções de preço, cor, tamanho mantidas) */
+
+
+/* Novo container de conteúdo que se expandirá no mobile */
+.contentContainer {
+  /* Em desktop, este div não faz nada de especial, é apenas um wrapper */
+  flex-grow: 1; 
+  display: flex;
+  flex-direction: column;
 }
 
 /* Botões flutuantes (X e coração) */
@@ -14,19 +26,21 @@
   position: absolute !important;
   top: 10px;
   left: 10px;
-  background: #ffffff;
-  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+  background: #ffffff !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08) !important;
+  z-index: 10; /* Garante que fique sobre a imagem */
 }
-.closeBtn:hover { background: #ffffff; }
+.closeBtn:hover { background: #f0f0f0 !important; }
 
 .favBtn {
   position: absolute !important;
   top: 10px;
   right: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+  background: #ffffff !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08) !important;
+  z-index: 10; /* Garante que fique sobre a imagem */
 }
-.favBtn:hover { background: #ffffff; }
+.favBtn:hover { background: #f0f0f0 !important; }
 
 /* Coluna da imagem */
 .imageWrap {
@@ -45,6 +59,27 @@
   object-fit: contain;
   display: block;
   border-radius: 8px;
+}
+
+/* Setas do Carrossel de Imagens */
+.carouselArrow {
+  position: absolute !important;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: background-color 0.2s ease;
+  z-index: 5;
+}
+.carouselArrow:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+}
+
+.arrowLeft {
+  left: 16px;
+}
+.arrowRight {
+  right: 16px;
 }
 
 /* Conteúdo à direita */
@@ -122,7 +157,7 @@
 /* Tamanhos */
 .sizeRow { display: flex; gap: 8px; margin-bottom: 12px; }
 .sizeBtn {
-  min-width: 42px;
+  min-width: 42px; /* Largura mínima para tamanhos como 'P', 'M', 'G' */
   height: 36px;
   padding: 0 10px;
   border-radius: 8px;
@@ -136,6 +171,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap; /* Impede que o texto quebre em duas linhas */
 }
 .sizeBtn:hover { transform: translateY(-1px); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
 .sizeSelected {
@@ -178,53 +214,89 @@
 }
 
 /* --- Responsividade para Mobile --- */
-@media (max-width: 900px) { /* Aumentado o breakpoint para tablets */
-  /* O modal ocupa a tela inteira no mobile */
+@media (max-width: 900px) {
+  /* No mobile, o modal em si já tem o layout flexível (via modalSx) */
   .root {
     width: 100vw;
     height: 100vh;
     max-height: 100vh;
     border-radius: 0;
-    padding: 1rem !important;
+    padding: 0 !important; /* Remove o padding do root */
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    overflow-y: hidden; /* O overflow agora está no modalSx */
   }
 
-  /* Ajusta a posição dos botões flutuantes */
+  /* Aplica o padding interno ao contentContainer */
+  .contentContainer {
+    padding: 1rem; /* Padding em todo o conteúdo visível */
+  }
+
+
+  /* Ajusta a posição dos botões flutuantes no topo da tela */
   .closeBtn {
+    /* Mantido - eles flutuam sobre o topo da imagem */
     top: 12px;
     left: 12px;
   }
   .favBtn {
+    /* Mantido */
     top: 12px;
     right: 12px;
+  }
+  
+  /* Garante que o Grid do MUI se comporte corretamente no mobile */
+  .contentContainer > .MuiGrid-root {
+    display: flex;
+    flex-direction: column; /* Garante que os grids (imagem e detalhes) se empilhem */
+    flex-grow: 1; /* Permite que o conteúdo estique */
+  }
+
+  /* A coluna de detalhes deve esticar o máximo possível para empurrar as ações */
+  .contentContainer > .MuiGrid-root > .MuiGrid-item:nth-child(2) {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Transforma a coluna de detalhes em um container flexível */
+  }
+
+  /* Imagem */
+  .imageWrap {
+    /* Ocupa a largura máxima disponível */
+    padding: 0; /* Remove o padding da imagem se necessário, para encostar nas bordas */
+    margin: 0 -1rem; /* Truque: Mover a imagem para a borda do modal, compensando o padding do .contentContainer */
+    border-radius: 0 0 12px 12px; /* Apenas na parte inferior */
+    background: transparent; /* A imagem na sua foto parece flutuar, não tem um fundo */
+  }
+  .image {
+    width: 100%;
+    height: auto;
+    max-height: 50vh; /* Limite a altura da imagem para que o resto do conteúdo caiba */
   }
 
   /* Ajusta o tamanho da fonte do título */
   .title {
     font-size: 1.3rem !important;
-    margin-top: 3rem; /* Espaço para não ficar sob os botões flutuantes */
+    margin-top: 1rem; /* Espaço logo após a imagem */
+    margin-bottom: 0.5rem;
   }
 
-  /* Remove a altura máxima da descrição para que ela expanda */
+  /* Remove a altura máxima da descrição e sua rolagem interna */
   .descBox {
     max-height: none;
     overflow-y: visible;
-    padding-right: 0; /* Remove padding que pode causar scroll desnecessário */
+    padding-right: 0;
   }
 
   /* Ajusta o tamanho da fonte do preço */
   .priceInt {
-    font-size: 1.5rem;
+    font-size: 28px;
   }
 
-  /* Empilha os botões de ação */
+  /* Empilha os botões de ação e os empurra para o final */
   .actions {
     grid-template-columns: 1fr; /* Uma coluna */
     gap: 10px;
-    margin-top: auto; /* Empurra os botões para o final do modal */
-    padding-top: 20px;
+    margin-top: auto; /* ESSENCIAL: Empurra os botões para o final da coluna de detalhes */
+    padding-top: 15px; /* Espaço acima dos botões */
   }
 
   .buyNow, .addToCart {

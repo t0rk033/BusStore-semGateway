@@ -133,6 +133,7 @@
     background-color: #fff;
     border-radius: 8px;
     transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%; /* Garante que no desktop o card ocupe toda a linha */
     cursor: pointer;
 }
 
@@ -190,7 +191,7 @@
 .productPrice {
     font-size: 1.5em;
     font-weight: bold;
-    color: #333;
+    color: #0F890F;
 }
 
 /* Botões de filtro para mobile - escondidos no desktop */
@@ -212,6 +213,31 @@
         margin: 10px auto;
     }
 
+    .productsList {
+        flex-direction: row; /* Alinha os produtos lado a lado */
+        flex-wrap: wrap;     /* Permite a quebra de linha */
+        justify-content: space-between; /* Distribui o espaço */
+    }
+
+    .productCard {
+        flex-direction: column; /* Empilha imagem e info verticalmente */
+        width: calc(50% - 10px); /* Define a largura para dois cards por linha */
+        box-sizing: border-box;
+        margin-bottom: 20px; /* Adiciona espaço entre as linhas de produtos */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .productImageContainer {
+        width: 80%; /* Imagem ocupa toda a largura do card */
+        height: auto;
+        margin: 0 auto; /* Centraliza a imagem */
+    }
+.productName{
+    font-size: .7em;
+}
+.productPrice{
+font-size: .8em;
+}
     .filtersSidebar {
         position: fixed; /* Fixo na tela */
         top: 0;

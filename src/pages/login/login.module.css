@@ -219,10 +219,39 @@
   margin-top: 10px;
   justify-content: flex-end;
 }
+.linkCreate{
+  border: none;
+  background-color: transparent;
+  color: #1669d6;
+
+}
+.linkCreate:hover{
+  text-decoration: underline;
+  opacity: 0.8;
+}
 
 /* Responsivo */
 @media (max-width: 480px) {
-  .content { padding: 18px; }
-  .modal { max-width: 92%; }
-  .closeButton { right: -8px; top: -8px; }
+  .modalOverlay {
+    padding: 10px;
+  }
+  .modal { 
+    max-width: 95%; 
+  }
+  .content { 
+    padding: 20px 15px; 
+  }
+  .closeButton { 
+    right: -8px; 
+    top: -8px; 
+  }
+  .heading {
+    font-size: 28px;
+  }
+  .input {
+    width: 46vh;
+  }
+  .primaryButton {
+    width: 28vh;
+  }
 }
