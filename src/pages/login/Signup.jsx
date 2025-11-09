@@ -202,10 +202,10 @@ export function SignupModal({ open, onClose, onSwitchToLogin }) {
 
   return (
     <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
-        <div className={styles.signupBox}>
+        <div className={styles.modal}>
           <button className={styles.closeButton} onClick={handleClose} aria-label="Fechar">×</button>
           <h1 className={styles.title}>Cadastro Completo</h1>
-          <form onSubmit={handleSubmit} className={styles.form}>
+          <form onSubmit={handleSubmit}>
             
             {/* Seção de Dados Pessoais */}
             <fieldset className={`${styles.fieldset} ${styles.fieldsetGrid}`}>
@@ -460,13 +460,15 @@ export function SignupModal({ open, onClose, onSwitchToLogin }) {
 
             {errors.general && <p className={styles.error}>{errors.general}</p>}
 
-            <button 
-              type="submit" 
-              className={styles.button}
-              disabled={submitting}
-            >
-              {submitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
-            </button>
+            <div className={styles.form}>
+              <button 
+                type="submit" 
+                className={styles.button}
+                disabled={submitting}
+              >
+                {submitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
+              </button>
+            </div>
           </form>
           <div className={styles.loginLink}>
             Já tem uma conta? <button onClick={onSwitchToLogin} className={styles.linkButton}>Faça login</button>

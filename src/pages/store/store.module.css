@@ -8,6 +8,7 @@
   --text: #333333;
   --text-light: #777777;
   --white: #FFFFFF;
+  overflow-x: hidden;
 }
 
 /* Hero Section */
