@@ -85,18 +85,6 @@ const COLOR_MAP = {
   turquoise: "#40E0D0",
 };
 
-function getHexFromColorName(name = "") {
-  if (!name) return '#ffffff'; // Retorna branco se o nome for inválido
-  const key = name.toLowerCase().trim();
-
-  // 1. Tenta o mapa de cores customizado primeiro
-  if (COLOR_MAP[key]) {
-    return COLOR_MAP[key];
-  }
-  // 2. Tenta converter o nome da cor (ex: 'pink', 'cyan') para hex
-  return colorNameToHex(key) || key; // Se já for um hex ou inválido, retorna o próprio valor
-}
-
 function formatPriceParts(value) {
   const [int, cents] = Number(value || 0).toFixed(2).split(".");
   return { int, cents };
@@ -112,25 +100,35 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  // Agrupa tamanhos por cor e identifica indisponíveis
+  // Agrupa variações por combinação de cores
   const sizesByColor = useMemo(() => {
     const map = {};
     (product.variations || []).forEach((v) => {
-      const c = v.color;
-      if (!map[c]) map[c] = [];
-      if (v.inStock !== false) map[c].push(v.size); // inStock false = indisponível
+      // A chave do mapa é uma string única para a combinação de cores
+      const colorKey = (v.color || []).map(c => c.name).join(' / ');
+      if (!colorKey) return;
+
+      if (!map[colorKey]) {
+        map[colorKey] = {
+          colorArray: v.color, // Armazena o array de cores
+          sizes: []
+        };
+      }
+      if (v.stock > 0) map[colorKey].sizes.push(v.size);
     });
     return map;
   }, [product.variations]);
 
   const availableColors = useMemo(
-    () => [...new Set((product.variations || []).map((v) => v.color))],
-    [product.variations]
+    // Retorna um array de arrays de objetos de cor únicos
+    () => Object.values(sizesByColor).map(data => data.colorArray),
+    [sizesByColor]
   );
 
   const availableSizes = useMemo(() => {
     if (!selectedColor) return [];
-    return sizesByColor[selectedColor] || [];
+    const colorKey = selectedColor.map(c => c.name).join(' / ');
+    return sizesByColor[colorKey]?.sizes || [];
   }, [selectedColor, sizesByColor]);
 
   // Obtém todos os tamanhos únicos possíveis para o produto, para renderizar os botões
@@ -152,6 +150,7 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
   useEffect(() => {
     setSelectedImageIndex(0);
     setSelectedColor(product.variations?.[0]?.color || null);
+    setSelectedSize(null); // Reseta o tamanho ao mudar de produto
   }, [product]);
 
   const { int, cents } = formatPriceParts(product.salePrice);
@@ -168,10 +167,25 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
     );
   };
 
+  const handleColorSelect = (color) => {
+    setSelectedColor(color);
+    setSelectedSize(null); // Reseta o tamanho ao selecionar uma nova cor
+    setSelectedImageIndex(0); // Volta para a primeira imagem da nova cor
+  };
+  
+  const isColorSelected = (colorArray) => {
+    if (!selectedColor || !colorArray) return false;
+    if (selectedColor.length !== colorArray.length) return false;
+    // Garante que ambos os itens são objetos com a propriedade 'name' antes de comparar
+    return selectedColor.every((sc, i) => 
+      sc && typeof sc === 'object' && colorArray[i] && typeof colorArray[i] === 'object' && sc.name === colorArray[i].name
+    );
+  };
+
   function handleAddToCart() {
     if (!selectedColor || !selectedSize) return;
     const selectedVariation = (product.variations || []).find(
-      (v) => v.color === selectedColor && v.size === selectedSize
+      (v) => v.size === selectedSize && isColorSelected(v.color)
     );
     if (!selectedVariation) return;
     const item = {
@@ -259,25 +273,32 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
               Selecione a cor
             </Typography>
             <div className={styles.swatchRow}>
-              {availableColors.map((c) => {
-                const hasAnySize = (sizesByColor[c] || []).length > 0;
-                const hex = getHexFromColorName(c);
+              {availableColors.map((colorArray) => {
+                const colorKey = colorArray.map(c => c.name).join(' / ');
+                const hasAnySize = (sizesByColor[colorKey]?.sizes || []).length > 0;
+                const isSelected = isColorSelected(colorArray);
+                const tooltipTitle = colorArray.map(c => c.name).join(' e ');
+
+                const background = colorArray.length > 1
+                  ? `linear-gradient(to right, ${colorArray[0].hex} 50%, ${colorArray[1].hex} 50%)`
+                  : colorArray[0]?.hex || '#ffffff';
+                
+                const hasWhite = colorArray.some(c => c.hex === '#FFFFFF' || c.name?.toLowerCase() === 'white');
+
                 return (
-                  <Tooltip key={c} title={c}>
+                  <Tooltip key={colorKey} title={tooltipTitle}>
                     <button
                       type="button"
                       className={[
                         styles.swatch,
-                        selectedColor === c ? styles.swatchSelected : "",
+                        isSelected ? styles.swatchSelected : "",
                         !hasAnySize ? styles.disabled : "",
-                        hex === "#FFFFFF" || hex === "white"
-                          ? styles.swatchWithBorder
-                          : "",
+                        hasWhite ? styles.swatchWithBorder : "",
                       ].join(" ")}
-                      style={{ backgroundColor: hex }}
-                      onClick={() => hasAnySize && setSelectedColor(c)}
-                      aria-pressed={selectedColor === c}
-                      aria-label={`Cor ${c}`}
+                      style={{ background }}
+                      onClick={() => hasAnySize && handleColorSelect(colorArray)}
+                      aria-pressed={isSelected}
+                      aria-label={`Cor ${tooltipTitle}`}
                     />
                   </Tooltip>
                 );

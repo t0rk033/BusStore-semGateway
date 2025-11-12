@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Button,
   Card,
@@ -119,7 +119,7 @@ import ImageUpload from "../../components/ImageUpload";
 import BarcodeScanner from "./BarcodeScanner";
 import HourglassEmpty from '@mui/icons-material/HourglassEmpty';
 import colorNameToHex from '@uiw/react-color-name';
-
+import CategoryForm from './CategoryForm';
 // Componentes de gráficos
 import {
   BarChart,
@@ -234,7 +234,6 @@ const COLOR_MAP = {
   turquesa: "#40E0D0", // Turquoise
   turquoise: "#40E0D0",
 };
-
 const ManualSaleForm = ({
   manualSaleItems,
   setManualSaleItems,
@@ -423,8 +422,18 @@ const ManualSaleForm = ({
 };
 
 function getHexFromColorName(name = "") {
-  if (!name) return '#ffffff'; // Retorna branco se o nome for inválido
-  const key = name.toLowerCase().trim();
+  if (!name) return '#ffffff';
+
+  let colorNameToProcess = '';
+  if (typeof name === 'string') {
+    colorNameToProcess = name;
+  } else if (Array.isArray(name) && name.length > 0) {
+    // Se for um array, pega o nome da primeira cor para usar como referência
+    colorNameToProcess = name[0]?.name || '';
+  } else if (typeof name === 'object' && name !== null && name.name) {
+    colorNameToProcess = name.name;
+  }
+  const key = colorNameToProcess.toLowerCase().trim();
 
   // 1. Tenta o mapa de cores customizado primeiro
   if (COLOR_MAP[key]) {
@@ -434,11 +443,25 @@ function getHexFromColorName(name = "") {
   return colorNameToHex(key) || (key.startsWith('#') ? key : '#ffffff');
 }
 
+const normalizeColorData = (colorData) => {
+  if (typeof colorData === 'string') {
+    // Garante que sempre retorne um array de objetos
+    return [{ name: colorData, hex: getHexFromColorName(colorData) || '#ffffff' }];
+  }
+  if (Array.isArray(colorData)) {
+    // Mapeia e garante que cada item seja um objeto de cor válido
+    return colorData.map(c => (typeof c === 'string' ? { name: c, hex: getHexFromColorName(c) || '#ffffff' } : { name: c?.name || '', hex: c?.hex || getHexFromColorName(c?.name) || '#ffffff' }));
+  }
+  // Fallback para objeto de cor único (legado) ou outros formatos inesperados
+  const name = colorData?.name || '';
+  return [{ name: name, hex: colorData?.hex || getHexFromColorName(name) || "#ffffff" }];
+};
+
 function StockManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isTablet = useMediaQuery(theme.breakpoints.down("lg"));
-
+const [categoryAccordionExpanded, setCategoryAccordionExpanded] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(ROLES.VIEWER);
   const [userPermissions, setUserPermissions] = useState([]);
@@ -460,7 +483,7 @@ function StockManagement() {
     imageUrls: [],
     category: "",
     subcategory: "",
-    variations: [{ size: "", color: "", model: "", stock: 0 }],
+    variations: [{ size: "", color: [{ name: "", hex: "#ffffff" }], model: "", stock: 0 }],
     costPrice: "",
     salePrice: "",
     discount: "",
@@ -1524,13 +1547,23 @@ function StockManagement() {
     const unsubscribeProducts = onSnapshot(
       collection(db, "products"),
       (snapshot) => {
-        const productsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          variations: doc.data().variations || [],
-          createdAt: doc.data().createdAt || new Date(),
-          enabled: doc.data().enabled !== undefined ? doc.data().enabled : true,
-        }));
+        const productsData = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          
+          // Normalizar as variações para garantir estrutura correta
+          const normalizedVariations = (data.variations || []).map(v => ({
+            ...v,
+            color: normalizeColorData(v.color)
+          }));
+          
+          return {
+            id: doc.id,
+            ...data,
+            variations: normalizedVariations,
+            createdAt: data.createdAt || new Date(),
+            enabled: data.enabled !== undefined ? data.enabled : true,
+          };
+        });
         setProducts(productsData);
         
         const lowStockProducts = productsData.filter(product => {
@@ -1788,86 +1821,100 @@ function StockManagement() {
     }
   };
 
-  const saveCategory = async () => {
-    if (!hasPermission(PERMISSIONS.EDIT_CATEGORIES)) {
-      alert("Você não tem permissão para editar categorias");
-      return;
+ const saveCategory = async (categoryData = null) => {
+  if (!hasPermission(PERMISSIONS.EDIT_CATEGORIES)) {
+    alert("Você não tem permissão para editar categorias");
+    return;
+  }
+  
+  // Usa os dados passados ou o estado atual
+  const dataToSave = categoryData || newCategory;
+  
+  // Validação
+  const errors = {};
+  if (!dataToSave.name.trim()) {
+    errors.categoryName = "Nome da categoria é obrigatório";
+  }
+  setValidationErrors(errors);
+  
+  if (Object.keys(errors).length > 0) {
+    return;
+  }
+  
+  try {
+    const userInfo = {
+      uid: currentUser?.uid || '',
+      name: currentUser?.displayName || currentUser?.email || '',
+      email: currentUser?.email || '',
+    };
+
+    const categoryDataToSave = {
+      name: dataToSave.name,
+      subcategories: dataToSave.subcategories.filter(sc => sc.trim() !== ''),
+      ...(editingCategory
+        ? {
+            updatedBy: userInfo,
+            updatedAt: new Date(),
+          }
+        : {
+            createdBy: userInfo,
+            createdAt: new Date(),
+          }),
+    };
+
+    if (editingCategory) {
+      await updateDoc(
+        doc(db, "categories", editingCategory.id),
+        categoryDataToSave
+      );
+      
+      await addDoc(collection(db, "auditLogs"), {
+        action: "EDITAR_CATEGORIA",
+        target: `categories/${editingCategory.id}`,
+        user: userInfo,
+        timestamp: new Date(),
+        details: categoryDataToSave
+      });
+
+      setCategories((prev) =>
+        prev.map((cat) =>
+          cat.id === editingCategory.id
+            ? { ...categoryDataToSave, id: editingCategory.id }
+            : cat
+        )
+      );
+      
+      addNotification("Categoria atualizada", "A categoria foi atualizada com sucesso.", "success");
+    } else {
+      const docRef = await addDoc(collection(db, "categories"), categoryDataToSave);
+      
+      await addDoc(collection(db, "auditLogs"), {
+        action: "CRIAR_CATEGORIA",
+        target: `categories/${docRef.id}`,
+        user: userInfo,
+        timestamp: new Date(),
+        details: categoryDataToSave
+      });
+
+      setCategories((prev) => [...prev, { ...categoryDataToSave, id: docRef.id }]);
+      addNotification("Categoria criada", "A categoria foi criada com sucesso.", "success");
     }
-    
-    try {
-      const userInfo = {
-        uid: currentUser?.uid || '',
-        name: currentUser?.displayName || currentUser?.email || '',
-        email: currentUser?.email || '',
-      };
 
-      const categoryData = {
-        name: newCategory.name,
-        subcategories: newCategory.subcategories.filter(sc => sc.trim() !== ''),
-        ...(editingCategory
-          ? {
-              updatedBy: userInfo,
-              updatedAt: new Date(),
-            }
-          : {
-              createdBy: userInfo,
-              createdAt: new Date(),
-            }),
-      };
+    resetCategoryForm();
+  } catch (error) {
+    console.error("Erro ao salvar categoria:", error);
+    addNotification("Erro", "Não foi possível salvar a categoria.", "error");
+  }
+};
 
-      if (editingCategory) {
-        await updateDoc(
-          doc(db, "categories", editingCategory.id),
-          categoryData
-        );
-        
-        await addDoc(collection(db, "auditLogs"), {
-          action: "EDITAR_CATEGORIA",
-          target: `categories/${editingCategory.id}`,
-          user: userInfo,
-          timestamp: new Date(),
-          details: categoryData
-        });
-
-        setCategories((prev) =>
-          prev.map((cat) =>
-            cat.id === editingCategory.id
-              ? { ...categoryData, id: editingCategory.id }
-              : cat
-          )
-        );
-        
-        addNotification("Categoria atualizada", "A categoria foi atualizada com sucesso.", "success");
-      } else {
-        const docRef = await addDoc(collection(db, "categories"), categoryData);
-        
-        await addDoc(collection(db, "auditLogs"), {
-          action: "CRIAR_CATEGORIA",
-          target: `categories/${docRef.id}`,
-          user: userInfo,
-          timestamp: new Date(),
-          details: categoryData
-        });
-
-        setCategories((prev) => [...prev, { ...categoryData, id: docRef.id }]);
-        addNotification("Categoria criada", "A categoria foi criada com sucesso.", "success");
-      }
-
-      resetCategoryForm();
-    } catch (error) {
-      console.error("Erro ao salvar categoria:", error);
-      addNotification("Erro", "Não foi possível salvar a categoria.", "error");
-    }
-  };
-
-  const resetCategoryForm = () => {
-    setNewCategory({
-      name: "",
-      subcategories: [],
-    });
-    setEditingCategory(null);
-    setValidationErrors({});
-  };
+ const resetCategoryForm = () => {
+  setNewCategory({
+    name: "",
+    subcategories: [],
+  });
+  setEditingCategory(null);
+  setValidationErrors({});
+};
 
   const startEditingCategory = (category) => {
     if (!hasPermission(PERMISSIONS.EDIT_CATEGORIES)) {
@@ -1981,7 +2028,7 @@ function StockManagement() {
       ...prev,
       variations: [
         ...prev.variations,
-        { size: "", color: "", model: "", stock: 0 },
+        { size: "", color: [{ name: "", hex: "#ffffff" }], model: "", stock: 0 },
       ],
     }));
   };
@@ -1999,9 +2046,16 @@ function StockManagement() {
   };
 
   const handleVariationChange = (index, field, value) => {
-    const updatedVariations = [...newProduct.variations];
-    updatedVariations[index][field] = value;
-    setNewProduct((prev) => ({ ...prev, variations: updatedVariations }));
+    const updatedVariations = [...newProduct.variations];    
+    if (field.startsWith('colorName-') || field.startsWith('colorHex-')) {
+      const [fieldPart, colorIndexStr] = field.split('-');
+      const colorIndex = parseInt(colorIndexStr, 10);
+      const colorField = fieldPart === 'colorName' ? 'name' : 'hex';
+      updatedVariations[index].color[colorIndex][colorField] = value;
+    } else {
+      updatedVariations[index][field] = value;
+    }
+    setNewProduct((prev) => ({ ...prev, variations: updatedVariations }));    
     
     const errorKey = `variation-${index}-${field}`;
     if (validationErrors[errorKey]) {
@@ -2012,122 +2066,146 @@ function StockManagement() {
     }
   };
 
-  const saveProduct = async () => {
-    if (!hasPermission(PERMISSIONS.EDIT_PRODUCTS)) {
-      alert("Você não tem permissão para editar produtos");
-      return;
-    }
-    
-    if (!validateProductForm()) {
-      addNotification("Erro de validação", "Verifique os campos destacados em vermelho.", "error");
-      return;
-    }
-    
-    try {
-      const userInfo = {
-        uid: currentUser?.uid || '',
-        name: currentUser?.displayName || currentUser?.email || '',
-        email: currentUser?.email || '',
-      };
+  const addColorToVariation = (variationIndex) => {
+    const updatedVariations = [...newProduct.variations];
+    updatedVariations[variationIndex].color.push({ name: "", hex: "#ffffff" });
+    setNewProduct((prev) => ({ ...prev, variations: updatedVariations }));
+  };
 
-      const totalStock = newProduct.variations.reduce(
-        (acc, curr) => acc + (parseInt(curr.stock) || 0),
-        0
-      );
-
-      const inputSalePrice = parseFloat(newProduct.salePrice) || 0;
-      const discountPercentage = parseFloat(newProduct.discount) || 0;
-
-      const originalSalePrice = newProduct.oldPrice && newProduct.oldPrice > 0 ? newProduct.oldPrice : inputSalePrice;
-
-      const finalSalePrice =
-        discountPercentage > 0
-          ? originalSalePrice * (1 - discountPercentage / 100)
-          : originalSalePrice;
-
-      const productData = {
-        sku: newProduct.sku,
-        barcode: newProduct.barcode,
-        name: newProduct.name,
-        description: newProduct.description,
-        imageUrls: newProduct.imageUrls,
-        category: newProduct.category,
-        subcategory: newProduct.subcategory,
-        variations: (newProduct.variations || []).map((v) => ({
-          size: v.size || "",
-          color: v.color || "",
-          model: v.model || "",
-          stock: parseInt(v.stock, 10) || 0
-        })),
-        costPrice: parseFloat(newProduct.costPrice) || 0,
-        oldPrice: originalSalePrice, // Salva o preço original
-        salePrice: finalSalePrice, // Salva o preço com desconto
-        discount: discountPercentage,
-        weight: parseFloat(newProduct.weight) || 0,
-        dimensions: {
-          length: parseFloat(newProduct.dimensions.length) || 0,
-          width: parseFloat(newProduct.dimensions.width) || 0,
-          height: parseFloat(newProduct.dimensions.height) || 0,
-        },
-        minStock: parseInt(newProduct.minStock, 10) || 1,
-        location: newProduct.location,
-        reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
-        supplierId: newProduct.supplierId,
-        enabled: newProduct.enabled && totalStock > 0,
-        ...(editingProduct
-          ? {
-              createdAt: editingProduct.createdAt, // Mantém a data de criação original
-              updatedBy: userInfo,
-              updatedAt: new Date(),
-            }
-          : {
-              createdBy: userInfo,
-              createdAt: new Date(),
-            })
-      };
-
-      if (editingProduct) {
-        await updateDoc(doc(db, "products", editingProduct.id), productData);
-        
-        await addDoc(collection(db, "auditLogs"), {
-          action: "EDITAR_PRODUTO",
-          target: `products/${editingProduct.id}`,
-          user: userInfo,
-          timestamp: new Date(),
-          details: productData
-        });
-
-        setProducts((prev) =>
-          prev.map((p) =>
-            p.id === editingProduct.id
-              ? { ...productData, id: editingProduct.id }
-              : p
-          )
-        );
-        setEditSuccess(true);
-        setExpandedProductForm(true);
-        addNotification("Produto atualizado", "O produto foi atualizado com sucesso.", "success");
-      } else {
-        const docRef = await addDoc(collection(db, "products"), productData);
-        
-        await addDoc(collection(db, "auditLogs"), {
-          action: "CRIAR_PRODUTO",
-          target: `products/${docRef.id}`,
-          user: userInfo,
-          timestamp: new Date(),
-          details: productData
-        });
-
-        setProducts((prev) => [...prev, { ...productData, id: docRef.id }]);
-        resetForm();
-        setExpandedProductForm(false);
-        addNotification("Produto criado", "O produto foi criado com sucesso.", "success");
-      }
-    } catch (error) {
-      console.error("Error saving product:", error);
-      addNotification("Erro", "Não foi possível salvar o produto.", "error");
+  const removeColorFromVariation = (variationIndex, colorIndex) => {
+    const updatedVariations = [...newProduct.variations];
+    if (updatedVariations[variationIndex].color.length > 1) {
+      updatedVariations[variationIndex].color.splice(colorIndex, 1);
+      setNewProduct((prev) => ({ ...prev, variations: updatedVariations }));
+    } else {
+      alert("Cada variação deve ter pelo menos uma cor.");
     }
   };
+
+
+const saveProduct = async () => {
+  if (!hasPermission(PERMISSIONS.EDIT_PRODUCTS)) {
+    alert("Você não tem permissão para editar produtos");
+    return;
+  }
+  
+  if (!validateProductForm()) {
+    addNotification("Erro de validação", "Verifique os campos destacados em vermelho.", "error");
+    return;
+  }
+  
+  try {
+    const userInfo = {
+      uid: currentUser?.uid || '',
+      name: currentUser?.displayName || currentUser?.email || '',
+      email: currentUser?.email || '',
+    };
+
+    const totalStock = newProduct.variations.reduce(
+      (acc, curr) => acc + (parseInt(curr.stock) || 0),
+      0
+    );
+
+    const inputSalePrice = parseFloat(newProduct.salePrice) || 0;
+    const discountPercentage = parseFloat(newProduct.discount) || 0;
+
+    // O preço digitado no formulário é sempre a nova referência.
+    const originalSalePrice = inputSalePrice;
+
+    const finalSalePrice =
+      discountPercentage > 0 ? originalSalePrice * (1 - discountPercentage / 100) : originalSalePrice;
+
+    // Preparar as variações com múltiplas cores
+    const variationsWithMultipleColors = (newProduct.variations || []).map((v) => ({
+      size: v.size || "",
+      color: Array.isArray(v.color) 
+        ? v.color.map(c => ({ 
+            name: c.name || '', 
+            hex: c.hex || '#ffffff' 
+          }))
+        : [], // Garantir que seja sempre um array
+      model: v.model || "",
+      stock: parseInt(v.stock, 10) || 0
+    }));
+
+    const productData = {
+      sku: newProduct.sku,
+      barcode: newProduct.barcode,
+      name: newProduct.name,
+      description: newProduct.description,
+      imageUrls: newProduct.imageUrls,
+      category: newProduct.category,
+      subcategory: newProduct.subcategory,
+      variations: variationsWithMultipleColors, // Usar as variações com cores múltiplas
+      costPrice: parseFloat(newProduct.costPrice) || 0,
+      oldPrice: originalSalePrice, // Salva o preço original
+      salePrice: finalSalePrice, // Salva o preço com desconto
+      discount: discountPercentage,
+      weight: parseFloat(newProduct.weight) || 0,
+      dimensions: {
+        length: parseFloat(newProduct.dimensions.length) || 0,
+        width: parseFloat(newProduct.dimensions.width) || 0,
+        height: parseFloat(newProduct.dimensions.height) || 0,
+      },
+      minStock: parseInt(newProduct.minStock, 10) || 1,
+      location: newProduct.location,
+      reservedStock: parseInt(newProduct.reservedStock, 10) || 0,
+      supplierId: newProduct.supplierId,
+      enabled: newProduct.enabled && totalStock > 0,
+      ...(editingProduct
+        ? {
+            createdAt: editingProduct.createdAt, // Mantém a data de criação original
+            updatedBy: userInfo,
+            updatedAt: new Date(),
+          }
+        : {
+            createdBy: userInfo,
+            createdAt: new Date(),
+          })
+    };
+
+    if (editingProduct) {
+      await updateDoc(doc(db, "products", editingProduct.id), productData);
+      
+      await addDoc(collection(db, "auditLogs"), {
+        action: "EDITAR_PRODUTO",
+        target: `products/${editingProduct.id}`,
+        user: userInfo,
+        timestamp: new Date(),
+        details: productData
+      });
+
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === editingProduct.id
+            ? { ...productData, id: editingProduct.id }
+            : p
+        )
+      );
+      setEditSuccess(true);
+      setExpandedProductForm(true);
+      addNotification("Produto atualizado", "O produto foi atualizado com sucesso.", "success");
+    } else {
+      const docRef = await addDoc(collection(db, "products"), productData);
+      
+      await addDoc(collection(db, "auditLogs"), {
+        action: "CRIAR_PRODUTO",
+        target: `products/${docRef.id}`,
+        user: userInfo,
+        timestamp: new Date(),
+        details: productData
+      });
+
+      setProducts((prev) => [...prev, { ...productData, id: docRef.id }]);
+      resetForm();
+      setExpandedProductForm(false);
+      addNotification("Produto criado", "O produto foi criado com sucesso.", "success");
+    }
+  } catch (error) {
+    console.error("Error saving product:", error);
+    addNotification("Erro", "Não foi possível salvar o produto.", "error");
+  }
+};
 
   const deleteProduct = async (id) => {
     if (!hasPermission(PERMISSIONS.DELETE_PRODUCTS)) {
@@ -2165,29 +2243,70 @@ function StockManagement() {
     }
   };
 
-  const startEditing = (product) => {
-    if (!hasPermission(PERMISSIONS.EDIT_PRODUCTS)) {
-      alert("Você não tem permissão para editar produtos");
-      return;
+ const startEditing = (product) => {
+  if (!hasPermission(PERMISSIONS.EDIT_PRODUCTS)) {
+    alert("Você não tem permissão para editar produtos");
+    return;
+  }
+  
+  setActiveView("products");
+  setEditingProduct(product);
+  
+  // Garantir que as variações tenham a estrutura correta de cores múltiplas
+  const variationsWithColorObject = product.variations?.map(v => {
+    // Normalizar as cores para o formato de array de objetos
+    let normalizedColors = [];
+    
+    if (Array.isArray(v.color)) {
+      // Se já é um array, mapear para o formato correto
+      normalizedColors = v.color.map(c => {
+        if (typeof c === 'string') {
+          return { name: c, hex: getHexFromColorName(c) };
+        }
+        return { 
+          name: c?.name || '', 
+          hex: c?.hex || getHexFromColorName(c?.name) || '#ffffff' 
+        };
+      });
+    } else if (typeof v.color === 'string') {
+      // Se é uma string única, converter para array com um item
+      normalizedColors = [{ name: v.color, hex: getHexFromColorName(v.color) }];
+    } else if (typeof v.color === 'object' && v.color !== null) {
+      // Se é um objeto único, converter para array com um item
+      normalizedColors = [{ 
+        name: v.color?.name || '', 
+        hex: v.color?.hex || getHexFromColorName(v.color?.name) || '#ffffff' 
+      }];
+    } else {
+      // Fallback: array vazio
+      normalizedColors = [{ name: "", hex: "#ffffff" }];
     }
     
-    setActiveView("products");
-    setEditingProduct(product);
-    setNewProduct({
-      ...product,
-      salePrice: product.oldPrice || product.salePrice, // Preenche o campo com o preço original
-      variations: product.variations || [],
+    // Garantir que pelo menos uma cor exista
+    if (normalizedColors.length === 0) {
+      normalizedColors = [{ name: "", hex: "#ffffff" }];
+    }
+    
+    return {
+      ...v,
+      color: normalizedColors
+    };
+  }) || [{ size: "", color: [{ name: "", hex: "#ffffff" }], model: "", stock: 0 }];
+  
+  setNewProduct({
+    ...product,
+    salePrice: product.oldPrice || product.salePrice,
+    variations: variationsWithColorObject,
+  });
+  setExpandedProductForm(true);
+
+  setTimeout(() => {
+    formRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
     });
-    setExpandedProductForm(true);
-
-    setTimeout(() => {
-      formRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-    }, 100);
-  };
-
+  }, 100);
+};
   const handleBarcodeScan = (barcode) => {
     setNewProduct((prev) => ({ ...prev, barcode }));
   };
@@ -2533,7 +2652,7 @@ function StockManagement() {
       imageUrls: [],
       category: "",
       subcategory: "",
-      variations: [{ size: "", color: "", model: "", stock: 0 }],
+    variations: [{ size: "", color: [{ name: "", hex: "#ffffff" }], model: "", stock: 0 }],
       costPrice: "",
       salePrice: "",
       discount: "",
@@ -3708,131 +3827,103 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
     );
   };
 
-  const CategoriesManagement = () => {
-    if (!hasPermission(PERMISSIONS.VIEW_CATEGORIES)) {
-      return <Alert severity="error">Você não tem permissão para gerenciar categorias.</Alert>;
-    }
+const CategoriesManagement = () => {
+  if (!hasPermission(PERMISSIONS.VIEW_CATEGORIES)) {
+    return <Alert severity="error">Você não tem permissão para gerenciar categorias.</Alert>;
+  }
 
-    return (
-      <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" fontWeight="700">
-            Gestão de Categorias
-          </Typography>
-          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => {
-                setEditingCategory(null);
-                resetCategoryForm();
-              }}
-            >
-              Nova Categoria
-            </Button>
-          )}
-        </Box>
-
-        <Grid container spacing={4}>
-          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    {editingCategory ? "Editar Categoria" : "Nova Categoria"}
-                  </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12}>
-                      <TextField
-                        label="Nome da Categoria"
-                        name="name"
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
-                        fullWidth
-                        required
-                        error={!!validationErrors.categoryName}
-                        helperText={validationErrors.categoryName}
-                      />
-                    </Grid>
-                    <Grid item xs={12}>
-                      <Typography variant="subtitle1" sx={{ mb: 1 }}>Subcategorias</Typography>
-                      {newCategory.subcategories.map((subcat, index) => (
-                        <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                          <TextField
-                            label={`Subcategoria ${index + 1}`}
-                            value={subcat}
-                            onChange={(e) => handleSubcategoryChange(index, e.target.value)}
-                            fullWidth
-                            size="small"
-                          />
-                          <IconButton
-                            onClick={() => {
-                              const updatedSubcategories = newCategory.subcategories.filter((_, i) => i !== index);
-                              setNewCategory((prev) => ({ ...prev, subcategories: updatedSubcategories }));
-                            }}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      ))}
-                      <Button startIcon={<Add />} onClick={addSubcategory} size="small">
-                        Adicionar Subcategoria
-                      </Button>
-                    </Grid>
-                    <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                      {editingCategory && (
-                        <Button variant="outlined" onClick={resetCategoryForm}>
-                          Cancelar
-                        </Button>
-                      )}
-                      <Button variant="contained" onClick={saveCategory}>
-                        {editingCategory ? "Salvar Alterações" : "Criar Categoria"}
-                      </Button>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-
-          <Grid item xs={12} md={hasPermission(PERMISSIONS.EDIT_CATEGORIES) ? 8 : 12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Categorias Cadastradas</Typography>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Nome</TableCell>
-                        <TableCell>Subcategorias</TableCell>
-                        {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && <TableCell align="right">Ações</TableCell>}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {categories.map((category) => (
-                        <TableRow key={category.id} hover>
-                          <TableCell>{category.name}</TableCell>
-                          <TableCell sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {category.subcategories.map(sc => <Chip key={sc} label={sc} size="small" />)}
-                          </TableCell>
-                          {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
-                            <TableCell align="right">
-                              <IconButton size="small" onClick={() => startEditingCategory(category)}><Edit fontSize="small" /></IconButton>
-                              {hasPermission(PERMISSIONS.DELETE_CATEGORIES) && <IconButton size="small" onClick={() => deleteCategory(category.id)}><Delete fontSize="small" /></IconButton>}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" fontWeight="700">
+          Gestão de Categorias
+        </Typography>
+        {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              setEditingCategory(null);
+              resetCategoryForm();
+            }}
+          >
+            Nova Categoria
+          </Button>
+        )}
       </Box>
-    );
-  };
+
+      <Grid container spacing={4}>
+        {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+          <Grid item xs={12} md={4}>
+<CategoryForm
+  editingCategory={editingCategory}
+  initialData={newCategory}
+  validationErrors={validationErrors}
+  onSave={(categoryData) => {
+    // Primeiro atualiza o estado principal
+    setNewCategory(categoryData);
+    // Depois salva (usará o estado atualizado)
+    saveCategory(categoryData);
+  }}
+  onReset={resetCategoryForm}
+/>
+          </Grid>
+        )}
+
+        <Grid item xs={12} md={hasPermission(PERMISSIONS.EDIT_CATEGORIES) ? 8 : 12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Categorias Cadastradas</Typography>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Nome</TableCell>
+                      <TableCell>Subcategorias</TableCell>
+                      {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && <TableCell align="right">Ações</TableCell>}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {categories.map((category) => (
+                      <TableRow key={category.id} hover>
+                        <TableCell>{category.name}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {category.subcategories?.map((sc, index) => (
+                              <Chip key={index} label={sc} size="small" variant="outlined" />
+                            ))}
+                          </Box>
+                        </TableCell>
+                        {hasPermission(PERMISSIONS.EDIT_CATEGORIES) && (
+                          <TableCell align="right">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => startEditingCategory(category)}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                            {hasPermission(PERMISSIONS.DELETE_CATEGORIES) && (
+                              <IconButton 
+                                size="small" 
+                                onClick={() => deleteCategory(category.id)}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
 
   if (loading) {
     return (
@@ -4400,7 +4491,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
                               Preços e Dimensões
                             </Typography>
                           </Box>
-                          <Grid container spacing={2}>
+                           <Grid container spacing={2}>
                             {[
                               { field: "costPrice", label: "Preço de Custo", type: "number", prefix: "R$" },
                               { field: "salePrice", label: "Preço de Venda", type: "number", prefix: "R$", required: true },
@@ -4505,72 +4596,69 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       sx={{ p: 2, mb: 2 }}
     >
       <Grid container spacing={2} alignItems="center">
-        {[ { field: "size", label: "Tamanho", type: "text" }, { field: "color", label: "Cor", type: "text" }, { field: "model", label: "Modelo", type: "text" }, { field: "stock", label: "Estoque", type: "number", min: 0 } ].map(({ field, label, type, min }) => {
-          if (field === 'size') {
-            return (
-              <Grid item xs={6} md={3} key={field}>
-                <Autocomplete
-                  freeSolo
-                  options={COMMON_SIZES}
-                  value={variation[field] || ''}
-                  onChange={(event, newValue) => handleVariationChange(index, field, newValue)}
-                  onInputChange={(event, newInputValue) => handleVariationChange(index, field, newInputValue)}
-                  renderInput={(params) => (
-                    <TextField {...params} label={label} size="small" />
-                  )}
-                />
-              </Grid>
-            );
-          }
-          // Para o campo cor, renderizar com seletor de cor
-          if (field === 'color') {
-            return (
-              <Grid item xs={6} md={3} key={field} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Grid item xs={6} md={2}>
+          <Autocomplete
+            freeSolo
+            options={COMMON_SIZES}
+            value={variation.size || ''}
+            onChange={(event, newValue) => handleVariationChange(index, 'size', newValue)}
+            onInputChange={(event, newInputValue) => handleVariationChange(index, 'size', newInputValue)}
+            renderInput={(params) => (
+              <TextField {...params} label="Tamanho" size="small" />
+            )}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Box>
+            {variation.color.map((color, colorIndex) => (
+              <Box key={colorIndex} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <TextField
-                  label={label}
-                  value={variation[field] || ''}
-                  onChange={(e) => handleVariationChange(index, field, e.target.value)}
+                  label={`Cor ${colorIndex + 1}`}
+                  value={color.name || ''}
+                  onChange={(e) => handleVariationChange(index, `colorName-${colorIndex}`, e.target.value)}
                   fullWidth
                   size="small"
+                  placeholder="Ex: Azul Marinho"
                 />
-                <input 
-                  type="color" 
-                  value={variation[field]?.startsWith('#') ? variation[field] : '#ffffff'}
-                  onChange={(e) => handleVariationChange(index, field, e.target.value)}
-                  style={{ 
-                    width: 40, 
-                    height: 40, 
-                    border: '1px solid #ccc', 
-                    borderRadius: '4px', 
-                    cursor: 'pointer'
-                  }}
+                <input
+                  type="color"
+                  value={color.hex || '#ffffff'}
+                  onChange={(e) => handleVariationChange(index, `colorHex-${colorIndex}`, e.target.value)}
+                  style={{ width: 40, height: 40, border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer' }}
                   title="Selecionar cor"
                 />
-              </Grid>
-            );
-          }
-          // Para outros campos
-          return (
-            <Grid item xs={6} md={3} key={field}>
-              <TextField
-                label={label}
-                value={variation[field] || ''}
-                onChange={(e) => handleVariationChange(index, field, e.target.value)}
-                fullWidth
-                size="small"
-                type={type}
-                inputProps={{ min }}
-                error={!!validationErrors[`variation-${index}-${field}`]}
-                helperText={validationErrors[`variation-${index}-${field}`]}
-              />
-              {field === 'stock' && validationErrors[`variation-${index}-attributes`] && (
-                <Typography variant="caption" color="error">
-                  {validationErrors[`variation-${index}-attributes`]}
-                </Typography>
-              )}
-            </Grid>
-          );
-        })}
+                <IconButton onClick={() => removeColorFromVariation(index, colorIndex)} size="small" disabled={variation.color.length <= 1}>
+                  <Remove fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+            <Button onClick={() => addColorToVariation(index)} size="small" startIcon={<Add />}>
+              Adicionar Cor
+            </Button>
+          </Box>
+        </Grid>
+        <Grid item xs={6} md={2}>
+          <TextField
+            label="Modelo"
+            value={variation.model || ''}
+            onChange={(e) => handleVariationChange(index, 'model', e.target.value)}
+            fullWidth
+            size="small"
+          />
+        </Grid>
+        <Grid item xs={6} md={2}>
+          <TextField
+            label="Estoque"
+            value={variation.stock || ''}
+            onChange={(e) => handleVariationChange(index, 'stock', e.target.value)}
+            fullWidth
+            size="small"
+            type="number"
+            inputProps={{ min: 0 }}
+            error={!!validationErrors[`variation-${index}-stock`]}
+            helperText={validationErrors[`variation-${index}-stock`]}
+          />
+        </Grid>
         <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
           <IconButton
             color="error"
@@ -4583,7 +4671,7 @@ const MetricCard = ({ title, value, icon, color = "primary", trend = "neutral" }
       </Grid>
     </Paper>
   ))}
-</Box>
+</Box> {/** Esta é a tag de fechamento que faltava */}
 
                             {validationErrors.stock && (
                               <Grid item xs={12} sx={{ mt: 2 }}>
