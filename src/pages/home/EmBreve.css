@@ -1,0 +1,40 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #1e1e1e, #444);
+  color: #fff;
+  font-family: "Arial", sans-serif;
+  text-align: center;
+  padding: 20px;
+  background-image: url("embreve.jpeg");
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.container {
+  max-width: 600px;
+  width: 100%;
+  padding: 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.container h1 {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.container p {
+  font-size: 1.2rem;
+  opacity: 0.8;
+}

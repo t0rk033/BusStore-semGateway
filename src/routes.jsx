@@ -16,6 +16,7 @@ import SearchResult from './components/SearchResults';
 
 import { ModalProvider, useModal } from './contexts/ModalContext';
 import Checkout from './pages/store/Checkout';
+import EmBreve from './pages/home/Embreve';
 
 function ModalLayer() {
   const { loginOpen, closeLogin, signupOpen, closeSignup, openSignup, openLogin } = useModal();
@@ -43,7 +44,7 @@ function RoutesApp() {
         <ModalProvider>
           <BrowserRouter>
             <Routes>
-              <Route path='/' element={<Store />} />
+              <Route path='/' element={<EmBreve />} />
               <Route path='loja' element={<Store />} />
               <Route
                 path='/admin'
