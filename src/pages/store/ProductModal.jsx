@@ -90,12 +90,12 @@ function formatPriceParts(value) {
   return { int, cents };
 }
 
-export default function ProductModal({ open, onClose, product, addToCart }) {
-  if (!open || !product) return null;
-
+export default function ProductModal({ open, onClose, product, addToCart, onBuyNow }) {
+  // Garantir que `product` nunca seja null (pode ser explicitamente passado como null pelo pai)
+  product = product || {};
   const [favorite, setFavorite] = useState(false);
   const [selectedColor, setSelectedColor] = useState(
-    product.variations?.[0]?.color || null
+    product?.variations?.[0]?.color || null
   );
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -117,7 +117,7 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
       if (v.stock > 0) map[colorKey].sizes.push(v.size);
     });
     return map;
-  }, [product.variations]);
+  }, [product?.variations]);
 
   const availableColors = useMemo(
     // Retorna um array de arrays de objetos de cor únicos
@@ -133,7 +133,7 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
 
   // Obtém todos os tamanhos únicos possíveis para o produto, para renderizar os botões
   const allPossibleSizes = useMemo(() => {
-    const sizes = new Set((product.variations || []).map(v => v.size));
+    const sizes = new Set((product?.variations || []).map(v => v.size));
     const sortedSizes = Array.from(sizes);
     // Ordena os tamanhos para uma exibição consistente
     const sizeOrder = ["PP", "P", "M", "G", "GG", "XG", "Tamanho único"];
@@ -145,25 +145,25 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
       return indexA - indexB;
     });
     return sortedSizes;
-  }, [product.variations]);
+  }, [product?.variations]);
   // Reseta a imagem selecionada quando o produto muda
   useEffect(() => {
     setSelectedImageIndex(0);
-    setSelectedColor(product.variations?.[0]?.color || null);
+    setSelectedColor(product?.variations?.[0]?.color || null);
     setSelectedSize(null); // Reseta o tamanho ao mudar de produto
   }, [product]);
 
-  const { int, cents } = formatPriceParts(product.salePrice);
+  const { int, cents } = formatPriceParts(product?.salePrice);
 
   const handleNextImage = () => {
     setSelectedImageIndex((prevIndex) =>
-      (prevIndex + 1) % (product.imageUrls?.length || 1)
+      (prevIndex + 1) % (product?.imageUrls?.length || 1)
     );
   };
 
   const handlePrevImage = () => {
     setSelectedImageIndex((prevIndex) =>
-      (prevIndex - 1 + (product.imageUrls?.length || 1)) % (product.imageUrls?.length || 1)
+      (prevIndex - 1 + (product?.imageUrls?.length || 1)) % (product?.imageUrls?.length || 1)
     );
   };
 
@@ -184,18 +184,38 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
 
   function handleAddToCart() {
     if (!selectedColor || !selectedSize) return;
-    const selectedVariation = (product.variations || []).find(
+    const selectedVariation = (product?.variations || []).find(
       (v) => v.size === selectedSize && isColorSelected(v.color)
     );
     if (!selectedVariation) return;
     const item = {
       ...product,
-      price: product.salePrice,
+      price: product?.salePrice,
       variation: selectedVariation,
       quantity: 1,
     };
     addToCart?.(item);
     onClose?.();
+  }
+
+  function handleBuyNow() {
+    if (!selectedColor || !selectedSize) return;
+    const selectedVariation = (product?.variations || []).find(
+      (v) => v.size === selectedSize && isColorSelected(v.color)
+    );
+    if (!selectedVariation) return;
+    const item = {
+      ...product,
+      price: product?.salePrice,
+      variation: selectedVariation,
+      quantity: 1,
+    };
+    // adiciona ao carrinho
+    addToCart?.(item);
+    // fecha modal
+    onClose?.();
+    // notifica o pai para navegar ao checkout
+    onBuyNow?.(item);
   }
 
   return (
@@ -228,11 +248,11 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
           <Grid item xs={12} md={5}>
             <div className={styles.imageWrap}>
               <img
-                src={product.imageUrls?.[selectedImageIndex]}
-                alt={product.name}
+                src={product?.imageUrls?.[selectedImageIndex]}
+                alt={product?.name}
                 className={styles.image}
               />
-              {product.imageUrls && product.imageUrls.length > 1 && (
+              {product?.imageUrls && product.imageUrls.length > 1 && (
                 <>
                   <IconButton className={`${styles.carouselArrow} ${styles.arrowLeft}`} onClick={handlePrevImage}>
                     <ArrowBackIosNewIcon />
@@ -248,12 +268,12 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
           {/* Detalhes à direita */}
           <Grid item xs={12} md={7}>
             {/* Título */}
-            <Typography className={styles.title}>{product.name}</Typography>
+            <Typography className={styles.title}>{product?.name}</Typography>
 
             {/* Descrição com scroll próprio */}
             <div className={styles.descBox} role="region" aria-label="Descrição">
               <Typography variant="body2" color="text.secondary">
-                {product.description?.trim()
+                {product?.description?.trim()
                   ? product.description
                   : DEFAULT_DESC}
               </Typography>
@@ -339,6 +359,8 @@ export default function ProductModal({ open, onClose, product, addToCart }) {
                 fullWidth
                 className={styles.buyNow}
                 disableElevation
+                onClick={handleBuyNow}
+                disabled={!selectedColor || !selectedSize}
               >
                 Comprar agora
               </Button>

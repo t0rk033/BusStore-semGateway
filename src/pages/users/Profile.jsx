@@ -418,12 +418,13 @@ function Profile() {
                               Total: <span>R$ {order.total.toFixed(2)}</span>
                             </div>
                             {order.trackingNumber && (
-                              <div className={styles.trackingInfo}>
-                                <span>Rastreamento:</span>
-                                <a href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
-                                  {order.trackingNumber}
-                                </a>
-                              </div>
+                                <div className={styles.trackingInfo}>
+                                  <span className={styles.trackingLabel}>Rastreamento:</span>
+                                  <a className={styles.trackingBadge} href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
+                                    <span className={styles.trackingBadgeIcon} />
+                                    {order.trackingNumber}
+                                  </a>
+                                </div>
                             )}
                             <div className={styles.orderActionButtons}>
                               {order.status?.toLowerCase() === 'enviado' && (

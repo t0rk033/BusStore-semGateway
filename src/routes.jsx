@@ -44,7 +44,7 @@ function RoutesApp() {
         <ModalProvider>
           <BrowserRouter>
             <Routes>
-              <Route path='/' element={<EmBreve />} />
+              <Route path='/' element={<Store />} />
               <Route path='loja' element={<Store />} />
               <Route
                 path='/admin'

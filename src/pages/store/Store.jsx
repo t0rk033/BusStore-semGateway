@@ -142,9 +142,16 @@ function Store() {
   };
 
   const handleAddToCart = (productWithDetails) => {
+    // Normaliza a representação da cor para criar um id consistente
+    const colorKey = Array.isArray(productWithDetails.variation?.color)
+      ? productWithDetails.variation.color.map(c => c?.name || c?.hex || JSON.stringify(c)).join('-')
+      : (productWithDetails.variation?.color && typeof productWithDetails.variation.color === 'object')
+        ? (productWithDetails.variation.color.name || productWithDetails.variation.color.hex || JSON.stringify(productWithDetails.variation.color))
+        : String(productWithDetails.variation?.color || '');
+
     addItem({
       ...productWithDetails,
-      id: `${productWithDetails.id}-${productWithDetails.variation.color}-${productWithDetails.variation.size}`,
+      id: `${productWithDetails.id}-${colorKey}-${productWithDetails.variation?.size}`,
     });
     showToast('Produto adicionado ao carrinho!', 'success');
   };
@@ -512,7 +519,13 @@ function Store() {
                   <div className={styles.cartItemDetails}>
                     <h3 className={styles.cartItemName}>{item.name}</h3>
                     <div className={styles.cartItemVariation}>
-                      <span>Cor: {item.variation.color}</span>
+                      <span>
+                        Cor: {Array.isArray(item.variation?.color)
+                          ? item.variation.color.map(c => c?.name || c?.hex || JSON.stringify(c)).join(' / ')
+                          : (item.variation?.color && typeof item.variation.color === 'object')
+                            ? (item.variation.color.name || item.variation.color.hex || JSON.stringify(item.variation.color))
+                            : item.variation?.color}
+                      </span>
                       <span>Tamanho: {item.variation.size}</span>
                     </div>
                     <div className={styles.cartItemPrice}>
@@ -591,6 +604,12 @@ function Store() {
       }}
       product={selectedProduct}
       addToCart={handleAddToCart}
+      onBuyNow={(productWithDetails) => {
+        // já foi adicionado ao carrinho pelo modal; fecha modal e vai para checkout
+        setOpenProductModal(false);
+        setSelectedProduct(null);
+        navigate('/checkout');
+      }}
     />
 
     <LoginModal open={loginOpen} onClose={closeLogin} />

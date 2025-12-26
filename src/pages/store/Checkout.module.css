@@ -124,6 +124,34 @@
   box-sizing: border-box;
 }
 
+/* CEP input + button container */
+.cepContainer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.cepButton {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: #e4910e;
+  color: white;
+  transition: background-color 0.2s ease;
+}
+
+.cepButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cepButton:hover:not(:disabled) {
+  background-color: #d8860c;
+}
+
 /* delivery options (mantido e ajustado) */
 .deliveryOptions {
   margin: 20px 0;

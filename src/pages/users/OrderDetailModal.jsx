@@ -55,7 +55,13 @@ const OrderDetailModal = ({ order, onClose }) => {
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}><FaTruck /> Entrega</h3>
               {order.trackingNumber && (
-                <p><strong>Rastreamento:</strong> <a href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">{order.trackingNumber}</a></p>
+                <p>
+                  <strong>Rastreamento:</strong>{' '}
+                  <a className={styles.trackingBadge} href={`https://www.linkcorreios.com.br/${order.trackingNumber}`} target="_blank" rel="noopener noreferrer">
+                    <span className={styles.trackingBadgeIcon} />
+                    {order.trackingNumber}
+                  </a>
+                </p>
               )}
               <p><strong>Endereço:</strong> {order.userData?.street}, {order.userData?.number} - {order.userData?.city}/{order.userData?.state}</p>
             </div>
