@@ -99,11 +99,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
     dbCategoryMap.set(dbCat.toLowerCase(), dbCat);
   });
 
-  const staticCategoryNames = staticLinks.map(link => link.category.toLowerCase());
-  const dynamicCategories = categories.filter(
-    category => !staticCategoryNames.includes(category.toLowerCase())
-  );
-
   return (
     <div className={styles.wrapper} ref={mobileMenuRef}>
       {/* Overlay para mobile */}
@@ -227,16 +222,6 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
               </li>
             );
           })}
-          {dynamicCategories.map((category) => (
-            <li key={category}>
-              <Link 
-                to={`/busca?categoria=${encodeURIComponent(category)}`}
-                onClick={handleMobileLinkClick}
-              >
-                {category.toUpperCase()}
-              </Link>
-            </li>
-          ))}
         </ul>
       </div>
     </div>

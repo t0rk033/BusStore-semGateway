@@ -30,6 +30,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .stepContainer {
@@ -184,9 +185,9 @@
 
 .paymentOptions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 15px;
-  margin-bottom: 25px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-bottom: 15px;
 }
 
 .paymentOption {
@@ -195,19 +196,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 20px 10px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  background-color: #fdfdfd;
+  transition: all 0.2s ease;
+  background-color: #fff;
+  color: #666;
 }
 
 .paymentOption:hover {
   border-color: #e4910e;
-  background-color: #fffaf5;
+  background-color: #fffbf5;
   transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(228, 145, 14, 0.1);
 }
 
 .paymentOption input[type="radio"] {
@@ -216,51 +219,106 @@
   width: 100%;
   height: 100%;
   cursor: pointer;
+  margin: 0;
 }
 
-.paymentOption input[type="radio"]:checked + span {
+/* Estilo para opção selecionada usando :has (suporte moderno) */
+.paymentOption:has(input:checked) {
+  border-color: #e4910e;
+  background-color: #fff9f0;
+  box-shadow: 0 0 0 2px rgba(228, 145, 14, 0.2);
   color: #e4910e;
   font-weight: 600;
 }
 
-.paymentOption input[type="radio"]:checked ~ svg {
+/* Fallback para navegadores antigos e reforço visual */
+.paymentOption input:checked + span,
+.paymentOption:has(input:checked) span {
   color: #e4910e;
-}
-
-.paymentOption input[type="radio"]:checked ~ label {
-  border-color: #e4910e;
-  box-shadow: 0 0 0 2px #e4910e40;
+  font-weight: 600;
 }
 
 .paymentOption svg {
-  font-size: 24px;
-  color: #666;
-  transition: color 0.2s ease-in-out;
+  font-size: 22px;
+  margin-bottom: 5px;
+  transition: color 0.2s;
+}
+
+.paymentOption:has(input:checked) svg,
+.paymentOption input:checked ~ span svg {
+  color: #e4910e;
 }
 
 .paymentOption span {
-  font-size: 14px;
-  font-weight: 500;
-  color: #555;
-  transition: color 0.2s ease-in-out;
+  font-size: 12px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
 
 .cardForm, .pixSection, .boletoSection {
-  margin-top: 20px;
-  padding: 20px;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  background-color: #f8f9fa;
+  background-color: #fff;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  margin-top: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
-.pixInitial, .boletoInfo {
+.pixSection {
   text-align: center;
+  padding: 15px;
 }
 
-.pixButton, .boletoButton {
+.pixInfo h4, .boletoInfo h4 {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pixBenefits, .boletoBenefits {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pixBenefits li, .boletoBenefits li {
+  background: #f5f5f5;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pixButton, .boletoButton, .submitButton {
   width: 100%;
-  margin-top: 15px;
+  padding: 10px;
+  background-color: #e4910e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 8px;
+}
+
+.pixButton:hover, .boletoButton:hover, .submitButton:hover {
+  background-color: #d8860c;
 }
 
 /* --- ESTILOS PARA SELECT (VALIDADE, PARCELAS) --- */
@@ -580,18 +638,22 @@
 }
 /* ESTILOS PARA PARCELAMENTO */
 .installmentSummary {
-  margin-top: 10px;
-  padding: 10px;
-  background: #f8f9fa;
+  background: #f0f7ff;
+  border-left: 4px solid #0056b3;
+  padding: 12px;
   border-radius: 4px;
-  border-left: 4px solid #ff6b00;
-  font-size: 0.9em;
+  margin-top: 10px;
+}
+
+.installmentSummary p {
+  margin: 0;
+  color: #004085;
 }
 
 .interestNote {
-  font-size: 0.8em;
-  color: #666;
-  margin-top: 5px;
+  font-size: 0.85rem;
+  margin-top: 4px !important;
+  opacity: 0.8;
 }
 
 .installmentNote {
@@ -718,112 +780,208 @@
 }
 /* Estilos para boleto */
 .boletoGenerated {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-top: 20px;
-  border: 1px solid #e9ecef;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
+  padding-top: 15px;
+  animation: fadeIn 0.5s ease;
 }
 
 .successMessage {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  margin-bottom: 15px;
+  color: #2e7d32;
+  margin-bottom: 10px;
 }
 
 .successIcon {
-  font-size: 24px;
+  font-size: 1.3rem;
 }
 
 .boletoLink {
   display: block;
-  background: #ff6b00;
+  background: #e4910e;
   color: white;
   text-align: center;
-  padding: 15px;
-  border-radius: 6px;
+  padding: 12px;
+  border-radius: 8px;
   text-decoration: none;
   font-weight: bold;
+  font-size: 0.95rem;
   margin: 15px 0;
-  transition: background 0.3s;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px rgba(228, 145, 14, 0.2);
 }
 
 .boletoLink:hover {
-  background: #e55a00;
+  background: #d8860c;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(228, 145, 14, 0.3);
+}
+
+.boletoDetails {
+  margin: 10px 0;
+  text-align: center;
 }
 
 .linhaDigitavel {
-  margin: 15px 0;
+  background: #f8f9fa;
   padding: 10px;
-  background: white;
-  border-radius: 4px;
-  border: 1px dashed #ddd;
-}
-
-.linhaDigitavel code {
-  font-family: monospace;
-  font-size: 12px;
+  border-radius: 6px;
+  border: 1px dashed #ccc;
+  margin-top: 10px;
   word-break: break-all;
 }
 
+.linhaDigitavel span {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.linhaDigitavel code {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  color: #333;
+  font-weight: 600;
+}
+
 .boletoInstructions {
-  background: white;
-  padding: 15px;
-  border-radius: 6px;
-  margin: 15px 0;
+  background: #fff9f0;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  border-left: 4px solid #e4910e;
 }
 
 .boletoInstructions ol {
-  margin: 10px 0;
-  padding-left: 20px;
+  margin: 10px 0 0 20px;
+  padding: 0;
+  color: #333;
 }
 
 .boletoInstructions li {
-  margin: 5px 0;
+  margin-bottom: 6px;
 }
 
 .boletoWarning {
   background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  padding: 12px;
+  color: #856404;
+  padding: 10px;
   border-radius: 6px;
-  margin-top: 15px;
+  text-align: center;
+  font-size: 0.9rem;
+  border: 1px solid #ffeeba;
+  margin-top: 12px;
 }
 
 /* Estilos para PIX */
-.pixActions {
+.pixGenerated {
+  animation: fadeIn 0.5s ease;
+}
+
+.qrCodeContainer {
+  background: #fff;
+  padding: 8px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  display: inline-block;
+  margin: 10px 0;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.qrCode {
+  max-width: 150px;
+  height: auto;
+  display: block;
+}
+
+.pixCodeSection {
+  margin: 15px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.pixCodeSection p {
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+.pixCodeContainer {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  width: 100%;
 }
 
-.primaryButton {
-  background: #ff6b00;
+.pixCode {
+  flex: 1;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.copyButton {
+  background: #333;
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 0 12px;
   border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  flex: 1;
+  transition: background 0.2s;
+  white-space: nowrap;
 }
 
-.secondaryButton {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 12px 24px;
+.copyButton:hover {
+  background: #555;
+}
+
+.pixInstructions {
+  background: #f0f7ff;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: left;
+  margin: 15px 0;
+  border-left: 4px solid #0056b3;
+}
+
+.pixInstructions p {
+  color: #004085;
+  font-weight: bold;
+  margin-top: 0;
+}
+
+.pixInstructions ol {
+  margin: 10px 0 0 20px;
+  padding: 0;
+  color: #333;
+}
+
+.pixInstructions li {
+  margin-bottom: 6px;
+}
+
+.pixExpiry {
+  color: #d32f2f;
+  font-weight: 500;
+  margin: 12px 0;
+  padding: 10px;
+  background: #fff5f5;
   border-radius: 6px;
-  cursor: pointer;
-  flex: 1;
-}
-
-.primaryButton:hover {
-  background: #e55a00;
-}
-
-.secondaryButton:hover {
-  background: #5a6268;
+  display: inline-block;
 }
 
 /* Loading states */
@@ -875,4 +1033,9 @@
   .mobileOrderSummary {
     display: block; /* Mostra o resumo do topo no mobile */
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

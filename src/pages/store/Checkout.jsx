@@ -1146,7 +1146,7 @@ const Checkout = () => {
                           {pixData.qr_code && (
                             <div className={styles.qrCodeContainer}>
                               <img 
-                                src={pixData.qr_code} 
+                                src={pixData.qr_code.startsWith('data:') ? pixData.qr_code : `data:image/png;base64,${pixData.qr_code}`} 
                                 alt="QR Code PIX" 
                                 className={styles.qrCode}
                               />
@@ -1179,7 +1179,7 @@ const Checkout = () => {
                           </div>
                           
                           <div className={styles.pixExpiry}>
-                            <p>⏰ Este QR Code expira em 1 hora</p>
+                            <p>⏰ Vencimento: {pixData.expiration_date ? new Date(pixData.expiration_date).toLocaleString() : 'em 1 hora'}</p>
                           </div>
 
                           <button 

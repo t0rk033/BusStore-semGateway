@@ -124,9 +124,14 @@ function SearchResults() {
 
     if (selectedColors.length > 0) {
       filtered = filtered.filter(product =>
-        product.variations && product.variations.some(v => 
-          v.color && selectedColors.includes(v.color)
-        )
+        product.variations && product.variations.some(v => {
+          if (Array.isArray(v.color)) {
+            return v.color.some(c => c && c.name && selectedColors.includes(c.name));
+          } else if (typeof v.color === 'object' && v.color) {
+            return v.color.name && selectedColors.includes(v.color.name);
+          }
+          return v.color && selectedColors.includes(v.color);
+        })
       );
     }
 
@@ -165,7 +170,14 @@ function SearchResults() {
   const subcategories = [...new Set(allProducts.map(p => p.subcategory).filter(Boolean))];
   const brands = [...new Set(allProducts.map(p => p.brand).filter(Boolean))];
   const colors = [...new Set(allProducts.flatMap(p => 
-    p.variations ? p.variations.map(v => v.color).filter(Boolean) : []
+    p.variations ? p.variations.flatMap(v => {
+      if (Array.isArray(v.color)) {
+        return v.color.map(c => c && c.name).filter(Boolean);
+      } else if (typeof v.color === 'object' && v.color) {
+        return [v.color.name].filter(Boolean);
+      }
+      return [v.color].filter(Boolean);
+    }) : []
   ))];
   const sizes = [...new Set(allProducts.flatMap(p => 
     p.variations ? p.variations.map(v => v.size).filter(Boolean) : []
