@@ -48,6 +48,7 @@ function NavBar({ searchTerm, setSearchTerm, onSearchChange, categories = [] }) 
     const auth = getAuth();
     signOut(auth).then(() => {
       setMenuOpen(false);
+      localStorage.setItem('userLogado', false);
       navigate('/');
     }).catch((error) => {
       console.error("Erro ao fazer logout:", error);

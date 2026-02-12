@@ -26,7 +26,11 @@ export function LoginModal({ open = true, onClose, onSwitchToSignup }) {
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      if (onClose) onClose();
+      if (onClose){
+        localStorage.setItem('userLogado', true);
+        onClose();
+        
+      }         
       else navigate('/perfil');
     } catch (err) {
       setError('Email ou senha incorretos.');

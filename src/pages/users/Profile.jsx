@@ -32,13 +32,15 @@ function Profile() {
         try {
           const userDoc = doc(db, 'users', user.uid);
           const userSnapshot = await getDoc(userDoc);
-
           if (userSnapshot.exists()) {
             setUserData(userSnapshot.data());
+            
           }
         } catch (error) {
           console.error('Erro ao carregar dados do usuário:', error);
           setMessage('Erro ao carregar dados do usuário');
+
+
         } finally {
           setLoading(false);
         }

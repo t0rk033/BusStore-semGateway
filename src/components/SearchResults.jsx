@@ -197,13 +197,31 @@ function SearchResults() {
     }
   };
 
-  const handleAddToCart = (productWithDetails) => {
-    addItem({
-      ...productWithDetails,
-      id: `${productWithDetails.id}-${productWithDetails.variation?.color || ''}-${productWithDetails.variation?.size || ''}`,
-    });
-  };
+  //erro ao Addicinar a cor do produto no carrinho, verificar o que está sendo passado para o carrinho e comparar com o que o ProductModal espera
+  // const handleAddToCart = (productWithDetails) => {
+  //   addItem({
+  //     ...productWithDetails,
+  //     id: `${productWithDetails.id}-${productWithDetails.variation?.color || ''}-${productWithDetails.variation?.size || ''}`,
+  //   });
+  // };
   
+const handleAddToCart = (productWithDetails) => {
+  const color =
+    typeof productWithDetails.variation?.color === 'object'
+      ? productWithDetails.variation.color.name
+      : productWithDetails.variation?.color || '';
+
+  addItem({
+    ...productWithDetails,
+    variation: {
+      ...productWithDetails.variation,
+      color, 
+    },
+    id: `${productWithDetails.id}-${color}-${productWithDetails.variation?.size || ''}`,
+  });
+};
+
+
   // abrir/fechar modal do carrinho (mesma UX da Store)
   const handleCloseCart = () => setOpenCartModal(false);
   const handleOpenCart = () => setOpenCartModal(true);

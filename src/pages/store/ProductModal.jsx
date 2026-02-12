@@ -199,11 +199,13 @@ export default function ProductModal({ open, onClose, product, addToCart, onBuyN
   }
 
   function handleBuyNow() {
-    if (!selectedColor || !selectedSize) return;
-    const selectedVariation = (product?.variations || []).find(
-      (v) => v.size === selectedSize && isColorSelected(v.color)
-    );
-    if (!selectedVariation) return;
+    if(ValidarLogin()){
+
+      if (!selectedColor || !selectedSize) return;
+      const selectedVariation = (product?.variations || []).find(
+        (v) => v.size === selectedSize && isColorSelected(v.color)
+      );
+      if (!selectedVariation) return;
     const item = {
       ...product,
       price: product?.salePrice,
@@ -216,6 +218,19 @@ export default function ProductModal({ open, onClose, product, addToCart, onBuyN
     onClose?.();
     // notifica o pai para navegar ao checkout
     onBuyNow?.(item);
+  }else{
+      alert("Faça login para comprar este produto.");
+  }
+  }
+
+  function ValidarLogin(){
+    // Lógica para validar o login do usuário
+    const userIsLoggedIn = localStorage.getItem('userLogado') === 'true';
+    if(!userIsLoggedIn){
+      return false;
+    }
+    return true; // Retorna true se o usuário estiver logado, false caso contrário
+
   }
 
   return (

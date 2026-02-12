@@ -14,6 +14,22 @@ export default function CartModal({ open, onClose, onCheckout }) {
   }, 0);
 
   const totalDiscount = subTotal - (cartTotal || 0);
+const getColorName = (color) => {
+  if (!color) return '';
+
+  // Caso seja array: [{ hex, name }]
+  if (Array.isArray(color)) {
+    return color[0]?.name ?? '';
+  }
+
+  // Caso seja objeto: { hex, name }
+  if (typeof color === 'object') {
+    return color.name ?? '';
+  }
+
+  // Caso seja string
+  return color;
+};
 
   if (!open) return null;
 
@@ -47,7 +63,16 @@ export default function CartModal({ open, onClose, onCheckout }) {
                     <div className={storeStyles.cartItemDetails}>
                       <h3 className={storeStyles.cartItemName}>{item.name}</h3>
                       <div className={storeStyles.cartItemVariation}>
-                        {item.variation?.color && <span>Cor: {item.variation.color}</span>}
+                        {/* {item.variation?.color && <span>Cor: {item.variation.color.name}</span>} */}
+                        <div>
+
+                          {item.variation?.color && (
+                            <span>
+                              Cor: {getColorName(item.variation.color)}
+                            </span>
+                          )}
+                        </div>
+
                         {item.variation?.size && <span style={{ marginLeft: 8 }}>Tamanho: {item.variation.size}</span>}
                       </div>
                       <div className={storeStyles.cartItemPrice}>
