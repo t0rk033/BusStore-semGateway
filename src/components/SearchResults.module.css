@@ -22,47 +22,123 @@
 .filtersSidebar {
     width: 250px;
     background-color: #fff;
-    padding: 20px;
+    padding: 0;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     height: fit-content;
     overflow: auto;
     max-height: 95vh; /* Limita a altura máxima da sidebar */
+    display: flex;
+    flex-direction: column;
 }
 
-/* Título e grupos de filtro */
 .filtersSidebar h3 {
-    margin-top: 0;
-    font-size: 1.2em;
-    color: #333;
+    margin: 0;
+    font-size: 1em;
+    color: #fff;
+    background-color: #1a1a1a;
+    padding: 15px 20px;
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.activeFilterDisplay {
+    padding: 15px 20px;
+    background-color: #f9f9f9;
     border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
+}
+
+.activeFilterDisplay h3 {
+    font-size: 0.85em;
+    margin: 0 0 8px 0;
+    color: #666;
+    background: none;
+    padding: 0;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.activeFilterDisplay p {
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.95em;
 }
 
 .filterGroup {
-    margin-bottom: 20px;
+    margin-bottom: 0;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.filterGroup:last-of-type {
+    border-bottom: none;
 }
 
 .filterGroup h4 {
-    font-size: 1em;
-    color: #555;
-    margin-bottom: 10px;
+    font-size: 0.95em;
+    color: #333;
+    margin-bottom: 12px;
+    margin-top: 0;
+    font-weight: 600;
 }
 
 /* Estilo para cada checkbox e label */
 .filterCheckbox {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     cursor: pointer;
-    font-size: 0.9em;
-    color: #666;
+    font-size: 0.85em;
+    color: #555;
     user-select: none; /* Previne a seleção do texto */
 }
 
 .filterCheckbox input[type="checkbox"] {
     margin-right: 8px;
-    accent-color: #337ab7; /* Cor do checkbox */
+    cursor: pointer;
+    accent-color: #333;
+}
+
+.priceRange {
+    margin-top: 10px;
+    padding: 15px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.priceRange span {
+    font-size: 0.85em;
+    color: #333;
+    font-weight: 600;
+}
+
+.rangeSlider {
+    width: 100%;
+    cursor: pointer;
+}
+
+.clearFiltersButton {
+    padding: 12px 15px;
+    background-color: #08152A;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    margin-left: 20px;
+    margin-right: 20px;
+    width: calc(100% - 40px);
+}
+
+.clearFiltersButton:hover {
+    background-color: #0a0f1f;
 }
 
 /* Estilo para a área de produtos */
@@ -298,20 +374,35 @@ font-size: .8em;
     .closeFiltersMobile {
         background: none;
         border: none;
-        color: #555;
+        color: #fff;
         display: flex;
         align-items: center;
-        gap: 8px;
-        font-size: 1.1em;
-        padding: 10px 20px;
-        border-bottom: 1px solid #eee;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        font-size: 1.2em;
+        flex-shrink: 0;
     }
 
     .applyFiltersMobile {
-        background-color: #337ab7;
+        background-color: #08152A;
         color: white;
         border: none;
         margin-top: 20px;
+        margin-bottom: 20px;
+        margin-left: 20px;
+        margin-right: 20px;
+        padding: 12px 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+        border-radius: 5px;
+        cursor: pointer;
+        width: calc(100% - 40px);
+    }
+    
+    .applyFiltersMobile:hover {
+        background-color: #0a0f1f;
     }
 
     .productsHeader {

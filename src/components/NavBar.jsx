@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useModal } from '../contexts/ModalContext';
 import styles from './Navbar.module.css';
-import logo from '../assets/images/logo.png';
+import logo from '../assets/images/logoDefiB.png';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaUser, FaShoppingCart, FaSearch } from 'react-icons/fa';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';

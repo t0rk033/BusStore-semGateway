@@ -1013,30 +1013,32 @@
 
 /* Seção de Categorias */
 .categoriesSection {
-  padding: 2rem;
-  max-width: 75vw;
+  padding: 2rem 1rem;
+  max-width: 71vw;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .categoriesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15vw, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Card */
 .categoryCard {
   position: relative;
   width: 100%;
-  max-width: 23vw;
-  min-width: 12rem;
-  height: 21vw;
-  min-height: 14rem;
+  height: 20rem;
   border-radius: 0.75rem;
   overflow: hidden;
   cursor: pointer;
   box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-sizing: border-box;
 }
 
 .categoryCard:hover {
@@ -1049,6 +1051,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  box-sizing: border-box;
 }
 
 /* Título no topo */
@@ -1059,10 +1062,11 @@
   width: 100%;
   background: white;
   color: black;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   text-align: center;
   padding: 0.5rem;
+  box-sizing: border-box;
 }
 
 /* Texto no rodapé */
@@ -1075,7 +1079,8 @@
   color: white;
   text-align: left;
   padding: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  box-sizing: border-box;
 }
 
 /* Seção Bermuda */
@@ -1258,15 +1263,15 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 3.3vw;
-  flex-wrap: wrap;
-  padding: 0.75rem 0;
+  gap: 2.5rem;
+  flex-wrap: nowrap;
+  padding: 0.75rem 2rem;
 }
 
 .brandsLogos img {
-  height: 4.5vw;
-  min-height: 3rem;
-  margin: 0 0.75rem;
+  height: 3.5rem;
+  min-height: auto;
+  margin: 0;
   opacity: 0.7;
   transition: opacity 0.2s;
 }
@@ -1478,6 +1483,46 @@
 /* =============================================== */
 /* ============== MEDIA QUERIES ================== */
 /* =============================================== */
+/* Media query para desktop (maior que 1024px) */
+@media (min-width: 1024px) {
+  .categoriesSection {
+    padding: 2rem 2rem;
+    max-width: 71vw;
+    margin: 0 auto;
+  }
+
+  .categoriesGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .brandsLogos {
+    gap: 3vw;
+    padding: 1rem 2rem;
+  }
+
+  .brandsLogos img {
+    height: 4rem;
+  }
+}
+
+/* Media query para tablet (768px a 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .categoriesSection {
+    padding: 1.5rem 1rem;
+    max-width: 95vw;
+    margin: 0 auto;
+  }
+
+  .categoriesGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .categoryCard {
+    height: 18rem;
+  }
+}
+
 @media (max-width: 768px) {
   /* --- Ajustes Gerais de Largura --- */
   body, html {
@@ -1608,73 +1653,71 @@
 
   /* --- Categories Section - AJUSTADO PARA CABER NA TELA --- */
   .categoriesSection {
-    padding: 0 0.75rem 1.5rem 0.75rem; /* Padding lateral reduzido */
+    padding: 1rem 0.5rem;
     max-width: 100vw;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     box-sizing: border-box;
-    display: flex;
-    justify-content: center;
+    display: block;
     margin-top: 0;
   }
 
   .categoriesGrid {
     display: grid;
     grid-template-columns: 2fr 1fr;
-    grid-auto-rows: 26.5vw; /* Altura proporcional à largura da tela */
-    gap: 0.5rem; /* Gap reduzido */
+    grid-auto-rows: 22vw;
+    gap: 0.75rem;
     padding: 0;
     width: 100%;
-    max-width: 100%; /* Garante que não ultrapasse a tela */
-    margin: 0;
+    max-width: 100%;
+    margin: 0 auto;
     box-sizing: border-box;
   }
 
   .categoriesGrid .categoryCard:nth-child(1) {
     grid-column: 1;
     grid-row: span 2;
-    min-height: auto; /* Remove altura fixa */
     height: 100%;
-    border-radius: 0.875rem; /* Border-radius ligeiramente menor */
+    border-radius: 0.75rem;
   }
   
   .categoriesGrid .categoryCard:nth-child(2) {
     grid-column: 2;
     grid-row: 1;
-    min-height: auto;
     height: 100%;
   }
   
   .categoriesGrid .categoryCard:nth-child(3) {
     grid-column: 2;
     grid-row: 2;
-    min-height: auto;
     height: 100%;
   }
 
   .categoriesGrid .categoryCard {
     position: relative;
     overflow: hidden;
-    border-radius: 0.875rem; /* Border-radius reduzido */
+    border-radius: 0.75rem;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 0.75rem; /* Padding interno reduzido */
     color: #fff;
-    box-shadow: 0 0.2rem 0.5rem rgba(0,0,0,0.15); /* Sombra mais sutil */
+    box-shadow: 0 0.2rem 0.5rem rgba(0,0,0,0.15);
     height: 100%;
+    width: 100%;
     max-width: none;
-    min-height: 0;
     margin: 0;
+    padding: 0;
     box-sizing: border-box;
   }
   
   .categoryName {
     z-index: 10;
-    font-size: 0.9rem; /* Fonte reduzida */
-    margin: 0 0 0.2rem 0; /* Margem reduzida */
+    font-size: 0.85rem;
+    margin: 0 0 0.2rem 0;
     font-weight: 600;
     line-height: 1.1;
+    padding: 0.5rem;
   }
 
   .categoriesGrid .categoryCard:nth-child(1) .categoryName {
@@ -1682,18 +1725,20 @@
   }
 
   .categoriesGrid .categoryCard:nth-child(1) .categoryFooter {
-    font-size: 1.2rem; /* Fonte reduzida */
+    font-size: 1.1rem;
     font-weight: 700;
     text-shadow: 0 0 4px rgba(0,0,0,0.7);
     z-index: 10;
+    padding: 0.75rem;
   }
 
   .categoryFooter {
-    font-size: 0.85rem; /* Fonte reduzida */
+    font-size: 0.78rem;
     font-weight: 500;
     text-shadow: 0 0 4px rgba(0,0,0,0.5);
     z-index: 10;
     line-height: 1.1;
+    padding: 0.5rem;
   }
 
   .categoryImage {

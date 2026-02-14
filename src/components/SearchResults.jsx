@@ -262,16 +262,18 @@ const handleAddToCart = (productWithDetails) => {
       <div className={styles.mainContent}>
         {/* Barra lateral de filtros */}
         <div className={`${styles.filtersSidebar} ${isFilterSidebarOpen ? styles.open : ''}`}>
-          <button className={styles.closeFiltersMobile} onClick={() => setIsFilterSidebarOpen(false)}>
-            <FiX /> Fechar
-          </button>
+          <h3>
+            Filtros:
+            <button className={styles.closeFiltersMobile} onClick={() => setIsFilterSidebarOpen(false)}>
+              <FiX size={20} />
+            </button>
+          </h3>
           {(categoryQuery || searchQuery) && (
             <div className={styles.activeFilterDisplay}>
               <h3>Resultados para:</h3>
               <p>{categoryQuery || searchQuery}</p>
             </div>
           )}
-          <h3>Filtrar por</h3>
           
           {categories.length > 0 && (
             <div className={styles.filterGroup}>
