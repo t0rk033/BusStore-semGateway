@@ -9,8 +9,7 @@ import { collection, addDoc, updateDoc, doc, getDoc, setDoc } from "firebase/fir
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const Checkout = () => {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
+  const API_URL = import.meta.env.VITE_API_URL || 'https://backendbusstore.onrender.com'
   const [step, setStep] = useState(1);
   const {
     items: cartItems,
@@ -1207,13 +1206,15 @@ const Checkout = () => {
                         </ul>
                       </div>
                       
-                      <button 
-                        className={styles.boletoButton}
-                        onClick={processBoletoPayment}
-                        disabled={processing}
-                      >
-                        {processing ? 'Gerando boleto...' : `GERAR BOLETO - R$ ${total.toFixed(2)}`}
-                      </button>
+                      {!paymentResult?.boleto_data && (
+                        <button 
+                          className={styles.boletoButton}
+                          onClick={processBoletoPayment}
+                          disabled={processing}
+                        >
+                          {processing ? 'Gerando boleto...' : `GERAR BOLETO - R$ ${total.toFixed(2)}`}
+                        </button>
+                      )}
   
                       {paymentResult?.boleto_data && (
                         <div className={styles.boletoGenerated}>
